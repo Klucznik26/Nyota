@@ -16,6 +16,13 @@ if needle not in text:
     raise SystemExit("ambiguous MatchParen replacement call not found")
 text = text.replace(needle, replacement, 1)
 
+# The inserted helper block must end before the real ParsePrimary declaration.
+dup_tail = '''    *consumed = i;\n    return 1;\n}\n\n// Prosta ewaluacja wyrażenia (bez rekurencji dla nawiasów — linearny parser)\nstatic NyotaVal ParsePrimary(const char **pp) {\n''')\n'''
+fixed_tail = '''    *consumed = i;\n    return 1;\n}\n\n''')\n'''
+if dup_tail not in text:
+    raise SystemExit("duplicate ParsePrimary tail in temporary upgrade script not found")
+text = text.replace(dup_tail, fixed_tail, 1)
+
 # LIST was completed after the original temporary patch was prepared.
 # Make the agent-facing documentation anchor follow the current green status line.
 lines = text.splitlines(keepends=True)
@@ -29,5 +36,8 @@ if not replaced:
     raise SystemExit("LIST documentation needle in temporary upgrade script not found")
 text = ''.join(lines)
 
+# Python string literals in the temporary patch must emit C '\\0', not a literal NUL byte.
+text = text.replace("\\0", "\\\\0")
+
 p.write_text(text, encoding="utf-8")
-print("made TUPLE/TIME temporary patch deterministic and synchronized with LIST docs")
+print("repaired TUPLE/TIME temporary patch: parser block, LIST docs and C NUL escapes")
