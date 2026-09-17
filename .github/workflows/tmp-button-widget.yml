@@ -1,0 +1,47 @@
+name: Temporary BUTTON validation
+
+on:
+  push:
+    branches:
+      - button-widget
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-commit:
+    if: ${{ !contains(github.event.head_commit.message, '[button-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: button-widget
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libsdl2-dev
+
+      - name: Apply BUTTON upgrade
+        run: python3 scripts/apply_button_widget.py
+
+      - name: Build interpreter
+        run: |
+          make clean
+          make
+
+      - name: Run regression tests
+        run: make test
+
+      - name: Run headless graphics tests
+        run: make test-graph
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "Nyota CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/nyota.c src/nyota_host.h host/posix/host.c docs/nyota.md docs/nyota_v05.md README.md tests/
+          git commit -m "BUTTON: named GUI control and click handling [button-applied]"
+          git push origin HEAD:button-widget
