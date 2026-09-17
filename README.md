@@ -1,38 +1,226 @@
-# Nyota
+<h1 align="center">Nyota</h1>
 
-Niezależny język programowania.
+<p align="center">
+  <strong>Autorski język programowania AyoOS — prosty, jawny i rozwijany jako język przenośny.</strong>
+</p>
 
-- **Nyota** — język i interpreter
-- **Tunga** — osobny edytor (nie jest częścią tego repozytorium)
-- **AyoOS** — pierwszy system-host; tutaj rozwijamy host Linux
+<p align="center">
+  <img alt="Status" src="https://img.shields.io/badge/status-active%20development-orange">
+  <img alt="Implementation" src="https://img.shields.io/badge/implementation-C-00599C?logo=c&logoColor=white">
+  <img alt="Linux host" src="https://img.shields.io/badge/host-Linux-FCC624?logo=linux&logoColor=black">
+  <img alt="AyoOS" src="https://img.shields.io/badge/target-AyoOS-6f42c1">
+  <img alt="Source files" src="https://img.shields.io/badge/source-.nyo-blueviolet">
+</p>
 
-`PRINT`, `GRAPH`, `INPUT` i `DELAY` należą do języka i muszą działać na każdym hoście.
+---
 
-## Linux
+## Czym jest Nyota?
 
-Zależność: SDL2 (`pkg-config sdl2`).
+**Nyota** to własny język programowania tworzony dla **AyoOS**, ale projektowany tak, aby sam język nie był zależny od jednego edytora ani jednego systemu operacyjnego.
+
+AyoOS jest pierwszym systemem-hostem Nyoty. Równolegle rozwijany jest host dla Linuksa, a architektura interpretera rozdziela rdzeń języka od warstwy platformowej.
+
+**Tunga** jest osobnym edytorem i nie stanowi części Nyoty. Docelowo ten sam kod `.nyo` ma być uruchamiany przez różne środowiska bez zmiany semantyki języka.
+
+Nyota stawia na:
+
+- czytelną składnię opartą o wcięcia,
+- jawne typy i brak ukrytych konwersji,
+- `:=` do przypisania i ścisłe `=` do porównania typu oraz wartości,
+- proste funkcje i procedury,
+- struktury danych przydatne w codziennym programowaniu,
+- wbudowane możliwości systemowe i graficzne,
+- ten sam język na AyoOS i hostach desktopowych.
+
+---
+
+## Krótki przykład
+
+```nyota
+FUNCTION Dodaj(a, b):
+    RETURN a + b
+
+BEGIN
+VAR data := <2026.09.17>
+VAR wynik := Dodaj(2, 3)
+
+IF YEAR(data) = 2026:
+    PRINT wynik
+
+FOR i := 0 TO 10 STEP 5:
+    PRINT i
+END
+```
+
+Najważniejsze reguły widoczne już w tym przykładzie:
+
+```text
+.nyo        rozszerzenie plików źródłowych
+BEGIN/END   rama kodu wykonywalnego
+4 spacje    jeden poziom wcięcia
+:=          przypisanie
+=           ścisłe porównanie typu i wartości
+```
+
+---
+
+## Stan projektu
+
+Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale część bardziej rozbudowanych elementów pozostaje w trakcie stabilizacji.
+
+| Obszar | Stan | Uwagi |
+|---|:---:|---|
+| `BEGIN / END`, komentarze, 4-spacjowe wcięcia | ✅ | interpreter egzekwuje strukturę programu |
+| Wyrażenia i precedencja operatorów | ✅ | m.in. `*`, `/`, `+`, `-`, `MOD`, nawiasy, logika |
+| `IF / ELIF / ELSE` | ✅ | jeden spójny łańcuch warunkowy |
+| `FOR ... STEP`, `WHILE`, `CONTINUE` | ✅ | podstawowe sterowanie przepływem |
+| `FUNCTION`, `PROCEDURE`, `RETURN`, zakresy | ✅ | wywołania funkcji działają także w wyrażeniach |
+| Ścisłe typowanie i jawne konwersje | 🚧 | system typów jest intensywnie dopracowywany |
+| `DATE` | ✅ | literał `<RRRR.MM.DD>`, walidacja gregoriańska i arytmetyka dni |
+| `LIST` | 🚧 | rozszerzane operacje i semantyka kolekcji |
+| `MARK` | 🚧 | autorska struktura tabelowa Nyoty |
+| Host Linux | 🚧 | terminal + backend SDL2 dla grafiki |
+| Host AyoOS | 🚧 | docelowo wspólny `src/nyota.c` dla wszystkich hostów |
+
+Szczegółowy stan interpretera znajduje się w [`docs/nyota.md`](docs/nyota.md), a droga do stabilizacji i rozwoju w [`docs/nyota_v05.md`](docs/nyota_v05.md).
+
+---
+
+## Budowanie na Linuksie
+
+Aktualny host POSIX/Linux jest budowany z kodu C i korzysta z SDL2.
+
+### Wymagania
+
+```text
+kompilator C zgodny z C11 (np. GCC)
+make
+pkg-config
+SDL2 wraz z plikami deweloperskimi
+```
+
+### Kompilacja
 
 ```bash
+git clone https://github.com/Klucznik26/Nyota.git
+cd Nyota
 make
-./nyota tests/hello.nyo
+```
+
+Powstanie plik wykonywalny:
+
+```text
+./nyota
+```
+
+### Uruchomienie programu
+
+```bash
+./nyota program.nyo
+```
+
+Na przykład:
+
+```bash
+./nyota tests/core_demo.nyo
+```
+
+Aktualny program hosta przyjmuje plik `.nyo` jako pierwszy argument.
+
+---
+
+## Testy
+
+Repozytorium zawiera zestaw programów regresyjnych w katalogu `tests/`.
+
+```bash
 make test
 ```
 
-`GRAPH` otwiera okno SDL. Testy bez grafiki idą na stdout.
+Testy obejmują między innymi parser wyrażeń, typy, błędy składni i wykonania, funkcje, pętle, daty, listy oraz rozwijany `MARK`.
 
-## Układ
+Duży test demonstracyjny rdzenia:
 
-```text
-src/nyota.c          interpreter
-src/nyota_host.h     kontrakt hosta
-host/posix/          Linux: stdout + SDL
-host/ayoos/          notatka o hoście AyoOS
-docs/                specyfikacja i plan v0.5
-tests/               programy .nyo
+```bash
+./nyota tests/core_demo.nyo
 ```
 
-## Dokumenty
+---
 
-- `docs/nyota.md` — specyfikacja języka
-- `docs/nyota_v05.md` — plan stabilizacji
-- `docs/zasadymd.md` — jak oznaczać stan w `.md`
+## Architektura
+
+```text
+Nyota source (.nyo)
+        │
+        ▼
+  src/nyota.c
+  interpreter core
+        │
+        ▼
+ src/nyota_host.h
+  host contract
+      ┌─┴───────────────┐
+      ▼                 ▼
+ host/posix/        host/ayoos/
+ Linux + SDL2       AyoOS
+```
+
+Rdzeń interpretera jest oddzielany od platformy. Polecenia języka takie jak `PRINT`, `GRAPH`, `INPUT` czy `DELAY` należą do Nyoty; host dostarcza jedynie ich backend dla danego systemu.
+
+Interpreter udostępnia również punkt wejścia do osadzania:
+
+```c
+void NyotaEmbedRun(const char *src, void (*emit)(char c));
+```
+
+Dzięki temu Nyota może być uruchamiana z różnych edytorów i środowisk bez tworzenia osobnej odmiany języka.
+
+---
+
+## Struktura repozytorium
+
+```text
+src/
+    nyota.c          interpreter
+    nyota_host.h     kontrakt hosta
+
+host/
+    posix/           host Linux / SDL2
+    ayoos/           integracja AyoOS
+
+docs/
+    nyota.md         bieżąca specyfikacja i stan interpretera
+    nyota_v05.md     plan stabilizacji i rozwoju
+    do_wdrożenia.md  dalsze elementy do wdrożenia
+
+tests/               programy testowe .nyo
+scripts/             automatyzacja testów
+Makefile             budowanie hosta Linux
+```
+
+---
+
+## Dokumentacja
+
+Najważniejsze dokumenty projektu:
+
+- [`docs/nyota.md`](docs/nyota.md) — bieżące zasady języka i faktyczny stan interpretera,
+- [`docs/nyota_v05.md`](docs/nyota_v05.md) — plan stabilizacji oraz zatwierdzone kierunki rozwoju,
+- [`docs/do_wdrożenia.md`](docs/do_wdrożenia.md) — elementy oczekujące na implementację,
+- [`docs/zasadymd.md`](docs/zasadymd.md) — sposób oznaczania stanu prac w dokumentacji.
+
+---
+
+## Kierunek rozwoju
+
+Po ustabilizowaniu rdzenia Nyota ma rozwijać się także w stronę bogatszych struktur danych, `TIME` i `DATETIME`, relacyjnego `MARK`, rozbudowanego `TABLE`, standardowego GUI, sprite'ów, audio oraz dalszej pracy nad hostem Linuksa.
+
+Planowane są również narzędzia wygodne poza AyoOS: obsługa Nyoty w **Visual Studio Code** oraz instalacyjne pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
+
+Nyota nie ma zastępować C lub Zig w najniższych warstwach systemu. Jej celem jest wygodne tworzenie aplikacji, narzędzi, automatyzacji, grafiki i prostych gier przy zachowaniu własnej, spójnej semantyki.
+
+---
+
+<p align="center">
+  <strong>Nyota jest częścią świata AyoOS, ale język ma żyć także poza nim.</strong>
+</p>
