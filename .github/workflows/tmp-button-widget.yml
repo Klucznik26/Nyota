@@ -24,6 +24,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libsdl2-dev
 
+      - name: Fix BUTTON upgrade script
+        run: python3 scripts/fix_button_widget_script.py
+
       - name: Apply BUTTON upgrade
         run: python3 scripts/apply_button_widget.py
 
@@ -42,6 +45,7 @@ jobs:
         run: |
           git config user.name "Nyota CI"
           git config user.email "actions@users.noreply.github.com"
-          git add src/nyota.c src/nyota_host.h host/posix/host.c docs/nyota.md docs/nyota_v05.md README.md tests/
+          rm -f scripts/apply_button_widget.py scripts/fix_button_widget_script.py .github/workflows/tmp-button-widget.yml
+          git add -A
           git commit -m "BUTTON: named GUI control and click handling [button-applied]"
           git push origin HEAD:button-widget
