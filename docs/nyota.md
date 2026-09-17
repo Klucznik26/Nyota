@@ -48,6 +48,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">TUPLE: literał, indeksowanie, LEN, IN, FOR...IN i konwersje LIST/TUPLE wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">TIME: TIME(), TIME(HH.MM.SS), HOUR/MINUTE/SECOND, H/M/S, TIME-TIME, porównania i SORT wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">TABLE: nazwana kontrolka prezentacji danych; kolumny i szerokości, czcionka/rozmiar, kolor tekstu, opcjonalne źródło LIST/TUPLE/MARK oraz TABLE_DATA wykonane 2026-09-17</span>
+- <span style="color: #006A4E;">BUTTON: nazwana kontrolka GUI z geometrią, tekstem, czcionką/rozmiarem, kolorami tekstu/tła i BUTTON_CLICKED() wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>
@@ -1160,6 +1161,43 @@ Zasady:
 * `WIND_OPEN` tworzy obiekt GUI,
 * nie zmienia aktywnego kontekstu rysowania,
 * rysowanie `BOX`, `LINE` itd. trafia nadal do aktywnego `SCREEN`.
+
+---
+
+## 43a. BUTTON
+
+`BUTTON` jest nazwaną kontrolką GUI. Nie jest typem zmiennej Nyoty.
+
+```nyota
+BUTTON zapisz, 40, 40, 160, 48, "Zapisz", "SYSTEM", 14, 255, 255, 255, 40, 110, 180
+```
+
+Składnia:
+
+```text
+BUTTON nazwa, x, y, szerokosc, wysokosc, tekst, font, rozmiar,
+       text_r, text_g, text_b, bg_r, bg_g, bg_b
+```
+
+Nazwa jest logicznym identyfikatorem kontrolki, analogicznie do `TABLE`; nie jest
+zmienną i nie jest automatycznie wyświetlanym tytułem. Ponowne `BUTTON` z tą samą
+nazwą aktualizuje kontrolkę. `BUTTON` wymaga wcześniejszego `GRAPH`.
+
+Kliknięcie sprawdza funkcja:
+
+```nyota
+IF BUTTON_CLICKED(zapisz):
+    # reakcja programu
+```
+
+`BUTTON_CLICKED()` zwraca `BOOLEAN` i wykrywa przejście lewego przycisku wskaźnika
+z puszczonego do wciśniętego wewnątrz kontrolki. Akceptowana jest też forma
+`BUTTON_CLICKED("zapisz")`. Host musi dostarczać stan wskaźnika; backend POSIX/SDL2
+już go udostępnia. Powiązanie wskaźnika AyoOS wymaga odpowiedniego callbacku hosta.
+
+Parametr `font` jest częścią definicji kontrolki. Bieżący prymityw tekstowy hosta
+wybiera fizyczną czcionkę po stronie backendu; nazwana obsługa fontów będzie
+rozszerzeniem kontraktu hosta, bez zmiany składni `BUTTON`.
 
 ---
 

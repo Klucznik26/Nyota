@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD
+BEGIN
+BUTTON bad, 20, 20, 120, 40, "Bad", "SYSTEM", 12, 255, 255, 255, 30, 120, 60
+END

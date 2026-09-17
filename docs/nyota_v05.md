@@ -1992,6 +1992,24 @@ Na tym etapie TABLE nie zapewnia jeszcze nagłówków, edycji komórek, zaznacza
 przewijania ani sortowania kliknięciem. To są późniejsze możliwości GUI, nie
 warunek istnienia podstawowej kontrolki prezentacyjnej.
 
+## 6.14a. BUTTON — nazwana kontrolka GUI
+
+**Status wdrożenia:** FUTURE (pierwszy etap wykonany wcześniej na prośbę)  
+<span style="color: #006A4E;">nazwa logiczna, geometria, tekst, font/rozmiar, kolory tekstu/tła, renderowanie i BUTTON_CLICKED() na hoście POSIX wykonane 2026-09-17</span>
+
+`BUTTON` nie jest typem zmiennej. Nazwa identyfikuje kontrolkę, tak aby program
+mógł utrzymywać wiele przycisków jednocześnie.
+
+```nyota
+BUTTON zapisz, 40, 40, 160, 48, "Zapisz", "SYSTEM", 14, 255, 255, 255, 40, 110, 180
+IF BUTTON_CLICKED(zapisz):
+    PRINT "klik"
+```
+
+Pierwszy etap definiuje kontrolkę i semantykę kliknięcia. Rozbudowany wspólny
+system zdarzeń GUI, focus, disabled/hover, tab-order i callbacki pozostają częścią
+przyszłego standardu GUI.
+
 ## 6.16. Kierunki FUTURE
 
 **Status wdrożenia:** FUTURE

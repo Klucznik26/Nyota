@@ -1,0 +1,7 @@
+# Oczekiwane: OK
+BEGIN
+GRAPH 1
+BUTTON akcja, 20, 20, 140, 44, "Akcja", "SYSTEM", 12, 255, 255, 255, 50, 90, 150
+VAR a := BUTTON_CLICKED(akcja)
+VAR b := BUTTON_CLICKED(akcja)
+END
