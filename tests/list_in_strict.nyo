@@ -1,0 +1,7 @@
+# Oczekiwane: zawiera STRICT
+BEGIN
+IF 5.0 IN [5]:
+    PRINT "BAD"
+ELSE:
+    PRINT "STRICT"
+END

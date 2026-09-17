@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera 1
+BEGIN
+VAR a := ["x, ALL", "z"]
+REMOVE a, "x, ALL"
+PRINT LEN(a)
+END

@@ -974,12 +974,55 @@ FOR i := 10 TO 1 STEP -1:
 
 Brak `STEP` oznacza zachowanie dotychczasowego kroku domyślnego.
 
-## 6.9. Rozszerzenia LIST
+## 6.9. TUPLE — niemutowalna sekwencja
 
-**Status wdrożenia:** APPROVED AFTER CORE (pierwszy wycinek wdrożony wcześniej)  
-<span style="color: navy;">`+` `-` `><`, EXTEND, REMOVE indeks/wartość/ALL, CLEAR, REVERSE w toku (zaawansowany etap) 2026-09-17</span>
+**Status wdrożenia:** APPROVED AFTER CORE  
+<span style="color: #006A4E;">literał, indeksowanie, LEN, IN, FOR...IN oraz konwersje LIST/TUPLE wykonane 2026-09-17</span>
 
-Operatory `+`, `-` i `><` zwracają nową listę. Instrukcje `EXTEND`, `REMOVE`,
+`TUPLE` jest uporządkowaną, niemutowalną sekwencją. Może zawierać wartości różnych typów.
+
+```nyota
+VAR a := ()
+VAR b := (5,)
+VAR c := (10, "Ayo", TRUE)
+```
+
+Przecinek odróżnia jednoelementową `TUPLE` od zwykłego nawiasu grupującego.
+
+```nyota
+(5)     # INTEGER w nawiasie
+(5,)    # TUPLE z jednym elementem
+```
+
+Dostęp i iteracja:
+
+```nyota
+PRINT c[0]
+PRINT LEN(c)
+FOR x IN c:
+    PRINT x
+```
+
+Operator `IN` sprawdza obecność wartości z zachowaniem ścisłej tożsamości typu.
+
+`TUPLE` jest niemutowalne. Niedozwolone są przypisanie do indeksu oraz instrukcje mutujące `APPEND`, `REMOVE`, `EXTEND`, `CLEAR`, `REVERSE` i `SORT`.
+
+Konwersje tworzą nowy kontener:
+
+```nyota
+VAR lista := [1, 2, 3]
+VAR t := TUPLE(lista)
+VAR kopia := LIST(t)
+```
+
+Zmiana `lista` lub `kopia` nie zmienia długości ani układu `t`.
+
+## 6.10. Rozszerzenia LIST
+
+**Status wdrożenia:** APPROVED AFTER CORE  
+<span style="color: #006A4E;">pełna zatwierdzona powierzchnia LIST: literały i zagnieżdżenia, indeksowanie, `+` `-` `><`, IN/LEN, APPEND/EXTEND/REMOVE/CLEAR/REVERSE/SORT, FOR...IN wykonane 2026-09-17</span>
+
+Operatory `+`, `-` i `><` zwracają nową listę. Instrukcje `APPEND`, `EXTEND`, `REMOVE`,
 `CLEAR`, `REVERSE` i `SORT` zmieniają istniejącą listę w miejscu.
 
 ### Łączenie list operatorem `+`
@@ -1070,9 +1113,9 @@ Po wykonaniu:
 W operacjach na listach typ jest częścią tożsamości wartości.
 
 ```text
-5 != "5"
-5 != 5.0
-5 != TRUE
+5 <> "5"
+5 <> 5.0
+5 <> TRUE
 ```
 
 Nie wykonuje się ukrytych konwersji podczas `EXTEND`, odejmowania, usuwania ani innych operacji porównujących elementy list.
@@ -1162,9 +1205,28 @@ wynik:
 REVERSE lista
 ```
 
-## 6.10. Losowe listy liczbowe
+### FOR ... IN LIST
 
-**Status wdrożenia:** APPROVED AFTER CORE
+`FOR ... IN` przechodzi po elementach listy w ich bieżącej kolejności. Wyrażenie
+listy jest obliczane raz przy wejściu do pętli. Zmienna iteratora jest zmienną
+sterującą pętli i przy liście mieszanej przyjmuje typ aktualnego elementu.
+
+```nyota
+FOR element IN lista:
+    PRINT element
+```
+
+Indeksowanie LIST jest ścisłe: indeks musi być `INTEGER`. `"1"`, `1.0` ani
+`TRUE` nie są automatycznie zamieniane na indeks całkowity.
+
+Bieżący interpreter ma limit implementacyjny `64` elementów jednej LIST.
+Limit ten wynika z obecnej statycznej implementacji i nie jest deklarowanym
+limitem semantycznym języka.
+
+## 6.11. Losowe listy liczbowe
+
+**Status wdrożenia:** APPROVED AFTER CORE  
+<span style="color: #006A4E;">RANDINT i RANDFLT, count do 64 i precyzja RANDFLT 0..3 wykonane 2026-09-17</span>
 
 ### RANDINT()
 
@@ -1207,7 +1269,7 @@ Dozwolona precyzja jest ograniczona do zakresu:
 
 Wartość spoza tego zakresu ma powodować błąd interpretera.
 
-## 6.11. Rozszerzenia MARK
+## 6.12. Rozszerzenia MARK
 
 **Status wdrożenia:** APPROVED AFTER CORE (pierwszy wycinek wdrożony wcześniej)  
 <span style="color: navy;">literał, odczyt, zapis wiersza/komórki, DELETE, LEN, IN, KEY/VALUE/MINFO w toku (zaawansowany etap) 2026-09-17</span>  
@@ -1550,7 +1612,7 @@ MLIST(dane, KEY)   -> ["A", "B", "C"]
 ```
 
 
-## 6.12. DATE — pełnoprawny typ daty
+## 6.13. DATE — pełnoprawny typ daty
 
 **Status wdrożenia:** APPROVED AFTER CORE (wdrożone wcześniej na prośbę)  
 <span style="color: #006A4E;">literał `&lt;RRRR.MM.DD&gt;`, gregoriańskie lata przestępne, DATE±INTEGER, DATE−DATE, porównania, YEAR/MONTH/DAY/TODAY wykonane 2026-09-17</span>  
@@ -1703,11 +1765,10 @@ PRINT YEAR(dzis), ".", MONTH(dzis), ".", DAY(dzis)
 `DATE` ma współpracować z `LIST`, `MARK`, `SORT`, `MIN`, `MAX`, `VALUE`,
 `VALUES` i `MLIST` bez konwersji do tekstu.
 
-## 6.13. TIME — pełnoprawny typ czasu
+## 6.14. TIME — pełnoprawny typ czasu
 
 **Status wdrożenia:** APPROVED AFTER CORE  
-**Brama implementacji:** nie wdrażać, dopóki nie są zamknięte `TIME - TIME`
-oraz decyzja o `DATETIME`.
+<span style="color: #006A4E;">TIME(), TIME(HH.MM.SS), HOUR/MINUTE/SECOND, przesunięcia H/M/S, TIME-TIME, porównania i SORT wykonane 2026-09-17</span>
 
 Kierunek składni pozostaje zatwierdzony:
 
@@ -1791,9 +1852,15 @@ TIME(23.50.00) + M20   # TIME(00.10.00)
 TIME(00.10.00) - M20   # TIME(23.50.00)
 ```
 
-Różnica `TIME - TIME` nie została jeszcze zdefiniowana. To nie jest drobiazg
-do dopisania przy implementacji: bez tej reguły, bez decyzji o jednostce
-wyniku i bez decyzji o `DATETIME` interpreter nie dostaje typu `TIME`.
+Różnica `TIME - TIME` zwraca `INTEGER` wyrażony w sekundach. Jest to różnica
+prostych wartości pory dnia bez automatycznego wybierania krótszej drogi przez północ.
+
+```nyota
+TIME(14.30.00) - TIME(13.00.00)   # 5400
+TIME(01.00.00) - TIME(23.00.00)   # -79200
+```
+
+`DATETIME` pozostaje osobnym kierunkiem FUTURE i nie zmienia tej reguły.
 
 ### Porównania i sortowanie TIME
 
@@ -1850,7 +1917,7 @@ PRINT HOUR(teraz), ":", MINUTE(teraz), ":", SECOND(teraz)
 `TIME` ma współpracować z `LIST`, `MARK`, `SORT`, `VALUE`, `VALUES` i `MLIST`
 jako rzeczywisty typ, bez zamiany na `[HH, MM, SS]`.
 
-## 6.14. Kierunki FUTURE
+## 6.15. Kierunki FUTURE
 
 **Status wdrożenia:** FUTURE
 

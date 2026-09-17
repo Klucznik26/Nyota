@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera 3 Ayo
+BEGIN
+VAR t := (10, "Ayo", TRUE)
+PRINT LEN(t), t[1]
+END

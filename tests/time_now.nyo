@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera TRUE TRUE
+BEGIN
+VAR t := TIME()
+PRINT HOUR(t) >= 0, HOUR(t) <= 23
+END

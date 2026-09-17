@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera TIME(00.10.00) TIME(13.50.20)
+BEGIN
+VAR a := TIME(23.50.00) + M20
+VAR b := TIME(14.20.20) - M30
+PRINT a, b
+END

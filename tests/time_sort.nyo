@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera TIME(08.00.00)
+BEGIN
+VAR t := [TIME(18.00.00), TIME(08.00.00), TIME(12.30.00)]
+SORT t
+PRINT t[0]
+END

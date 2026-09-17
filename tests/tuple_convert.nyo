@@ -1,0 +1,9 @@
+# Oczekiwane: zawiera 2 3 3
+BEGIN
+VAR a := [1, 2]
+VAR t := TUPLE(a)
+APPEND a, 3
+VAR b := LIST(t)
+APPEND b, 4
+PRINT LEN(t), LEN(a), LEN(b)
+END

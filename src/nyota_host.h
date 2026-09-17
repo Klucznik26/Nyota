@@ -16,6 +16,7 @@ typedef struct NyotaHost {
     void (*emit_str)(const char *s);
 
     uint64_t (*unix_time)(void);
+    uint32_t (*local_time_seconds)(void);
     uint64_t (*ticks_100hz)(void);
 
     uint8_t (*wait_key)(void);

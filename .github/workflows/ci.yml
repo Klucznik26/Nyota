@@ -1,0 +1,23 @@
+name: Nyota CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libsdl2-dev
+      - name: Build
+        run: make
+      - name: Regression tests
+        run: make test
+      - name: Headless graphics tests
+        run: make test-graph

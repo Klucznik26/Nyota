@@ -1,0 +1,4 @@
+# Oczekiwane: zawiera 5400 -79200
+BEGIN
+PRINT TIME(14.30.00) - TIME(13.00.00), TIME(01.00.00) - TIME(23.00.00)
+END

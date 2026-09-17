@@ -1,0 +1,7 @@
+# Oczekiwane: zawiera 6
+BEGIN
+VAR suma := 0
+FOR x IN [1, 2, 3]:
+    suma := suma + x
+PRINT suma
+END

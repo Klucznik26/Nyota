@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD
+BEGIN
+VAR t := TIME(24.00.00)
+END
