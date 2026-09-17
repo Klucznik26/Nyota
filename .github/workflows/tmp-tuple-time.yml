@@ -1,0 +1,52 @@
+name: Temporary TUPLE TIME validation
+
+on:
+  push:
+    branches:
+      - tuple-time-now
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-commit:
+    if: ${{ !contains(github.event.head_commit.message, '[tuple-time-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: tuple-time-now
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libsdl2-dev
+
+      - name: Apply TUPLE and TIME upgrade
+        run: python3 scripts/tmp_tuple_time_upgrade.py
+
+      - name: Build interpreter
+        run: |
+          make clean
+          make
+
+      - name: Run regression tests
+        run: make test
+
+      - name: Run headless graphics tests
+        run: make test-graph
+
+      - name: Remove temporary upgrade machinery
+        run: |
+          rm -f scripts/tmp_tuple_time_upgrade.py
+          rm -f .github/workflows/tmp-tuple-time.yml
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "Nyota CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "TUPLE and TIME: immutable sequences, time arithmetic and tests [tuple-time-applied]"
+          git push origin HEAD:tuple-time-now
