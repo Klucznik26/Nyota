@@ -1,0 +1,5 @@
+# Oczekiwane: wypisuje Hello World
+# Status: BLOCKS v0.5 — wcięcie 4, 2026-09-17
+BEGIN
+PRINT "Hello World"
+END

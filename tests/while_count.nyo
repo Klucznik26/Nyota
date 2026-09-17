@@ -1,0 +1,7 @@
+# Oczekiwane: wypisuje 0 1 2
+BEGIN
+VAR x := 0
+WHILE x < 3:
+    PRINT x
+    x := x + 1
+END

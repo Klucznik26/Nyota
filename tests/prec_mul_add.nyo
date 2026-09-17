@@ -1,0 +1,4 @@
+# Oczekiwane: wypisuje 10
+BEGIN
+PRINT 2 * 3 + 4
+END

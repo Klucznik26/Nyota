@@ -1,0 +1,7 @@
+# Oczekiwane: wypisuje 3
+BEGIN
+VAR a := [1, 1, 2, 3]
+VAR b := [1]
+VAR c := a - b
+PRINT LEN(c)
+END

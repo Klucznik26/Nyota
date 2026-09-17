@@ -1,0 +1,6 @@
+# Oczekiwane: wypisuje 3
+BEGIN
+VAR a := [1, 2, 3]
+REVERSE a
+PRINT a[0]
+END

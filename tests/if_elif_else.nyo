@@ -1,0 +1,10 @@
+# Oczekiwane: wypisuje C
+BEGIN
+VAR x := 3
+IF x = 1:
+    PRINT "A"
+ELIF x = 2:
+    PRINT "B"
+ELSE:
+    PRINT "C"
+END

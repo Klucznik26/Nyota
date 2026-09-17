@@ -1,0 +1,8 @@
+# Oczekiwane: wypisuje B
+BEGIN
+VAR x := 0
+IF x = 1:
+    PRINT "A"
+ELSE:
+    PRINT "B"
+END

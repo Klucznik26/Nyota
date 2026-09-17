@@ -1,0 +1,8 @@
+# Oczekiwane: wypisuje 5
+FUNCTION Dodaj(a, b):
+    RETURN a + b
+
+BEGIN
+VAR wynik := Dodaj(2, 3)
+PRINT wynik
+END

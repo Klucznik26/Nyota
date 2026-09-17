@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD ELIF/ELSE bez IF
+BEGIN
+ELIF 1 = 1:
+    PRINT "zle"
+END

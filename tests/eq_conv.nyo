@@ -1,0 +1,7 @@
+# Oczekiwane: wypisuje OK
+BEGIN
+IF INT(5.0) = 5:
+    PRINT "OK"
+IF FLT(5) = 5.0:
+    PRINT "OK"
+END

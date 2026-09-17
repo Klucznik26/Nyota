@@ -1,0 +1,3 @@
+# Oczekiwane: BLAD [ln.2]: Brak END
+BEGIN
+PRINT "Hello"

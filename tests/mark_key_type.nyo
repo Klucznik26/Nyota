@@ -1,0 +1,5 @@
+# Oczekiwane: wypisuje A
+BEGIN
+VAR m := {2| 5 | "A", "5" | "B"}
+PRINT m[5][0]
+END

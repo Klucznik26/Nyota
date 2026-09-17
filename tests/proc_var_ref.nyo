@@ -1,0 +1,9 @@
+# Oczekiwane: wypisuje 11
+PROCEDURE Zwieksz(VAR liczba):
+    liczba := liczba + 1
+
+BEGIN
+VAR n := 10
+Zwieksz(n)
+PRINT n
+END

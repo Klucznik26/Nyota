@@ -1,0 +1,5 @@
+# Oczekiwane: wypisuje OK
+BEGIN
+IF <2026.09.17> < <2027.01.01>:
+    PRINT "OK"
+END

@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD LIST ma zla liczbe kolumn dla MARK
+BEGIN
+VAR kraje := {3| "Polska" | "Warszawa" | "Wisla"}
+kraje["Francja"] := ["Paryz"]
+END

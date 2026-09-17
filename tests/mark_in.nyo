@@ -1,0 +1,6 @@
+# Oczekiwane: wypisuje OK
+BEGIN
+VAR kraje := {3| "Polska" | "Warszawa" | "Wisla"}
+IF "Polska" IN kraje:
+    PRINT "OK"
+END

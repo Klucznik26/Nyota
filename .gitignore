@@ -1,0 +1,6 @@
+nyota
+*.o
+*.elf
+*.ayo
+*~
+.DS_Store

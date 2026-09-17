@@ -1,0 +1,3 @@
+# Oczekiwane: BLAD [ln.2]: Brak BEGIN
+# Interpreter nie moze wykonac pliku bez BEGIN
+PRINT "Hello"

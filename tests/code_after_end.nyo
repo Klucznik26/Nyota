@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD [ln.5]: Instrukcja po END
+BEGIN
+PRINT "ok"
+END
+PRINT "za pozno"

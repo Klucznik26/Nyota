@@ -1,0 +1,6 @@
+# Oczekiwane: wypisuje 7
+BEGIN
+VAR a := <2026.09.17>
+VAR b := <2026.09.10>
+PRINT a - b
+END

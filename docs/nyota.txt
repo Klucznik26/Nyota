@@ -1,0 +1,418 @@
+============================================================
+JEZYK PROGRAMOWANIA: NYOTA
+ROZSZERZENIE PLIKOW: .nyo
+============================================================
+
+1. STRUKTURA GLOWNA
+- Wykonywalny kod programu w calosci musi byc objety slowami BEGIN oraz END.
+  (Przed BEGIN mozna umieszczac jedynie globalne deklaracje, np. CONST).
+- Interpreter odrzuca plik bez BEGIN albo bez END i nie wykonuje calego pliku w zamian.
+- Brak srednikow (;) - nowa linia to nowa instrukcja.
+- Brak klamer ({}) do wyznaczania logiki kodu.
+- Komentarze zaczynaja sie od znaku hash (#).
+
+2. BLOKI KODU I WCIECIA (Zapozyczone z Pythona)
+- Znak dwukropka (:) na koncu linii informuje o otwarciu nowego bloku kodu.
+- Wnetrze bloku MUSI byc wciete na dokladnie 4 spacje. Tabulacja jest SUROWO ZABRONIONA.
+- Powrot do lewej krawedzi automatycznie zamyka dany blok.
+
+3. ZMIENNE, TYPY DANYCH I RZUTOWANIE
+- Sluzy do tego slowo kluczowe VAR.
+- Uzywamy bezpiecznego operatora przypisania: := (zapozyczone z Pascala).
+- Interpreter samodzielnie wnioskuje typ na podstawie zapisu (literalu):
+  VAR a := 5             # Typ zablokowany jako INTEGER
+  VAR a := 5.3           # Typ zablokowany jako FLOAT
+  VAR a := "slowo"       # Typ zablokowany jako STRING
+  VAR a := TRUE          # Typ zablokowany jako BOOLEAN (wymagane WIELKIE litery: TRUE lub FALSE)
+  VAR a := [4, 7, "f"]   # Typ zablokowany jako LIST (lista/tablica)
+  VAR a := <2026.09.17>  # Typ zablokowany jako DATE (literal <RRRR.MM.DD>)
+- Silne blokowanie typu: Raz ustalony typ dla zmiennej staje sie niezmienny!
+  VAR a := 5
+  a := "slowo" 
+  # BLAD INTERPRETERA! Nyota stanowczo zablokuje zmiane typu zmiennej w locie.
+- Zwracanie uwagi na wielkosc liter (Case-Sensitivity): Nyota odroznia wielkosc liter.
+  Wszystkie slowa kluczowe musza byc pisane WIELKIMI LITERAMI (np. IF, VAR, TRUE).
+- Rzutowanie typow (Type Casting):
+  Aby polaczyc rozne typy, uzywamy wbudowanych funkcji konwertujacych:
+  VAR a := "5"
+  VAR b := 6
+  PRINT INT(a) + b       # Wynik: 11
+
+4. PODPROGRAMY I FUNKCJE
+- Podprogramy NIE zwracajace wartosci definiujemy slowem kluczowym: PROCEDURE
+  Przyklad: PROCEDURE Powitanie():
+  UWAGA: Uzycie instrukcji RETURN wewnatrz PROCEDURE jest ZABRONIONE i wywola blad!
+- Podprogramy zwracajace wartosc definiujemy slowem kluczowym: FUNCTION
+  Wewnatrz uzywamy instrukcji RETURN <wartosc>. Wywolujemy je z nawiasami (Zasada 16).
+  Przyklad: FUNCTION ObliczPole(x, y):
+  UWAGA: FUNCTION musi zawsze zakonczyc sie RETURN. Brak RETURN powoduje blad interpretera.
+  RETURN musi zawsze zawierac wartosc.
+  FUNCTION musi zawsze zwracac wartosc tego samego typu. 
+  Zwrocenie roznych typow powoduje blad interpretera.
+
+5. OBSLUGA BLEDOW (ERROR HANDLING) - Wzorowane na AMOS
+- System zapobiega twardym resetom poprzez przechwytywanie bledow (np. brak pliku).
+- Uzywamy konstrukcji: ON ERROR CALL <NazwaProcedury>
+- Interpreter udostepnia specjalna, wbudowana zmienna systemowa: ERR_CODE
+  (zawiera ona kody bledow bezposrednio z jadra AyoOS, np. EXT2_FS_NOT_FOUND).
+- Dzieki temu programista moze plynnie zareagowac, np. wyswietlajac wlasne 
+  okno dialogowe zamiast zawieszac program.
+
+6. PETLE (Zapozyczone z AMOS-a)
+Nyota obsluguje 3 klasyczne rodzaje petli, zintegrowane z systemem wciec:
+- FOR: Klasyczna petla liczaca (np. FOR i := 1 TO 10:). 
+  Zamiast amosowego 'NEXT', petle konczy po prostu powrot wciecia do lewej krawedzi.
+
+- REPEAT ... UNTIL: Petla wykonujaca sie zawsze przynajmniej raz.
+  Slowo REPEAT: otwiera wciecie, a powrot do lewej krawedzi z uzyciem slowa 
+  UNTIL <warunek> ja zamyka.
+
+- DO: Petla nieskonczona (np. DO:), bedaca podstawa programowania gier i GUI.
+
+- PRZERYWANIE PETLI: Do wychodzenia z petli uzywamy instrukcji EXIT.
+  UWAGA: EXIT przerywa TYLKO najblizsza, aktywna petle. Nigdy nie konczy calej funkcji.
+  Przyklad z zagniezdzeniem:
+  FOR i := 1 TO 10:
+         DO:
+                EXIT   # Przerwie tylko wewnetrzna petle DO, FOR kreci sie dalej
+  Do opuszczania calej funkcji/procedury sluzy wylacznie instrukcja RETURN.
+
+7. SWITCH / CASE (Zapozyczone z Pythona)
+Nyota eliminuje dlugie lancuchy IF dzieki strukturalnemu dopasowywaniu wzorcow.
+- Konstrukcje otwiera instrukcja: SWITCH <zmienna>:
+- Kazdy przypadek definiujemy jako: CASE <wartosc>:
+- Domyslny blok (tzw. default), ktory wykona sie gdy zaden inny nie pasuje, 
+  oznaczamy specjalnym symbolem: CASE _:
+  UWAGA: Symbol '_' jest calkowicie zarezerwowany i nie moze byc uzywany jako nazwa zmiennej.
+
+Przyklad:
+SWITCH klawisz:
+       CASE "A":
+              PRINT "Wcisnieto A"
+       CASE "B":
+              PRINT "Wcisnieto B"
+       CASE _:
+              PRINT "Nierozpoznany klawisz"
+
+8. OPERATORY POROWNANIA I LOGICZNE
+Skoro do przypisywania wartosci uzywamy ':=', znak '=' zwolnil sie dla warunkow.
+- Uzywamy pojedynczego '=' do scislego porownania. Sprawdza ono zarowno WARTOSC,
+  jak i TYP zmiennej. Porownanie roznych typow wywola twardy BLAD INTERPRETERA.
+- Znak '==' CALKOWICIE NIE ISTNIEJE.
+- Do sprawdzania nierownosci (rozne od) zamiast '!=' uzywamy klasycznego '<>'
+  lub jego odwrotnosci '><'.
+  Przyklad: IF x <> 5: PRINT "x nie jest piatka"
+- Operatory mniejsze/wieksze lub rowne wspieraja swobodny zapis (kolejnosc znakow
+  nie ma znaczenia). Mozna uzyc zarowno '>=' jak i '=>', oraz '<=' jak i '=<'.
+  Przyklad: IF x =< 10: PRINT "x jest mniejsze badz rowne 10"
+- Operatory logiczne: Uzywamy czytelnych slow AND, OR oraz NOT.
+- ZASADA NOT: Operator NOT ma nizszy priorytet niz porownania i dziala na caly
+  najblizszy warunek. Zatem zapis 'NOT y = 10' to formalnie 'NOT (y = 10)'.
+
+8.5. TABELA PRECEDENCJI OPERATOROW (PRIORITY)
+Kolejnosc wykonywania dzialan od najsilniejszego:
+1. !
+2. funkcje ()
+3. ^, ^^
+4. *, /, MOD, /%, %
+5. +, -
+6. SHL, SHR
+7. BAND
+8. BXOR
+9. BOR
+10. porownania (=, <>, ><, <, >, <=, >=, =<, =>)
+11. NOT
+12. AND
+13. OR
+
+9. NATYWNE OKNA (WIND OPEN - wzorowane na AMOS)
+Nyota integruje sie bezposrednio z silnikiem AyoOS Plasma GUI, pozwalajac na 
+blyskawiczne tworzenie systemowych okien (z zachowaniem cieni i ramek).
+- Konstrukcja: WIND_OPEN <id>, <x>, <y>, <szerokosc>, <wysokosc>
+- Zwalnia to programiste z koniecznosci recznego rysowania prostokatow. 
+  Jadro "serwuje" gotowe okno narysowane przez systemowy silnik.
+  Przyklad: WIND_OPEN 1, 100, 100, 400, 300
+- UWAGA: WIND_OPEN to jedynie obiekt GUI. Nie zmienia on kontekstu rysowania!
+  Wszelkie rysowanie (BOX, LINE) dziala wylacznie na aktywnym ekranie (SCREEN).
+
+10. MULTI-EKRANY (SCREEN OPEN - Wzorowane na AMOS)
+Nyota umozliwia tworzenie warstw graficznych (off-screen buffers) do plynnego 
+renderowania gier i GUI, bez bezposredniego pisania po pamieci karty graficznej.
+- Konstrukcja: SCREEN <id> OPEN <szerokosc>, <wysokosc>, <tryb_kolorow>
+- UWAGA: Ekran off-screen MUSI miec identyczna rozdzielczosc co zadeklarowany GRAPH.
+- SCREEN 0 to fizyczny ekran systemu (aktywny domyslnie). Nie mozna go zamknac ani otworzyc ponownie.
+- ID SCREEN musi byc unikalne i dodatnie. Maksymalna liczba screenow jest ograniczona przez system.
+  Proba utworzenia kolejnego SCREEN po przekroczeniu limitu powoduje blad interpretera.
+- ZMIANA CELU RYSOWANIA: Aby aktywowac bufor, uzywamy instrukcji:
+  SCREEN <id> SET
+  Od tej chwili wszystkie instrukcje rysujace trafiaja WYLACZNIE do zadanego bufora.
+  Wywolanie SCREEN <id> SET dla nieistniejacego ekranu powoduje blad interpretera.
+
+11. SYSTEM "EVERY" (Pseudowielozadaniowosc)
+Pozwala na cykliczne, automatyczne wywolywanie podprogramow w tle.
+- Konstrukcja: EVERY <czas_ms> CALL <NazwaProcedury>
+- Przyklad: EVERY 1000 CALL OdswiezZegar
+- UWAGA: EVERY dziala wylacznie jako scheduler zdarzen. Wywolania wykonywane sa 
+  POMIEDZY iteracjami glownej petli, a nie rownolegle (zero prawdziwego multi-threadingu).
+  Zdarzenia EVERY wykonywane sa scisle w kolejnosci ich deklaracji.
+- Aby anulowac zaplanowane wywolanie, uzyj: CANCEL EVERY <NazwaProcedury>
+  CANCEL EVERY zatrzymuje przyszle wywolania, ale nie przerywa aktualnie wykonywanego.
+
+12. BANKI DANYCH (Zarzadzanie zasobami w RAM)
+Zamiast powolnego czytania z dysku ext2 w trakcie dzialania programu, Nyota 
+laduje zasoby (grafiki, dzwieki, dane) do ponumerowanych bankow w pamieci RAM.
+- Konstrukcja: LOAD <plik> INTO BANK <id>
+- Przyklad: LOAD "ikona.ayoprv" INTO BANK 1
+
+13. STALE (Zapozyczone z Pascala: CONST)
+Sekcja uzywana do definiowania wartosci, ktore nigdy sie nie zmieniaja.
+- Konstrukcja: CONST <nazwa> := <wartosc>
+- Przyklad: CONST MAX_OKIEN := 10
+- Definiowane przed lub na poczatku bloku BEGIN. Pozwala interpreterowi na 
+  wczesne, twarde podstawienie liczb w kodzie, co drastycznie oszczedza pamiec 
+  i cykle procesora (brak narzutu na wyszukiwanie zmiennych w tabeli).
+
+14. PARAMETRY PRZEZ REFERENCJE (Zapozyczone z Pascala: VAR w argumentach)
+Pozwala procedurom modyfikowac oryginalne zmienne (zamiast pracowac na ich kopiach).
+- Konstrukcja: PROCEDURE <Nazwa>(VAR <zmienna>):
+- Przyklad: PROCEDURE Zwieksz(VAR liczba):
+- Gwarantuje to potezna optymalizacje pamieci RAM (przekazywany jest tylko wskaznik,
+  a nie cala zawartosc zmiennej) oraz ulatwia zwracanie wielu wynikow z jednej procedury.
+
+15. DOSTEP OBIEKTOWY (Zapozyczone z Pascala: WITH)
+Skraca zapis przy modyfikowaniu wielu wlasciwosci jednego obiektu (np. okna GUI).
+- Konstrukcje otwiera instrukcja: WITH <Obiekt>:
+- Przyklad:
+  WITH MojeOkno:
+         TITLE := "Test"
+         WIDTH := 500
+- UWAGA: WITH operuje bezposrednio na oryginalnym obiekcie (referencja), a nie na kopii.
+  Instrukcja WITH moze byc zagniezdzana. Kazdy blok dziala wylacznie na swoim obiekcie.
+  Wewnatrz WITH nazwy odnosza sie najpierw do obiektu, a dopiero potem do zakresu zewnetrznego.
+
+16. INSTRUKCJE VS FUNKCJE (Konwencja nawiasow)
+W Nyocie obowiazuje scisla, czytelna zasada wywolan zalezec od tego, czy zwracany jest wynik:
+- Instrukcje (wykonujace akcje systemowe, np. PRINT, LOAD, WIND_OPEN) wywolujemy BEZ nawiasow.
+  Przyklad: PRINT "Witaj swiecie"
+- Funkcje zwracajace wartosc (np. INT, FLOAT, STRING) zawsze wywolujemy Z NAWIASAMI.
+  Przyklad: VAR liczba := INT("123")
+
+17. OPOZNIENIA I PAUZY (DELAY)
+Do wstrzymania dzialania programu na okreslony czas sluzy wbudowana instrukcja DELAY.
+- Zgodnie z zasada o instrukcjach (Zasada 16), nie wymaga ona nawiasow.
+- Czas podajemy w milisekundach (1000 ms = 1 sekunda).
+  Przyklad: DELAY 500     # Usypia program na dokladnie pol sekundy
+
+18. WPROWADZANIE DANYCH (INPUT - Zapozyczone z Pythona)
+Do pobierania tekstu wpisanego przez uzytkownika z terminala sluzy funkcja INPUT.
+- Zgodnie z Zasada 16, poniewaz INPUT zwraca wartosc (wpisany tekst), 
+  wymaga uzycia nawiasow.
+- Wewnatrz nawiasow mozna opcjonalnie podac tekst zachety (prompt).
+  UWAGA: Funkcja INPUT zawsze zwraca typ STRING.
+  INPUT moze zwrocic pusty STRING ("").
+  Przyklad: VAR imie := INPUT("Jak masz na imie? ")
+  PRINT "Witaj " + imie
+
+19. LISTY / TABLICE (LISTS)
+Listy pozwalaja na przechowywanie wielu elementow. Indeksowane sa od zera [0].
+- Tworzenie: VAR a := [1, 2, "trzy"]
+- Odczyt/Zapis: Uzywamy nawiasow kwadratowych, np. PRINT a[0], a[1] := 5
+- Dodawanie (Instrukcja): APPEND <lista>, <element>
+  Przyklad: APPEND a, "cztery"
+- Usuwanie (Instrukcja): REMOVE <lista>, <indeks>
+  Przyklad: REMOVE a, 0      # Usuwa element z listy (nic nie zwraca)
+- Rozmiar (Funkcja): Zwraca ilosc elementow. Wywolywana z nawiasami: LEN(a)
+- Operacje na elementach LIST sa dozwolone tylko dla zgodnych typow. Inaczej -> blad interpretera.
+- Przypisanie do indeksu spoza zakresu LIST powoduje blad interpretera.
+
+20. REKORDY / OBIEKTY (RECORDS)
+Aby zorganizowac dane, programista moze tworzyc wlasne struktury (Rekordy).
+- Konstrukcje otwiera slowo RECORD <Nazwa>:, a wnetrze definiuja wciecia.
+- Wewnatrz rekordu przypisujemy domyslne wartosci pol (co automatycznie ustala ich typ).
+- Tworzenie instancji rekordu dziala jak funkcja (Zasada 16 - z nawiasami).
+- Dostep do pol realizowany jest za pomoca kropki (lub instrukcji WITH z sekcji 15).
+- Silne typowanie pol: Kazde pole zyskuje twardo zablokowany typ na podstawie 
+  przypisanej mu domyslnej wartosci na etapie definicji i nie moze pozniej go zmienic.
+- Przekazywanie: RECORD jest domyslnie przekazywany przez wartosc. Uzycie slowa 
+  VAR w parametrze procedury wymusza przekazanie go przez referencje.
+
+Przyklad:
+RECORD Postac:
+       x := 0
+       y := 0
+       hp := 100
+       imie := "Nieznany"
+
+# Tworzenie i uzycie obiektu
+VAR boss := Postac()
+boss.imie := "Wielki Smok"
+
+WITH boss:
+       hp := 5000
+
+21. STRUKTURA "MARK" (SLOWNIKI WIELOWYMIAROWE / DATA TABLES)
+Autorska zmienna Nyoty (nazwana 'Mark') laczaca slowniki (jak w Pythonie) z bazami danych.
+Pozwala na przypisanie do jednego klucza calej sekwencji (wiersza) wartosci.
+- Konstrukcja: VAR <nazwa> := {<ilosc_kolumn>| <Klucz> | <Wart1> | <Wart2> , ... }
+- Jawne podanie calkowitej ilosci kolumn (Klucz + Wartosci) pozwala interpreterowi na 
+  ekstremalnie szybka, plaska alokacje pamieci w RAM.
+- Typy wewnatrz wiersza moga byc dowolnie mieszane (np. Liczba, Tekst, Float).
+- Rygorystyczny rozmiar: Calkowita liczba kolumn zadeklarowana na poczatku jest stala.
+  Proba dodania wiersza z inna iloscia kolumn zostanie zablokowana z bledem!
+- Klucze w MARK sa porownywane na podstawie TYPU i WARTOSCI. 
+  Oznacza to, ze tekst "5", liczba 5 oraz wartosc logiczna TRUE to trzy rozne klucze!
+- UWAGA: Wartosci w MARK sa przechowywane jako LIST i podlegaja wszystkim zasadom listy.
+  Elementy LIST w MARK podlegaja pelnej mutowalnosci (jak zwykla LIST).
+
+Przyklad:
+VAR kraje := {3| "Polska" | "Warszawa" | "Wisla" , "Niemcy" | "Berlin" | "Ren" }
+
+# Odczytywanie danych (wartosci sa indeksowane od 0, analogicznie do list!):
+PRINT kraje["Polska"][0]   # Wypisze: Warszawa
+PRINT kraje["Niemcy"][1]   # Wypisze: Ren
+
+# Dynamiczne dodawanie nowego wiersza (uzywamy struktury Listy z sekcji 19):
+kraje["Francja"] := ["Paryz", "Sekwana"]
+UWAGA: Wartosci przypisywane do MARK musza byc typu LIST i miec zgodna liczbe kolumn.
+Przypisanie istniejacego klucza w MARK nadpisuje jego wartosc.
+
+# Usuwanie calego wiersza (Instrukcja DELETE):
+DELETE kraje["Niemcy"]
+UWAGA: Instrukcja DELETE dziala wylacznie na strukturach MARK i jest jedynym 
+do tego narzedziem. Nie nalezy mylic jej z listowym REMOVE!
+
+# Ochrona pamieci (Silnik rzuci wyjatkiem przy probie zlego dostepu):
+PRINT kraje["Polska"][2]   # BLAD: Indeks [2] poza zakresem. Wiersz ma tylko 2 wartosci (indeksy 0 i 1).
+
+22. FORMATOWANIE TEKSTU (NOWA LINIA)
+Wewnatrz ciagow znakow (stringow), uzywanych np. w instrukcji PRINT, 
+do przejscia do nowej linii uzywamy specjalnego znacznika: ~/
+- Ilosc ukosnikow (slashy) po znaku tyldy odpowiada ilosci zlaman linii.
+  Zapis ~/ to jedna nowa linia, ~// to dwie nowe linie, ~/// to trzy, itd.
+- Zastepuje to tradycyjne, systemowe zlamania linii znane z C (jak \n).
+
+Przyklad: 
+PRINT "Tytul programu~//Autor: Marek~/Wersja: 1.0"
+
+23. UNIWERSALNA FUNKCJA LEN() (Zapozyczone z Pythona)
+Funkcja LEN() dopasowuje swoje dzialanie do typu przekazanej zmiennej (polimorfizm):
+- Funkcja ta dziala WYLACZNIE na 4 typach: STRING, LIST, MARK oraz TUPLE.
+  Uzycie jej na innych typach (np. na RECORD) wywola blad interpretera.
+  LEN(MARK) zwraca liczbe kluczy (wierszy).
+
+24. INSTRUKCJE WARUNKOWE (IF / ELIF / ELSE)
+Do kontrolowania przeplywu programu uzywamy instrukcji warunkowych zapozyczonych 
+z Pythona. Zamiast dlugiego 'ELSE IF' uzywamy krotkiego 'ELIF'.
+- Kazdy warunek konczymy dwukropkiem (:), a wnetrze bloku wcinamy na 4 spacje.
+
+Przyklad:
+IF punkty > 100:
+       PRINT "Zloty medal!"
+ELIF punkty > 50:
+       PRINT "Srebrny medal!"
+ELSE:
+       PRINT "Sprobuj jeszcze raz."
+
+25. OPERACJE NA TEKSCIE (STRINGS)
+Nyota umozliwia zaawansowane operacje na zmiennych tekstowych:
+- Konkatenacja (Laczenie): Uzywamy operatora '+' aby laczyc ze soba teksty.
+  Przyklad: VAR powitanie := "Witaj " + imie + "!"
+- Wycinanie (Slicing - zapozyczone z Pythona): Uzywamy nawiasow kwadratowych 
+  z dwukropkiem [start:koniec], aby pobrac fragment tekstu (indeksowane od 0).
+  Przyklad: PRINT imie[0:3]        # Pobiera 3 pierwsze znaki
+- Zmiana wielkosci liter (Funkcje): UPPER(tekst) oraz LOWER(tekst).
+  Przyklad: PRINT UPPER("ayoos")   # Wypisze: AYOOS
+- Szukanie podciagu (Funkcja): FIND(tekst, szukany_fragment)
+  Zwraca indeks pierwszego wystapienia lub -1, jesli nie znaleziono.
+  UWAGA: Funkcja FIND zawsze zwraca indeks od 0 jako typ INTEGER.
+
+26. OPERATORY MATEMATYCZNE
+Nyota obsluguje rozbudowany i intuicyjny zestaw operatorow arytmetycznych:
+- '+'  : Dodawanie
+- '-'  : Odejmowanie
+- '*'  : Mnozenie
+- '/'  : Dzielenie. Jesli argumenty to liczby calkowite (INT), zachodzi szybkie dzielenie 
+         calkowite (np. 9 / 2 daje 4). Aby uzyskac ulamek, uzyj typu FLOAT (np. 9.0 / 2 daje 4.5).
+- '^'  : Potegowanie (np. 2 ^ 3 daje 8)
+- '^^' : Pierwiastkowanie w formacie: <liczba> ^^ <stopien>
+  (np. 9 ^^ 2 to pierwiastek stopnia 2 z liczby 9, a 27 ^^ 3 to stopnia 3 z 27)
+- '%'  : Procent (np. 200 % 50 oblicza 50% z 200).
+- 'MOD' : Modulo / reszta z dzielenia (np. 10 MOD 3 daje 1). '/%' jest aliasem.
+- BARDZO WAZNE: Operator % ZAWSZE oznacza procent. Modulo zapisuje sie jako MOD.
+- '!'  : Silnia. Dziala jako operator postfiksowy (pisany po liczbie).
+         Przyklad: 5! daje 120
+- BAND, BOR, BXOR : Operatory bitowe (Bitwise AND, OR, XOR).
+  Sluza do operacji na bitach liczb calkowitych (np. maskowanie, kolory).
+  Przyklad: VAR kolor := (255 SHL 16) BOR 128
+- SHL, SHR : Przesuniecie bitowe w lewo (Shift Left) i w prawo (Shift Right).
+  Przyklad: VAR x := 1 SHL 4       # Wynik: 16
+
+27. ZAOKRAGLANIE (FUNKCJE MATEMATYCZNE)
+Do precyzyjnego zarzadzania liczbami zmiennoprzecinkowymi (FLOAT) sluza 
+wbudowane funkcje (zgodnie z Zasada 16 wymagaja nawiasow):
+- FLOOR(x) : Zaokragla w dol do najblizszej liczby calkowitej.
+             Przyklad: FLOOR(4.8) zwraca 4, a FLOOR(-1.2) zwraca -2.
+- CEIL(x)  : Zaokragla w gore (tzw. sufit). Przyklad: CEIL(4.2) zwraca 5.
+- ROUND(x) : Zaokragla matematycznie (od 0.5 w gore, ponizej w dol).
+             Przyklad: ROUND(4.5) zwraca 5, a ROUND(4.4) zwraca 4.
+- SIN(x), COS(x), TG(x), CTG(x) : Funkcje trygonometryczne.
+- ASIN(x), ACOS(x), ATG(x), ACTG(x) : Funkcje cyklometryczne (odwrotne).
+
+28. POZYCJONOWANIE KURSORA (GOTOXY)
+Aby przeniesc kursor tekstowy (np. przed uzyciem instrukcji PRINT) w wybrane 
+miejsce na ekranie, uzywamy instrukcji GOTOXY.
+- Zgodnie z Zasada 16 wywolujemy ja bez nawiasow.
+- Parametry to kolumna (X) oraz wiersz (Y).
+  Przyklad: GOTOXY 10, 5
+- UWAGA: Wywolanie PRINT lub GOTOXY po wejsciu w tryb GRAPH powoduje twardy BLAD interpretera.
+
+29. TRYBY GRAFICZNE (GRAPH)
+Do zmiany glownej rozdzielczosci ekranu sluzy klasyczna instrukcja GRAPH.
+- Zgodnie z Zasada 16, wywolujemy ja bez nawiasow (jest to instrukcja systemowa).
+- Im wyzszy numer trybu, tym wyzsza rozdzielczosc ekranu:
+  GRAPH 1 : 640 x 480
+  GRAPH 2 : 800 x 600
+  GRAPH 3 : 1024 x 768
+  GRAPH 4 : 1280 x 1024
+  GRAPH 5 : 1600 x 900
+  GRAPH 6 : 1920 x 1080
+  Przyklad: GRAPH 6       # Ustawia rozdzielczosc 1920x1080
+
+30. IMPORTOWANIE KODU (IMPORT)
+Aby uniknac gigantycznych, jednoplikowych skryptow, Nyota wspiera modularyzacje.
+- Konstrukcja: IMPORT "sciezka_do_pliku.nyo"
+- Zgodnie z Zasada 16, wywolujemy ja bez nawiasow.
+- Instrukcje IMPORT nalezy umieszczac na samym poczatku pliku (przed BEGIN).
+- OCHRONA ARCHITEKTURY: Plik importowany NIE moze zawierac blokow BEGIN/END ani 
+  instrukcji wykonywalnych. Dozwolone sa wylacznie deklaracje: CONST, RECORD, FUNCTION, PROCEDURE.
+- Duplikacja nazw FUNCTION, PROCEDURE lub RECORD powoduje blad interpretera.
+
+31. INSTRUKCJE GRAFICZNE I RYSOWANIE
+System umozliwia bezposrednie rysowanie prymitywow graficznych na ekranie.
+Zgodnie z Zasada 16, ponizej wymienione instrukcje nie wymagaja nawiasow:
+- CLEAR <r>, <g>, <b> : Czysci caly ekran zadanym kolorem RGB.
+  Przyklad: CLEAR 0, 0, 0
+- BOX <x>, <y>, <szerokosc>, <wysokosc>, <r>, <g>, <b> : Rysuje wypelniony prostokat.
+  Przyklad: BOX 10, 10, 100, 50, 255, 0, 0
+- CIRCLE <x>, <y>, <promien>, <r>, <g>, <b> : Rysuje wypelnione kolo.
+  Przyklad: CIRCLE 150, 150, 30, 0, 255, 0
+- ELLIPSE <x>, <y>, <promien_x>, <promien_y>, <r>, <g>, <b> : Rysuje elipse.
+  Przyklad: ELLIPSE 200, 200, 40, 20, 0, 0, 255
+- LINE <x1>, <y1>, <x2>, <y2>, <r>, <g>, <b> : Rysuje linie pomiedzy punktami.
+  Przyklad: LINE 10, 10, 200, 200, 255, 255, 255
+- TRIANGLE <x1>, <y1>, <x2>, <y2>, <x3>, <y3>, <r>, <g>, <b> : Rysuje pusty trojkat (obrys).
+  Przyklad: TRIANGLE 100, 100, 150, 50, 200, 100, 255, 255, 0
+- QUAD <x1>, <y1>, <x2>, <y2>, <x3>, <y3>, <x4>, <y4>, <r>, <g>, <b> : Rysuje pusty czworokat (obrys).
+
+32. ZASIEG ZMIENNYCH I PRZESLANIANIE (SCOPE)
+- Zmienne (VAR) utworzone wewnatrz PROCEDURE lub FUNCTION sa zmiennymi LOKALNYMI.
+- Przeslanianie (Shadowing): Mozliwe jest tworzenie zmiennej lokalnej o identycznej nazwie
+  jak wczesniej utworzona zmienna globalna. Przepisy z funkcji nie psuja wtedy stanow wyzej.
+  Przyklad: QUAD 100, 100, 200, 100, 250, 150, 50, 150, 0, 255, 255
+- PENTAGON <x1>, <y1>, <x2>, <y2>, <x3>, <y3>, <x4>, <y4>, <x5>, <y5>, <r>, <g>, <b> : Rysuje pusty pieciokat (obrys).
+  Przyklad: PENTAGON 100, 50, 150, 100, 130, 150, 70, 150, 50, 100, 255, 0, 255
+- EGG <x>, <y>, <promien_x>, <promien_y>, <kat>, <r>, <g>, <b> : Ciekawostka! Rysuje wypelnione jajko obrocone o zadany kat (w stopniach).
+  Przyklad: EGG 300, 300, 40, 60, 45, 255, 200, 100
+
+------------------------------------------------------------
+Kolejne ustalenia beda dopisywane tutaj w trakcie prac!

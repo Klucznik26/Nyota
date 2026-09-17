@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD CONTINUE poza petla
+BEGIN
+CONTINUE
+END

@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD WHILE wymaga BOOLEAN
+BEGIN
+WHILE 1:
+    PRINT "zgaduje"
+END

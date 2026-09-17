@@ -1,0 +1,5 @@
+# Oczekiwane: wypisuje OK
+BEGIN
+IF NOT 1 = 2:
+    PRINT "OK"
+END

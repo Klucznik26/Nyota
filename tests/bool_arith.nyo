@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD Niezgodnosc typow: INTEGER i BOOLEAN
+BEGIN
+VAR x := 2 + TRUE
+PRINT x
+END

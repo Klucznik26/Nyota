@@ -1,0 +1,6 @@
+# Oczekiwane: wypisuje 2
+BEGIN
+VAR a := [1, 2, 3]
+REMOVE a[0]
+PRINT LEN(a)
+END

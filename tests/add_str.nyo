@@ -1,0 +1,4 @@
+# Oczekiwane: wypisuje AyoOS
+BEGIN
+PRINT "Ayo" + "OS"
+END

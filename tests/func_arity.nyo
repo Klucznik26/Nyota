@@ -1,0 +1,7 @@
+# Oczekiwane: BLAD Nieprawidlowa liczba argumentow
+FUNCTION Dodaj(a, b):
+    RETURN a + b
+
+BEGIN
+VAR x := Dodaj(1)
+END

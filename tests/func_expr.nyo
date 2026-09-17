@@ -1,0 +1,7 @@
+# Oczekiwane: wypisuje 6
+FUNCTION Dodaj(a, b):
+    RETURN a + b
+
+BEGIN
+PRINT Dodaj(2, 3) + 1
+END

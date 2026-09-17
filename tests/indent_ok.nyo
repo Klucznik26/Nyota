@@ -1,0 +1,7 @@
+# Oczekiwane: wypisuje OK
+# Wcięcie bloku: dokładnie 4 spacje
+BEGIN
+VAR x := 1
+IF x = 1:
+    PRINT "OK"
+END

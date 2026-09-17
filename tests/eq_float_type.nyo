@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD Porownanie wymaga tego samego typu: INTEGER i FLOAT
+BEGIN
+IF 5 = 5.0:
+    PRINT "zgaduje"
+END

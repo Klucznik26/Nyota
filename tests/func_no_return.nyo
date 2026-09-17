@@ -1,0 +1,7 @@
+# Oczekiwane: BLAD FUNCTION bez RETURN
+FUNCTION Test():
+    PRINT "Brak return"
+
+BEGIN
+VAR x := Test()
+END

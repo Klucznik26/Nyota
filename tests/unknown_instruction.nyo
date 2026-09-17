@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD [ln.N]: Nieznana instrukcja: PRNIT
+BEGIN
+PRNIT "Hello"
+END

@@ -1,0 +1,6 @@
+# Oczekiwane: wypisuje 0
+BEGIN
+VAR a := [1, 5, "Ayo", TRUE]
+CLEAR a
+PRINT LEN(a)
+END

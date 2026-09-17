@@ -1,0 +1,6 @@
+# Oczekiwane: wypisuje 1
+BEGIN
+VAR kraje := {3| "Polska" | "Warszawa" | "Wisla", "Niemcy" | "Berlin" | "Ren"}
+DELETE kraje["Niemcy"]
+PRINT LEN(kraje)
+END

@@ -1,0 +1,5 @@
+# Oczekiwane: wypisuje 2026
+BEGIN
+VAR start := <2026.09.10>
+PRINT YEAR(start)
+END

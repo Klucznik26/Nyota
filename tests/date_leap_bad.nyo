@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD Niepoprawna data
+BEGIN
+VAR b := <2026.02.29>
+PRINT b
+END

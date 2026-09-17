@@ -1,0 +1,52 @@
+FUNCTION Dodaj(a, b):
+    RETURN a + b
+
+BEGIN
+PRINT "=== Nyota QMP ==="
+IF 2 * 3 + 4 = 10:
+    PRINT "01 prec PASS"
+ELSE:
+    PRINT "01 prec FAIL"
+IF 2 + 3 * 4 = 14:
+    PRINT "02 addmul PASS"
+ELSE:
+    PRINT "02 addmul FAIL"
+IF 10 MOD 3 = 1:
+    PRINT "03 mod PASS"
+ELSE:
+    PRINT "03 mod FAIL"
+IF Dodaj(2, 3) = 5:
+    PRINT "04 fn PASS"
+ELSE:
+    PRINT "04 fn FAIL"
+VAR x := 2
+IF x = 1:
+    PRINT "05 elif FAIL"
+ELIF x = 2:
+    PRINT "05 elif PASS"
+ELSE:
+    PRINT "05 elif FAIL"
+VAR n := 0
+WHILE n < 3:
+    n := n + 1
+IF n = 3:
+    PRINT "06 while PASS"
+ELSE:
+    PRINT "06 while FAIL"
+VAR d := <2026.09.17>
+IF d - <2026.09.10> = 7:
+    PRINT "07 date PASS"
+ELSE:
+    PRINT "07 date FAIL"
+VAR a := [1, 2] + [3]
+IF LEN(a) = 3:
+    PRINT "08 list PASS"
+ELSE:
+    PRINT "08 list FAIL"
+VAR m := {3| "PL" | "Waw" | "Wis"}
+IF m["PL"][0] = "Waw":
+    PRINT "09 mark PASS"
+ELSE:
+    PRINT "09 mark FAIL"
+PRINT "=== KONIEC ==="
+END

@@ -1,0 +1,10 @@
+# Oczekiwane: wypisuje 2 potem 1
+PROCEDURE Test():
+    VAR x := 2
+    PRINT x
+
+BEGIN
+VAR x := 1
+Test()
+PRINT x
+END

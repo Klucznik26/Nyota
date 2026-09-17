@@ -1,0 +1,5 @@
+# Oczekiwane: wypisuje 2
+BEGIN
+VAR kraje := {3| "Polska" | "Warszawa" | "Wisla", "Niemcy" | "Berlin" | "Ren"}
+PRINT LEN(kraje)
+END

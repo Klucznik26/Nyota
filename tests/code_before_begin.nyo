@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD [ln.2]: Instrukcja poza BEGIN ... END
+PRINT "za wczesnie"
+BEGIN
+PRINT "ok"
+END

@@ -1,0 +1,6 @@
+# Oczekiwane: BLAD Niepoprawna data
+# 2100 nie jest przestępny (reguła gregoriańska)
+BEGIN
+VAR f := <2100.02.29>
+PRINT f
+END

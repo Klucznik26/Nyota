@@ -1,0 +1,6 @@
+# Oczekiwane: wypisuje OK
+BEGIN
+WHILE FALSE:
+    PRINT "nie"
+PRINT "OK"
+END

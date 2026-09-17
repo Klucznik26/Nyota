@@ -1,0 +1,5 @@
+# Oczekiwane: wypisuje Warszawa
+BEGIN
+VAR kraje := {3| "Polska" | "Warszawa" | "Wisla", "Niemcy" | "Berlin" | "Ren"}
+PRINT kraje["Polska"][0]
+END

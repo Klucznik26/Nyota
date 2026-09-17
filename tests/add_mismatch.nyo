@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD Niezgodnosc typow: INTEGER i STRING
+BEGIN
+VAR x := 4 + "8"
+PRINT x
+END

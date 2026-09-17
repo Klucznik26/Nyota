@@ -1,0 +1,7 @@
+# Oczekiwane: BLAD RETURN w PROCEDURE jest zabroniony
+PROCEDURE Test():
+    RETURN 5
+
+BEGIN
+Test()
+END

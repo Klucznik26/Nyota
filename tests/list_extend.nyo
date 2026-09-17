@@ -1,0 +1,7 @@
+# Oczekiwane: wypisuje 5
+BEGIN
+VAR a := [1, 5, 12]
+VAR b := [5, 16, 20]
+EXTEND a, b
+PRINT LEN(a)
+END

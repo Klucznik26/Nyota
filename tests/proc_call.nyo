@@ -1,0 +1,7 @@
+# Oczekiwane: wypisuje Hello
+PROCEDURE Powitanie():
+    PRINT "Hello"
+
+BEGIN
+Powitanie()
+END

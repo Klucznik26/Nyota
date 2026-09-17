@@ -1,0 +1,151 @@
+# Nyota — jeden przebieg rdzenia v0.5
+# Wklej do AyoEdit i Run > Go (ESC zamyka wyjście).
+# Każdy test wypisuje "NN nazwa PASS" albo "NN nazwa FAIL".
+
+FUNCTION Dodaj(a, b):
+    RETURN a + b
+
+BEGIN
+PRINT "=== Nyota core ==="
+
+IF 2 * 3 + 4 = 10:
+    PRINT "01 prec*+ PASS"
+ELSE:
+    PRINT "01 prec*+ FAIL"
+
+IF 2 + 3 * 4 = 14:
+    PRINT "02 prec+* PASS"
+ELSE:
+    PRINT "02 prec+* FAIL"
+
+IF 10 - 3 - 2 = 5:
+    PRINT "03 sub PASS"
+ELSE:
+    PRINT "03 sub FAIL"
+
+IF (2 + 3) * 4 = 20:
+    PRINT "04 paren PASS"
+ELSE:
+    PRINT "04 paren FAIL"
+
+IF 10 MOD 3 = 1:
+    PRINT "05 mod PASS"
+ELSE:
+    PRINT "05 mod FAIL"
+
+IF 5 = 5:
+    PRINT "06 eq PASS"
+ELSE:
+    PRINT "06 eq FAIL"
+
+VAR txt := "Ayo" + "OS"
+IF txt = "AyoOS":
+    PRINT "07 str PASS"
+ELSE:
+    PRINT "07 str FAIL"
+
+IF Dodaj(2, 3) = 5:
+    PRINT "08 fn PASS"
+ELSE:
+    PRINT "08 fn FAIL"
+
+IF Dodaj(2, 3) + 1 = 6:
+    PRINT "09 fnexpr PASS"
+ELSE:
+    PRINT "09 fnexpr FAIL"
+
+VAR x := 2
+IF x = 1:
+    PRINT "10 elif FAIL"
+ELIF x = 2:
+    PRINT "10 elif PASS"
+ELSE:
+    PRINT "10 elif FAIL"
+
+VAR n := 0
+WHILE n < 3:
+    n := n + 1
+IF n = 3:
+    PRINT "11 while PASS"
+ELSE:
+    PRINT "11 while FAIL"
+
+VAR k := 0
+FOR i := 0 TO 10 STEP 5:
+    k := k + 1
+IF k = 3:
+    PRINT "12 step PASS"
+ELSE:
+    PRINT "12 step FAIL"
+
+VAR c := 0
+FOR i := 1 TO 3:
+    IF i = 2:
+        CONTINUE
+    c := c + 1
+IF c = 2:
+    PRINT "13 cont PASS"
+ELSE:
+    PRINT "13 cont FAIL"
+
+VAR d0 := <2026.09.10>
+VAR d1 := <2026.09.17>
+IF d1 - d0 = 7:
+    PRINT "14 date- PASS"
+ELSE:
+    PRINT "14 date- FAIL"
+
+IF YEAR(d1) = 2026:
+    PRINT "15 year PASS"
+ELSE:
+    PRINT "15 year FAIL"
+
+IF d0 + 30 = <2026.10.10>:
+    PRINT "16 date+ PASS"
+ELSE:
+    PRINT "16 date+ FAIL"
+
+VAR la := [1, 2, 3]
+VAR lb := [4]
+VAR lc := la + lb
+IF LEN(lc) = 4:
+    PRINT "17 list+ PASS"
+ELSE:
+    PRINT "17 list+ FAIL"
+
+VAR ld := [1, 1, 2, 3] - [1]
+IF LEN(ld) = 3:
+    PRINT "18 list- PASS"
+ELSE:
+    PRINT "18 list- FAIL"
+
+REVERSE la
+IF la[0] = 3:
+    PRINT "19 rev PASS"
+ELSE:
+    PRINT "19 rev FAIL"
+
+VAR kraje := {3| "Polska" | "Warszawa" | "Wisla", "Niemcy" | "Berlin" | "Ren"}
+IF kraje["Polska"][0] = "Warszawa":
+    PRINT "20 mark PASS"
+ELSE:
+    PRINT "20 mark FAIL"
+
+IF LEN(kraje) = 2:
+    PRINT "21 mlen PASS"
+ELSE:
+    PRINT "21 mlen FAIL"
+
+IF "Polska" IN kraje:
+    PRINT "22 in PASS"
+ELSE:
+    PRINT "22 in FAIL"
+
+kraje["Polska"][0] := "Krakow"
+IF kraje["Polska"][0] = "Krakow":
+    PRINT "23 mset PASS"
+ELSE:
+    PRINT "23 mset FAIL"
+
+PRINT "=== KONIEC ==="
+END

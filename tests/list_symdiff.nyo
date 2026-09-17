@@ -1,0 +1,7 @@
+# Oczekiwane: wypisuje 4
+BEGIN
+VAR a := [1, 5, 12, 16]
+VAR b := [2, 5, 11, 16]
+VAR c := a >< b
+PRINT LEN(c)
+END
