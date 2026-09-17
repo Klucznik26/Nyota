@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD SORT
+BEGIN
+VAR a := [TRUE, FALSE]
+SORT a
+END

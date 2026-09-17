@@ -44,7 +44,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">precedencja: `*` przed `+`, lewostronne `-`, nawiasy, NOT/AND/OR w wyrażeniu wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">WHILE (warunek BOOLEAN), CONTINUE, FOR STEP oraz operator MOD wykonane 2026-09-17</span>
 - <span style="color: navy;">MARK: literał, odczyt, zapis wiersza/komórki, DELETE, LEN, IN, KEY/VALUE/MINFO w toku (zaawansowany etap) 2026-09-17</span>
-- <span style="color: navy;">LIST: `+` `-` `><`, EXTEND, REMOVE po indeksie i wartości, CLEAR, REVERSE, SORT/DESC w toku (zaawansowany etap) 2026-09-17</span>
+- <span style="color: #006A4E;">LIST: literały (także zagnieżdżone), indeksowanie INTEGER, `+` `-` `><`, IN/LEN, APPEND/EXTEND/REMOVE/CLEAR/REVERSE/SORT, FOR...IN, RANDINT/RANDFLT wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>
@@ -841,15 +841,34 @@ VAR d := a - b
 VAR e := a >< b
 ```
 
+Iteracja działa bezpośrednio po elementach listy:
+
+```nyota
+FOR element IN a:
+    PRINT element
+```
+
+Losowe listy liczbowe:
+
+```nyota
+VAR liczby := RANDINT(10, 1, 100)
+VAR pomiary := RANDFLT(10, 0, 1, 3)
+```
+
+`RANDFLT` ma domyślną precyzję 2; jawna precyzja może wynosić `0..3`.
+
 Porównanie elementów jest ścisłe typowo: `5`, `"5"` i `5.0` są różne.
 
 Zasady:
 
-* `APPEND`, `REMOVE`, `EXTEND`, `REVERSE`, `SORT`, `CLEAR` są instrukcjami,
-* `LEN(a)` jest funkcją,
-* `REMOVE a[i]` usuwa po indeksie; `REMOVE a, wartosc` po wartości,
-* przypisanie poza zakresem listy powoduje błąd,
-* operacje na elementach list wymagają zgodnych typów.
+* `APPEND`, `REMOVE`, `EXTEND`, `REVERSE`, `SORT`, `CLEAR` są instrukcjami mutującymi,
+* `CONST` zawierający LIST nie może być mutowany tymi instrukcjami ani przez indeks,
+* `LEN(a)` jest funkcją, a `x IN a` używa ścisłej tożsamości typu i wartości,
+* indeks LIST musi być typu `INTEGER`; nie ma automatycznej konwersji indeksu,
+* `REMOVE a[i]` usuwa po indeksie; `REMOVE a, wartosc` po wartości; `ALL` usuwa wszystkie wystąpienia,
+* `SORT` obsługuje jednorodne listy `INTEGER`, `FLOAT`, `STRING` i `DATE`; `ASC` jest domyślne, `DESC` odwraca kierunek,
+* `+`, `-` i `><` zwracają nową listę i nie mutują operandów,
+* bieżący interpreter ma limit implementacyjny 64 elementów jednej LIST; nie jest to deklarowany limit języka.
 
 ---
 

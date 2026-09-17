@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera 8
+BEGIN
+VAR a := RANDINT(8, 1, 3)
+PRINT LEN(a)
+END

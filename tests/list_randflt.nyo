@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera 7
+BEGIN
+VAR a := RANDFLT(7, -1, 1, 3)
+PRINT LEN(a)
+END

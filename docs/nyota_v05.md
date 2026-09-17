@@ -976,10 +976,10 @@ Brak `STEP` oznacza zachowanie dotychczasowego kroku domyślnego.
 
 ## 6.9. Rozszerzenia LIST
 
-**Status wdrożenia:** APPROVED AFTER CORE (pierwszy wycinek wdrożony wcześniej)  
-<span style="color: navy;">`+` `-` `><`, EXTEND, REMOVE indeks/wartość/ALL, CLEAR, REVERSE w toku (zaawansowany etap) 2026-09-17</span>
+**Status wdrożenia:** APPROVED AFTER CORE  
+<span style="color: #006A4E;">pełna zatwierdzona powierzchnia LIST: literały i zagnieżdżenia, indeksowanie, `+` `-` `><`, IN/LEN, APPEND/EXTEND/REMOVE/CLEAR/REVERSE/SORT, FOR...IN wykonane 2026-09-17</span>
 
-Operatory `+`, `-` i `><` zwracają nową listę. Instrukcje `EXTEND`, `REMOVE`,
+Operatory `+`, `-` i `><` zwracają nową listę. Instrukcje `APPEND`, `EXTEND`, `REMOVE`,
 `CLEAR`, `REVERSE` i `SORT` zmieniają istniejącą listę w miejscu.
 
 ### Łączenie list operatorem `+`
@@ -1070,9 +1070,9 @@ Po wykonaniu:
 W operacjach na listach typ jest częścią tożsamości wartości.
 
 ```text
-5 != "5"
-5 != 5.0
-5 != TRUE
+5 <> "5"
+5 <> 5.0
+5 <> TRUE
 ```
 
 Nie wykonuje się ukrytych konwersji podczas `EXTEND`, odejmowania, usuwania ani innych operacji porównujących elementy list.
@@ -1162,9 +1162,28 @@ wynik:
 REVERSE lista
 ```
 
+### FOR ... IN LIST
+
+`FOR ... IN` przechodzi po elementach listy w ich bieżącej kolejności. Wyrażenie
+listy jest obliczane raz przy wejściu do pętli. Zmienna iteratora jest zmienną
+sterującą pętli i przy liście mieszanej przyjmuje typ aktualnego elementu.
+
+```nyota
+FOR element IN lista:
+    PRINT element
+```
+
+Indeksowanie LIST jest ścisłe: indeks musi być `INTEGER`. `"1"`, `1.0` ani
+`TRUE` nie są automatycznie zamieniane na indeks całkowity.
+
+Bieżący interpreter ma limit implementacyjny `64` elementów jednej LIST.
+Limit ten wynika z obecnej statycznej implementacji i nie jest deklarowanym
+limitem semantycznym języka.
+
 ## 6.10. Losowe listy liczbowe
 
-**Status wdrożenia:** APPROVED AFTER CORE
+**Status wdrożenia:** APPROVED AFTER CORE  
+<span style="color: #006A4E;">RANDINT i RANDFLT, count do 64 i precyzja RANDFLT 0..3 wykonane 2026-09-17</span>
 
 ### RANDINT()
 

@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera a c
+BEGIN
+VAR a := ["c", "a", "b"]
+SORT a
+PRINT a[0], a[2]
+END

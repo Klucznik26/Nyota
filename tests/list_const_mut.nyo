@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD Nie mozna zmienic stalej LIST
+CONST a := [1, 2]
+BEGIN
+APPEND a, 3
+END

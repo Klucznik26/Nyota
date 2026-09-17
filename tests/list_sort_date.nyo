@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera <2025.01.01>
+BEGIN
+VAR a := [<2026.09.17>, <2025.01.01>, <2026.01.01>]
+SORT a
+PRINT a[0]
+END

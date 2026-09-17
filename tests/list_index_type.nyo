@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD Indeks LIST wymaga INTEGER
+BEGIN
+VAR a := [10, 20]
+PRINT a["0"]
+END

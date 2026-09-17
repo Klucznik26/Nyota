@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD RANDFLT
+BEGIN
+VAR a := RANDFLT(2, 0, 1, 4)
+END

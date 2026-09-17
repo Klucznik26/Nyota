@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera 3 3
+BEGIN
+VAR a := [1] + [2]
+APPEND a, 3
+PRINT LEN(a), a[2]
+END
