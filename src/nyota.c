@@ -7,16 +7,56 @@
 //
 // Standalone AyoOS: F9 / NYOTA, źródło z A:/System/_nyotarun
 // ============================================================
-#ifndef NYOTA_EMBEDDED
 #include <stdint.h>
-#include "ayo_api.h"
+#include "nyota_host.h"
 
+#ifndef NYOTA_EMBEDDED
+#include "ayo_api.h"
 static AyoAPI *g_api = 0;
 #endif
 
-#ifdef NYOTA_EMBEDDED
+static NyotaHost *g_host = 0;
 static void (*g_ny_emit)(char c) = 0;
-#endif
+
+void NyotaSetHost(NyotaHost *h) { g_host = h; }
+
+static void HostRect(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
+                     uint8_t r, uint8_t g, uint8_t b) {
+    if (g_host && g_host->gfx_rect) g_host->gfx_rect(x, y, w, h, r, g, b);
+}
+
+static void HostText(uint32_t x, uint32_t y, const char *text,
+                     uint8_t r, uint8_t g, uint8_t b, uint32_t scale) {
+    if (g_host && g_host->gfx_text) g_host->gfx_text(x, y, text, r, g, b, scale);
+}
+
+static void HostClear(uint8_t r, uint8_t g, uint8_t b) {
+    if (g_host && g_host->gfx_clear) g_host->gfx_clear(r, g, b);
+}
+
+static void HostGfxMode(uint32_t w, uint32_t h) {
+    if (g_host && g_host->gfx_mode) g_host->gfx_mode(w, h);
+}
+
+static uint64_t HostTicks(void) {
+    if (g_host && g_host->ticks_100hz) return g_host->ticks_100hz();
+    return 0;
+}
+
+static uint64_t HostUnixTime(void) {
+    if (g_host && g_host->unix_time) return g_host->unix_time();
+    return 0;
+}
+
+static uint8_t HostWaitKey(void) {
+    if (g_host && g_host->wait_key) return g_host->wait_key();
+    return 0;
+}
+
+static uint8_t HostKeyMods(void) {
+    if (g_host && g_host->key_mods) return g_host->key_mods();
+    return 0;
+}
 
 // ============================================================
 // KONFIGURACJA
@@ -374,7 +414,7 @@ static void OutNewLine(void) {
         // (brak memcpy w .ayo — rysujemy od nowa linię)
         g_out_y = OUT_MAX_Y;
         // Wyczyść ostatnią linię
-        g_api->DrawRect(0, g_out_y, SCREEN_W, OUT_FONT_H, 10, 10, 20);
+        HostRect(0, g_out_y, SCREEN_W, OUT_FONT_H, 10, 10, 20);
     }
 }
 
@@ -384,7 +424,7 @@ static void OutPutChar(char c) {
 #endif
     char buf[2]; buf[0] = c; buf[1] = '\0';
     if (g_out_x + OUT_FONT_W > OUT_MAX_X) OutNewLine();
-    g_api->DrawText(g_out_x, g_out_y, buf, 220, 220, 220, 2);
+    HostText(g_out_x, g_out_y, buf, 220, 220, 220, 2);
     g_out_x += OUT_FONT_W;
 }
 
@@ -428,8 +468,8 @@ static void OutError(const char *msg) {
     }
 #endif
     // Czerwony tekst błędu
-    g_api->DrawRect(0, g_out_y, SCREEN_W, OUT_FONT_H, 10, 10, 20);
-    g_api->DrawText(OUT_MARGIN, g_out_y, buf, 255, 80, 80, 2);
+    HostRect(0, g_out_y, SCREEN_W, OUT_FONT_H, 10, 10, 20);
+    HostText(OUT_MARGIN, g_out_y, buf, 255, 80, 80, 2);
     OutNewLine();
 }
 
@@ -1298,14 +1338,14 @@ static NyotaVal ParsePrimary(const char **pp) {
             *pp = call_open ? MatchParen(call_open) : expr;
             return result;
         }
-        if (!g_api || !g_api->GetUnixTime) {
+        if (!g_host || !g_host->unix_time) {
             OutError("TODAY() wymaga czasu systemowego");
             ValClear(&result);
             *pp = call_open ? MatchParen(call_open) : expr;
             return result;
         }
         {
-            uint64_t ut = g_api->GetUnixTime();
+            uint64_t ut = HostUnixTime();
             int32_t serial = DateToSerial(1970, 1, 1) + (int32_t)(ut / 86400ULL);
             ValFromDateSerial(&result, serial);
         }
@@ -1753,11 +1793,11 @@ static NyotaVal ParsePrimary(const char **pp) {
         // Rysuj kursor wejściowy i czekaj na znaki
         while (1) {
             // Narysuj bieżący bufor
-            g_api->DrawRect(g_out_x, g_out_y, SCREEN_W - g_out_x, OUT_FONT_H, 10, 10, 20);
+            HostRect(g_out_x, g_out_y, SCREEN_W - g_out_x, OUT_FONT_H, 10, 10, 20);
             if (input_len > 0)
-                g_api->DrawText(g_out_x, g_out_y, input_buf, 220, 220, 220, 2);
-            uint8_t key = g_api->WaitForKey();
-            uint8_t mods = g_api->GetKeyModifiers();
+                HostText(g_out_x, g_out_y, input_buf, 220, 220, 220, 2);
+            uint8_t key = HostWaitKey();
+            uint8_t mods = HostKeyMods();
             if (key == 0x1C) break;  // Enter
             if (key == 0x0E && input_len > 0) { input_buf[--input_len] = '\0'; continue; }
             // Konwertuj scancode → char (uproszczona mapa)
@@ -2193,7 +2233,7 @@ static void DrawLine(int x0, int y0, int x1, int y1, uint8_t r, uint8_t g, uint8
     int sy = y0 < y1 ? 1 : -1;
     int err = (dx > dy ? dx : -dy) / 2, e2;
     while (1) {
-        if (x0 >= 0 && y0 >= 0) g_api->DrawRect((uint32_t)x0, (uint32_t)y0, 1, 1, r, g, b);
+        if (x0 >= 0 && y0 >= 0) HostRect((uint32_t)x0, (uint32_t)y0, 1, 1, r, g, b);
         if (x0 == x1 && y0 == y1) break;
         e2 = err;
         if (e2 > -dx) { err -= dy; x0 += sx; }
@@ -2291,7 +2331,7 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         {
             int32_t args[3] = {0};
             ParseArgs(p, args, 3);
-            g_api->ClearScreen((uint8_t)args[0], (uint8_t)args[1], (uint8_t)args[2]);
+            HostClear((uint8_t)args[0], (uint8_t)args[1], (uint8_t)args[2]);
             g_out_x = OUT_MARGIN; g_out_y = OUT_MARGIN;
         }
         return;
@@ -2304,7 +2344,7 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         uint8_t r = (uint8_t)args[4], g = (uint8_t)args[5], b = (uint8_t)args[6];
         uint8_t f = (pc >= 8) ? (uint8_t)args[7] : 0;
         if (f) {
-            g_api->DrawRect((uint32_t)args[0], (uint32_t)args[1], (uint32_t)args[2], (uint32_t)args[3], r, g, b);
+            HostRect((uint32_t)args[0], (uint32_t)args[1], (uint32_t)args[2], (uint32_t)args[3], r, g, b);
         } else {
             DrawLine(args[0], args[1], args[0]+args[2]-1, args[1], r, g, b);
             DrawLine(args[0]+args[2]-1, args[1], args[0]+args[2]-1, args[1]+args[3]-1, r, g, b);
@@ -2333,21 +2373,21 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
             for (int y = -rad; y <= rad; y++) {
                 for (int x = -rad; x <= rad; x++) {
                     if (x*x + y*y <= rad*rad) {
-                        if (xc+x >= 0 && yc+y >= 0) g_api->DrawRect((uint32_t)(xc+x), (uint32_t)(yc+y), 1, 1, r, g, b);
+                        if (xc+x >= 0 && yc+y >= 0) HostRect((uint32_t)(xc+x), (uint32_t)(yc+y), 1, 1, r, g, b);
                     }
                 }
             }
         } else {
             int cx = 0, cy = rad, d = 3 - 2 * rad;
             while (cy >= cx) {
-                if (xc+cx>=0 && yc+cy>=0) g_api->DrawRect(xc+cx, yc+cy, 1, 1, r, g, b);
-                if (xc-cx>=0 && yc+cy>=0) g_api->DrawRect(xc-cx, yc+cy, 1, 1, r, g, b);
-                if (xc+cx>=0 && yc-cy>=0) g_api->DrawRect(xc+cx, yc-cy, 1, 1, r, g, b);
-                if (xc-cx>=0 && yc-cy>=0) g_api->DrawRect(xc-cx, yc-cy, 1, 1, r, g, b);
-                if (xc+cy>=0 && yc+cx>=0) g_api->DrawRect(xc+cy, yc+cx, 1, 1, r, g, b);
-                if (xc-cy>=0 && yc+cx>=0) g_api->DrawRect(xc-cy, yc+cx, 1, 1, r, g, b);
-                if (xc+cy>=0 && yc-cx>=0) g_api->DrawRect(xc+cy, yc-cx, 1, 1, r, g, b);
-                if (xc-cy>=0 && yc-cx>=0) g_api->DrawRect(xc-cy, yc-cx, 1, 1, r, g, b);
+                if (xc+cx>=0 && yc+cy>=0) HostRect(xc+cx, yc+cy, 1, 1, r, g, b);
+                if (xc-cx>=0 && yc+cy>=0) HostRect(xc-cx, yc+cy, 1, 1, r, g, b);
+                if (xc+cx>=0 && yc-cy>=0) HostRect(xc+cx, yc-cy, 1, 1, r, g, b);
+                if (xc-cx>=0 && yc-cy>=0) HostRect(xc-cx, yc-cy, 1, 1, r, g, b);
+                if (xc+cy>=0 && yc+cx>=0) HostRect(xc+cy, yc+cx, 1, 1, r, g, b);
+                if (xc-cy>=0 && yc+cx>=0) HostRect(xc-cy, yc+cx, 1, 1, r, g, b);
+                if (xc+cy>=0 && yc-cx>=0) HostRect(xc+cy, yc-cx, 1, 1, r, g, b);
+                if (xc-cy>=0 && yc-cx>=0) HostRect(xc-cy, yc-cx, 1, 1, r, g, b);
                 cx++;
                 if (d > 0) { cy--; d += 4 * (cx - cy) + 10; }
                 else { d += 4 * cx + 6; }
@@ -2369,7 +2409,7 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
                     if (x*x*ry*ry + y*y*rx*rx <= rx*rx*ry*ry) {
                         if (f || (x*x*ry*ry + y*y*rx*rx >= rx*rx*ry*ry - (rx*ry*2))) {
                             if (xc+x >= 0 && yc+y >= 0)
-                                g_api->DrawRect((uint32_t)(xc+x), (uint32_t)(yc+y), 1, 1, cr, cg, cb);
+                                HostRect((uint32_t)(xc+x), (uint32_t)(yc+y), 1, 1, cr, cg, cb);
                         }
                     }
                 }
@@ -2395,7 +2435,7 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
                     int w1 = (args[4]-args[2])*(y-args[3]) - (args[5]-args[3])*(x-args[2]);
                     int w2 = (args[0]-args[4])*(y-args[5]) - (args[1]-args[5])*(x-args[4]);
                     if ((w0>=0 && w1>=0 && w2>=0) || (w0<=0 && w1<=0 && w2<=0)) {
-                        if (x>=0 && y>=0) g_api->DrawRect((uint32_t)x, (uint32_t)y, 1, 1, r, g, b);
+                        if (x>=0 && y>=0) HostRect((uint32_t)x, (uint32_t)y, 1, 1, r, g, b);
                     }
                 }
             }
@@ -2469,7 +2509,7 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
                         if (term_x * term_x + term_y * term_y <= 1000000LL) {
                             if (f || (term_x * term_x + term_y * term_y > 850000LL)) {
                                 if (xc + sx >= 0 && yc + sy >= 0)
-                                    g_api->DrawRect((uint32_t)(xc + sx), (uint32_t)(yc + sy), 1, 1, cr, cg, cb);
+                                    HostRect((uint32_t)(xc + sx), (uint32_t)(yc + sy), 1, 1, cr, cg, cb);
                             }
                         }
                     }
@@ -3100,10 +3140,10 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         const char *p = NTrim(line + 5);
         NyotaVal v = Eval(p);
         int32_t ms = ValToInt(&v);
-        uint64_t start = g_api->GetTicks();
+        uint64_t start = HostTicks();
         // GetTicks to takty 100Hz — 100 taktów = 1000ms
         uint64_t wait = (uint64_t)ms / 10;
-        while ((g_api->GetTicks() - start) < wait) {
+        while ((HostTicks() - start) < wait) {
             // busy wait
         }
         return;
@@ -3117,8 +3157,21 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
 
     // --- GRAPH id ---
     if (NStartsWith(line, "GRAPH")) {
+        NyotaVal gv = Eval(NTrim(line + 5));
+        int32_t id = ValToInt(&gv);
+        uint32_t gw = 640, gh = 480;
+        if (id == 1) { gw = 640; gh = 480; }
+        else if (id == 2) { gw = 800; gh = 600; }
+        else if (id == 3) { gw = 1024; gh = 768; }
+        else if (id == 4) { gw = 1280; gh = 1024; }
+        else if (id == 5) { gw = 1600; gh = 900; }
+        else if (id == 6) { gw = 1920; gh = 1080; }
+        else {
+            OutError("GRAPH: tryb 1..6");
+            return;
+        }
         g_is_graphics = 1;
-        // Tutaj ewentualne wywolanie zmiany trybu ekranu w API AyoOS
+        HostGfxMode(gw, gh);
         return;
     }
 
@@ -3492,11 +3545,11 @@ static void RunProgram(void) {
 // RYSOWANIE EKRANU STARTOWEGO INTERPRETERA
 // ============================================================
 static void DrawHeader(const char *filename) {
-    g_api->DrawRect(0, 0, SCREEN_W, SCREEN_H, 10, 10, 20);
-    g_api->DrawRect(0, 0, SCREEN_W, 36, 20, 20, 40);
-    g_api->DrawText(OUT_MARGIN, 8, "Nyota Interpreter v0.1 | AyoOS", 100, 180, 255, 2);
-    g_api->DrawText(OUT_MARGIN + 700, 8, filename, 160, 160, 200, 2);
-    g_api->DrawRect(0, 36, SCREEN_W, 2, 50, 50, 100);
+    HostRect(0, 0, SCREEN_W, SCREEN_H, 10, 10, 20);
+    HostRect(0, 0, SCREEN_W, 36, 20, 20, 40);
+    HostText(OUT_MARGIN, 8, "Nyota Interpreter v0.1 | AyoOS", 100, 180, 255, 2);
+    HostText(OUT_MARGIN + 700, 8, filename, 160, 160, 200, 2);
+    HostRect(0, 36, SCREEN_W, 2, 50, 50, 100);
     g_out_x = OUT_MARGIN;
     g_out_y = 44;
 }
@@ -3531,8 +3584,8 @@ void NyotaEmbedRun(const char *src, void (*emit)(char c)) {
     }
     g_source[g_source_size] = '\0';
 
-    if (g_api && g_api->GetTicks)
-        g_rng = (uint32_t)g_api->GetTicks() ^ 0xDEADBEEF;
+    if (g_host && g_host->ticks_100hz)
+        g_rng = (uint32_t)HostTicks() ^ 0xDEADBEEF;
 
     NyotaEmbedReset();
     ParseSourceToLines();
@@ -3554,8 +3607,18 @@ void NyotaEmbedRun(const char *src, void (*emit)(char c)) {
 // MAIN
 // ============================================================
 void _start(AyoAPI *api) {
+    static NyotaHost ayo_host;
     g_api = api;
-    g_api->SetResolution(SCREEN_W, SCREEN_H);
+    ayo_host.gfx_rect = api->DrawRect;
+    ayo_host.gfx_text = api->DrawText;
+    ayo_host.gfx_clear = api->ClearScreen;
+    ayo_host.gfx_mode = api->SetResolution;
+    ayo_host.ticks_100hz = api->GetTicks;
+    ayo_host.unix_time = api->GetUnixTime;
+    ayo_host.wait_key = api->WaitForKey;
+    ayo_host.key_mods = api->GetKeyModifiers;
+    NyotaSetHost(&ayo_host);
+    HostGfxMode(SCREEN_W, SCREEN_H);
 
     // Wczytaj ścieżkę pliku z _nyotarun
     char nyo_path[256]; nyo_path[0] = '\0';
@@ -3574,10 +3637,10 @@ void _start(AyoAPI *api) {
     }
 
     if (!nyo_path[0]) {
-        g_api->DrawRect(0, 0, SCREEN_W, SCREEN_H, 10, 10, 20);
-        g_api->DrawText(OUT_MARGIN, 40, "NYOTA: Brak pliku do uruchomienia.", 255, 80, 80, 2);
-        g_api->DrawText(OUT_MARGIN, 80, "Uzyj F9 w AyoEdit lub zapisz sciezke do A:/System/_nyotarun", 180, 180, 180, 2);
-        g_api->WaitForKey();
+        HostRect(0, 0, SCREEN_W, SCREEN_H, 10, 10, 20);
+        HostText(OUT_MARGIN, 40, "NYOTA: Brak pliku do uruchomienia.", 255, 80, 80, 2);
+        HostText(OUT_MARGIN, 80, "Uzyj F9 w AyoEdit lub zapisz sciezke do A:/System/_nyotarun", 180, 180, 180, 2);
+        HostWaitKey();
         g_api->Exit();
         return;
     }
@@ -3585,15 +3648,15 @@ void _start(AyoAPI *api) {
     DrawHeader(nyo_path);
 
     // Zainicjalizuj generator liczb losowych
-    g_rng = (uint32_t)g_api->GetTicks() ^ 0xDEADBEEF;
+    g_rng = (uint32_t)HostTicks() ^ 0xDEADBEEF;
 
     // Wczytaj źródło .nyo
     g_source_size = 0;
     if (g_api->ReadFile(nyo_path, g_source, MAX_SOURCE - 1, &g_source_size) != 0
         || g_source_size == 0) {
         OutError("Nie mozna odczytac pliku .nyo");
-        g_api->DrawText(OUT_MARGIN, g_out_y + 20, nyo_path, 200, 200, 100, 2);
-        g_api->WaitForKey();
+        HostText(OUT_MARGIN, g_out_y + 20, nyo_path, 200, 200, 100, 2);
+        HostWaitKey();
         g_api->Exit();
         return;
     }
@@ -3602,7 +3665,7 @@ void _start(AyoAPI *api) {
     // Parsuj linie
     ParseSourceToLines();
     if (!ValidateSourceLayout()) {
-        g_api->WaitForKey();
+        HostWaitKey();
         g_api->Exit();
         return;
     }
@@ -3631,10 +3694,10 @@ void _start(AyoAPI *api) {
     RunProgram();
 
     // Koniec
-    g_api->DrawRect(0, g_out_y, SCREEN_W, OUT_FONT_H, 10, 10, 20);
-    g_api->DrawText(OUT_MARGIN, g_out_y, "--- Program zakonczony. Nacisnij dowolny klawisz. ---",
+    HostRect(0, g_out_y, SCREEN_W, OUT_FONT_H, 10, 10, 20);
+    HostText(OUT_MARGIN, g_out_y, "--- Program zakonczony. Nacisnij dowolny klawisz. ---",
                     100, 180, 100, 2);
-    g_api->WaitForKey();
+    HostWaitKey();
     g_api->Exit();
 }
 #endif /* !NYOTA_EMBEDDED */

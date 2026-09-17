@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD PRINT niedozwolone po wywolaniu GRAPH
+BEGIN
+GRAPH 1
+PRINT "nie"
+END

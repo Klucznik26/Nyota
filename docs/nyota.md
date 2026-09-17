@@ -46,7 +46,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: navy;">MARK: literał, odczyt, zapis wiersza/komórki, DELETE, LEN, IN, KEY/VALUE/MINFO w toku (zaawansowany etap) 2026-09-17</span>
 - <span style="color: navy;">LIST: `+` `-` `><`, EXTEND, REMOVE po indeksie i wartości, CLEAR, REVERSE w toku (zaawansowany etap) 2026-09-17</span>
 - <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>
-- <span style="color: yellow;">PRINT, GRAPH, INPUT, DELAY są w języku na każdym hoście, w tym Linux zaczęte 2026-09-17</span>
+- <span style="color: navy;">Linux: interpreter woła NyotaHost, nie AyoAPI; PRINT/GRAPH/INPUT/DELAY przez host POSIX w toku (zaawansowany etap) 2026-09-17</span>
 - <span style="color: yellow;">pomoc Tunga / AyoEdit nadal opisuje 7 spacji zaczęte 2026-09-17</span>
 
 Testy: `Programs/Tools/nyota/tests/` — w tym `date_arith.nyo`, `date_add.nyo`, `date_cmp.nyo`, `date_parts.nyo`, `date_leap_ok.nyo`, `date_leap_bad.nyo`, `date_gregorian.nyo`, `date_plus_date.nyo`.

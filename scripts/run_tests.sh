@@ -20,7 +20,20 @@ for f in "$TDIR"/*.nyo; do
         skip=$((skip + 1))
         continue
     fi
-    out=$("$NYOTA" "$f" 2>&1) || true
+    extra_env=""
+    case "$base" in
+    graph_*)
+        extra_env="SDL_VIDEODRIVER=dummy NYOTA_NO_WAIT=1"
+        ;;
+    input_*)
+        extra_env="NYOTA_INPUT=hello"
+        ;;
+    esac
+    if [ -n "$extra_env" ]; then
+        out=$(env $extra_env "$NYOTA" "$f" 2>&1) || true
+    else
+        out=$("$NYOTA" "$f" 2>&1) || true
+    fi
     case "$expect" in
     BLAD*)
         if echo "$out" | grep -q BLAD; then

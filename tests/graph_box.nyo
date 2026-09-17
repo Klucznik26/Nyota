@@ -1,0 +1,9 @@
+# Oczekiwane: okno GRAPH 640x480 (pominiete w make test)
+BEGIN
+GRAPH 1
+CLEAR 10, 10, 40
+BOX 80, 60, 200, 120, 200, 50, 50, 1
+LINE 80, 60, 280, 180, 220, 220, 255
+CIRCLE 400, 200, 50, 40, 180, 80, 1
+DELAY 200
+END

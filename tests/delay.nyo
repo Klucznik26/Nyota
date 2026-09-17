@@ -1,0 +1,5 @@
+# Oczekiwane: wypisuje d-ok
+BEGIN
+DELAY 20
+PRINT "d-ok"
+END

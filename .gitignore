@@ -4,3 +4,5 @@ nyota
 *.ayo
 *~
 .DS_Store
+packaging/rpmbuild/
+*.rpm

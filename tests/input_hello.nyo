@@ -1,0 +1,5 @@
+# Oczekiwane: wypisuje hello
+BEGIN
+VAR s := INPUT("")
+PRINT s
+END

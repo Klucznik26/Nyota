@@ -139,10 +139,27 @@ make test
 
 Testy obejmują między innymi parser wyrażeń, typy, błędy składni i wykonania, funkcje, pętle, daty, listy oraz rozwijany `MARK`.
 
+Bez `GRAPH` program pisze na stdout. Po `GRAPH 1..6` otwiera się okno SDL.
+`PRINT` po `GRAPH` jest błędem języka. Okno czeka na ESC.
+
+```bash
+./nyota tests/graph_box.nyo
+make test-graph
+NYOTA_INPUT=hello ./nyota tests/input_hello.nyo
+```
+
 Duży test demonstracyjny rdzenia:
 
 ```bash
 ./nyota tests/core_demo.nyo
+```
+
+## RPM (Fedora)
+
+```bash
+make rpm
+sudo dnf install packaging/nyota-0.5.0-1.fc44.x86_64.rpm
+nyota /usr/share/nyota/tests/hello.nyo
 ```
 
 ---
