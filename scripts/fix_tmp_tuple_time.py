@@ -50,8 +50,18 @@ text = ''.join(lines)
 # HOUR/MINUTE/SECOND return INTEGER, so SECOND(TIME(...05)) prints 5, not 05.
 text = text.replace('# Oczekiwane: zawiera 14 20 05', '# Oczekiwane: zawiera 14 20 5')
 
+# The Actions GITHUB_TOKEN cannot create/update workflow files. Permanent CI will be
+# installed afterwards through the GitHub connection, so suppress ci.yml generation here.
+ci_marker = '# Permanent CI for future pushes and pull requests.\n'
+ci_end = 'print("TUPLE/TIME upgrade applied")'
+start = text.find(ci_marker)
+end = text.find(ci_end, start if start >= 0 else 0)
+if start < 0 or end < 0:
+    raise SystemExit("permanent CI block in temporary upgrade script not found")
+text = text[:start] + ci_end + text[end + len(ci_end):]
+
 # Python string literals in the temporary patch must emit C '\\0', not a literal NUL byte.
 text = text.replace("\\0", "\\\\0")
 
 p.write_text(text, encoding="utf-8")
-print("repaired TUPLE/TIME patch and aligned TIME INTEGER test output")
+print("repaired TUPLE/TIME patch; workflow-file changes suppressed for CI push")
