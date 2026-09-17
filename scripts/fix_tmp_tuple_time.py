@@ -16,5 +16,18 @@ if needle not in text:
     raise SystemExit("ambiguous MatchParen replacement call not found")
 text = text.replace(needle, replacement, 1)
 
+# LIST was completed after the original temporary patch was prepared.
+# Make the agent-facing documentation anchor follow the current green status line.
+lines = text.splitlines(keepends=True)
+replaced = False
+for i, line in enumerate(lines):
+    if line.startswith("needle = '- <span style=") and "LIST:" in line and "LIST status anchor" not in line:
+        lines[i] = 'needle = \'- <span style="color: #006A4E;">LIST: literały (także zagnieżdżone), indeksowanie INTEGER, `+` `-` `><`, IN/LEN, APPEND/EXTEND/REMOVE/CLEAR/REVERSE/SORT, FOR...IN, RANDINT/RANDFLT wykonane 2026-09-17</span>\\n\'\n'
+        replaced = True
+        break
+if not replaced:
+    raise SystemExit("LIST documentation needle in temporary upgrade script not found")
+text = ''.join(lines)
+
 p.write_text(text, encoding="utf-8")
-print("made MatchParen replacement deterministic")
+print("made TUPLE/TIME temporary patch deterministic and synchronized with LIST docs")
