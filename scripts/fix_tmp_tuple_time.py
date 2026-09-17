@@ -36,7 +36,6 @@ if dup_tail not in text:
 text = text.replace(dup_tail, fixed_tail, 1)
 
 # LIST was completed after the original temporary patch was prepared.
-# Make the agent-facing documentation anchor follow the current green status line.
 lines = text.splitlines(keepends=True)
 replaced = False
 for i, line in enumerate(lines):
@@ -48,8 +47,11 @@ if not replaced:
     raise SystemExit("LIST documentation needle in temporary upgrade script not found")
 text = ''.join(lines)
 
+# HOUR/MINUTE/SECOND return INTEGER, so SECOND(TIME(...05)) prints 5, not 05.
+text = text.replace('# Oczekiwane: zawiera 14 20 05', '# Oczekiwane: zawiera 14 20 5')
+
 # Python string literals in the temporary patch must emit C '\\0', not a literal NUL byte.
 text = text.replace("\\0", "\\\\0")
 
 p.write_text(text, encoding="utf-8")
-print("repaired TUPLE/TIME temporary patch: parser block, LIST docs and C NUL escapes")
+print("repaired TUPLE/TIME patch and aligned TIME INTEGER test output")
