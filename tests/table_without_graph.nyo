@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD
+BEGIN
+TABLE zla, 10, 10, 200, 100, 1, [200], "SYSTEM", 12, 255, 255, 255
+END

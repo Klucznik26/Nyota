@@ -79,6 +79,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `DATE` | ✅ | literał `<RRRR.MM.DD>`, walidacja gregoriańska i arytmetyka dni |
 | `LIST` | 🚧 | rozszerzane operacje i semantyka kolekcji |
 | `MARK` | 🚧 | autorska struktura tabelowa Nyoty |
+| `TABLE` | ✅ | nazwana kontrolka prezentacji LIST/TUPLE/MARK w trybie graficznym |
 | Host Linux | 🚧 | terminal + backend SDL2 dla grafiki |
 | Host AyoOS | 🚧 | docelowo wspólny `src/nyota.c` dla wszystkich hostów |
 
@@ -230,7 +231,7 @@ Najważniejsze dokumenty projektu:
 
 ## Kierunek rozwoju
 
-Po ustabilizowaniu rdzenia Nyota ma rozwijać się także w stronę bogatszych struktur danych, `TIME` i `DATETIME`, relacyjnego `MARK`, rozbudowanego `TABLE`, standardowego GUI, sprite'ów, audio oraz dalszej pracy nad hostem Linuksa.
+Po ustabilizowaniu rdzenia Nyota ma rozwijać się także w stronę bogatszych struktur danych, `TIME` i `DATETIME`, relacyjnego `MARK`, dalszego rozwoju `TABLE`, standardowego GUI, sprite'ów, audio oraz dalszej pracy nad hostem Linuksa.
 
 Planowane są również narzędzia wygodne poza AyoOS: obsługa Nyoty w **Visual Studio Code** oraz instalacyjne pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
 

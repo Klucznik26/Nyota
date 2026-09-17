@@ -194,7 +194,6 @@ wcześniej, wdrożenie nie należy nawet do fali po rdzeniu v0.5:
 ```text
 wybór algorytmu SORT jako składnia języka (BUBBLE, QUICK, ...)
 relacyjny MARK
-TABLE
 DATETIME
 standard GUI Nyoty
 sprite'y
@@ -1917,7 +1916,83 @@ PRINT HOUR(teraz), ":", MINUTE(teraz), ":", SECOND(teraz)
 `TIME` ma współpracować z `LIST`, `MARK`, `SORT`, `VALUE`, `VALUES` i `MLIST`
 jako rzeczywisty typ, bez zamiany na `[HH, MM, SS]`.
 
-## 6.15. Kierunki FUTURE
+## 6.15. TABLE — nazwana kontrolka prezentacji danych
+
+**Status wdrożenia:** FUTURE (pierwszy etap wykonany wcześniej na prośbę)  
+<span style="color: #006A4E;">nazwana kontrolka, układ kolumn, font/rozmiar, kolor tekstu, LIST/TUPLE/MARK i TABLE_DATA wykonane 2026-09-17</span>
+
+`TABLE` **nie jest typem zmiennej**. Jest kontrolką prezentacyjną działającą na
+warstwie graficznej Nyoty. Dane pozostają w istniejących typach takich jak
+`LIST`, `TUPLE` i `MARK`.
+
+Każda tabela ma obowiązkową **nazwę logiczną**, dzięki której program może
+odwoływać się do konkretnej kontrolki, gdy tabel jest wiele. Nazwa należy do
+osobnej przestrzeni kontrolek TABLE i nie jest zmienną Nyoty.
+
+Podstawowa składnia:
+
+```nyota
+TABLE kraje_view, 20, 60, 700, 300, 3, [180, 260, 260], "SYSTEM", 14, 220, 220, 220
+```
+
+Parametry oznaczają kolejno:
+
+```text
+nazwa tabeli
+x, y
+szerokosc, wysokosc
+liczba kolumn
+LIST/TUPLE szerokosci poszczegolnych kolumn
+nazwa czcionki
+rozmiar czcionki
+R, G, B koloru tekstu
+opcjonalne zrodlo danych
+```
+
+W pierwszym etapie suma szerokości kolumn musi być dokładnie równa szerokości
+kontrolki. Każda szerokość jest dodatnim `INTEGER`, a liczba pozycji w liście
+szerokości musi odpowiadać liczbie kolumn.
+
+Źródło można podać od razu:
+
+```nyota
+TABLE kraje_view, 20, 60, 700, 300, 3, [180, 260, 260], "SYSTEM", 14, 220, 220, 220, kraje
+```
+
+albo później zmienić je przez nazwę tabeli:
+
+```nyota
+TABLE_DATA kraje_view, inne_dane
+```
+
+Źródło jest nazwą istniejącej zmiennej `LIST`, `TUPLE` albo `MARK`; `TABLE` nie
+kopiuje danych do nowego typu.
+
+Zasady prezentacji pierwszej wersji:
+
+```text
+MARK             kolumna 0 = klucz, dalej kolumny wartosci
+LIST/TUPLE       jedna kolumna -> elementy jako kolejne wiersze
+LIST/TUPLE       wiele kolumn -> elementy musza byc wierszami LIST/TUPLE
+brak zrodla       pusta kontrolka z ukladem kolumn
+```
+
+Dla `MARK` liczba kolumn TABLE musi odpowiadać: `klucz + kolumny wartości`.
+Dla wielokolumnowych `LIST/TUPLE` każdy wiersz musi mieć dokładnie tyle pól,
+ile zadeklarowano kolumn.
+
+Ponowne wykonanie `TABLE` z tą samą nazwą aktualizuje tę samą logiczną kontrolkę,
+a nie tworzy drugiej o nierozróżnialnym identyfikatorze.
+
+Nazwa fontu jest częścią kontraktu kontrolki. Host może użyć fontu zastępczego,
+jeżeli nie posiada wskazanej czcionki; referencyjny host POSIX nadal używa
+wbudowanego fontu bitmapowego i skaluje go do żądanego rozmiaru.
+
+Na tym etapie TABLE nie zapewnia jeszcze nagłówków, edycji komórek, zaznaczania,
+przewijania ani sortowania kliknięciem. To są późniejsze możliwości GUI, nie
+warunek istnienia podstawowej kontrolki prezentacyjnej.
+
+## 6.16. Kierunki FUTURE
 
 **Status wdrożenia:** FUTURE
 
@@ -1926,7 +2001,6 @@ należą do pierwszej fali po rdzeniu:
 
 ```text
 relacyjny MARK
-TABLE
 DATETIME
 standard GUI Nyoty
 sprite'y

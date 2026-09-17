@@ -1,0 +1,6 @@
+# Oczekiwane: OK
+BEGIN
+VAR dane := [10, 20, 30]
+GRAPH 1
+TABLE liczby, 10, 10, 200, 120, 1, [200], "SYSTEM", 12, 255, 255, 255, dane
+END

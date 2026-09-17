@@ -22,7 +22,7 @@ for f in "$TDIR"/*.nyo; do
     fi
     extra_env=""
     case "$base" in
-    graph_*)
+    graph_*|table_*)
         extra_env="SDL_VIDEODRIVER=dummy NYOTA_NO_WAIT=1"
         ;;
     input_*)

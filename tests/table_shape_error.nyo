@@ -1,0 +1,6 @@
+# Oczekiwane: BLAD
+BEGIN
+VAR dane := [[1, 2], [3, 4, 5]]
+GRAPH 1
+TABLE zla, 10, 10, 300, 100, 2, [150, 150], "SYSTEM", 12, 255, 255, 255, dane
+END

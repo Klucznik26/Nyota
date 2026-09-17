@@ -1,0 +1,6 @@
+# Oczekiwane: OK
+BEGIN
+VAR dane := [[1, "A"], [2, "B"], [3, "C"]]
+GRAPH 1
+TABLE osoby, 10, 10, 300, 140, 2, [80, 220], "SYSTEM", 14, 200, 240, 255, dane
+END

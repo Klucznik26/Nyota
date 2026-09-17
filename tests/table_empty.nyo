@@ -1,0 +1,5 @@
+# Oczekiwane: OK
+BEGIN
+GRAPH 1
+TABLE pusta, 10, 10, 300, 120, 3, [100, 100, 100], "SYSTEM", 12, 220, 220, 220
+END

@@ -1,0 +1,8 @@
+# Oczekiwane: OK
+BEGIN
+VAR a := [1, 2, 3]
+VAR b := [4, 5, 6]
+GRAPH 1
+TABLE wynik, 10, 10, 200, 120, 1, [200], "SYSTEM", 12, 255, 255, 255, a
+TABLE_DATA wynik, b
+END
