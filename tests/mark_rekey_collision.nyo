@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+VAR m := {2| "A" | 10, "B" | 20}
+REKEY m, "A", "B"
+END

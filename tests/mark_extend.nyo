@@ -1,0 +1,7 @@
+# Oczekiwane: zawiera 3
+BEGIN
+VAR a := {2| "A" | 1, "B" | 2}
+VAR b := {2| "B" | 9, "C" | 3}
+EXTEND a, b
+PRINT LEN(a)
+END

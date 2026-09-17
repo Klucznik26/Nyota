@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera [2, 3]
+BEGIN
+VAR m := {2| "A" | 10, "B" | 20}
+MEXTEND m, 2, 0
+PRINT MINFO(m)
+END

@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD
+BEGIN
+VAR m := {2| "A" | 1, "A" | 2}
+END

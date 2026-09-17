@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera [10, 30]
+BEGIN
+VAR m := {4| "A" | 10 | 20 | 30}
+MDROP m, 1
+PRINT m["A"]
+END

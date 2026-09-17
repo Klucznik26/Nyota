@@ -43,7 +43,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">IF / ELIF / ELSE jako jeden łańcuch: tylko pierwsza prawdziwa gałąź, ELSE nie odpala się sam wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">precedencja: `*` przed `+`, lewostronne `-`, nawiasy, NOT/AND/OR w wyrażeniu wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">WHILE (warunek BOOLEAN), CONTINUE, FOR STEP oraz operator MOD wykonane 2026-09-17</span>
-- <span style="color: navy;">MARK: literał, odczyt, zapis wiersza/komórki, DELETE, LEN, IN, KEY/VALUE/MINFO w toku (zaawansowany etap) 2026-09-17</span>
+- <span style="color: #006A4E;">MARK: literał i mutacje, REKEY, KEY/VALUE/VALUES/MLIST/MINFO, IN/FOR IN, algebra + - ><, EXTEND/CLEAR/REVERSE/SORT, kolumny MEXTEND/MINSERT/MDROP oraz statystyki wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">LIST: literały (także zagnieżdżone), indeksowanie INTEGER, `+` `-` `><`, IN/LEN, APPEND/EXTEND/REMOVE/CLEAR/REVERSE/SORT, FOR...IN, RANDINT/RANDFLT wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">TUPLE: literał, indeksowanie, LEN, IN, FOR...IN i konwersje LIST/TUPLE wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">TIME: TIME(), TIME(HH.MM.SS), HOUR/MINUTE/SECOND, H/M/S, TIME-TIME, porównania i SORT wykonane 2026-09-17</span>
@@ -880,8 +880,7 @@ Zasady:
 
 `MARK` to autorska struktura Nyota łącząca słownik i tabelę danych.
 
-<span style="color: navy;">literał, odczyt `m[k][c]`, zapis wiersza i komórki, DELETE, LEN, IN, KEY/VALUE/MINFO w toku (zaawansowany etap) 2026-09-17</span>  
-`REKEY`, `VALUES` z zakresem, `CLEAR`, algebra `+`/`EXTEND` i statystyki jeszcze nie.
+<span style="color: #006A4E;">pełny podstawowy MARK: odczyt/mutacje, algebra, iteracja, sortowanie, operacje kolumnowe i statystyki wykonane 2026-09-17</span>
 
 Format:
 
@@ -917,7 +916,17 @@ Zasady:
 * wartości w MARK są przechowywane jako LIST,
 * przypisywana LIST musi mieć zgodną liczbę kolumn,
 * `DELETE` działa wyłącznie na MARK,
-* nie mylić `DELETE` z `REMOVE`.
+* nie mylić `DELETE` z `REMOVE`,
+* `REKEY m, old, new` zmienia klucz bez zmiany pozycji wiersza,
+* `FOR key IN m:` iteruje po kluczach w bieżącej kolejności,
+* `+`, `-` i `><` zwracają nowy MARK; `EXTEND`, `REVERSE`, `SORT`, `CLEAR`, `MEXTEND`, `MINSERT`, `MDROP` mutują,
+* `VALUES(m, row, ...)` zwraca LIST wybranych kolumn; zakres `2:7` jest domknięty,
+* `MLIST(m, KEY)` zwraca klucze, a `MLIST(m, n)` wskazaną kolumnę wartości,
+* `SORT m, KEY[, DESC]` oraz `SORT m, VALUE n[, DESC]` sortują wiersze,
+* `SUM`, `AVG`, `MED`, `MIN`, `MAX`, `MODE`, `MODECOUNT`, `COUNT` działają kolumnowo,
+* przy remisie `MODE` wybiera pierwszą wartość w aktualnej kolejności MARK-a; `MODECOUNT` zwraca jej liczność,
+* indeksy wierszy/kolumn dla funkcji MARK wymagają `INTEGER`, bez konwersji niejawnej,
+* `CONST` zawierający MARK nie może być mutowany.
 
 ---
 

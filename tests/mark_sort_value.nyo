@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera B
+BEGIN
+VAR m := {2| "A" | 30, "B" | 10, "C" | 20}
+SORT m, VALUE 0
+PRINT KEY(m, 0)
+END

@@ -78,7 +78,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | Ścisłe typowanie i jawne konwersje | 🚧 | system typów jest intensywnie dopracowywany |
 | `DATE` | ✅ | literał `<RRRR.MM.DD>`, walidacja gregoriańska i arytmetyka dni |
 | `LIST` | 🚧 | rozszerzane operacje i semantyka kolekcji |
-| `MARK` | 🚧 | autorska struktura tabelowa Nyoty |
+| `MARK` | ✅ | klucze+kolumny, algebra, iteracja, sortowanie, przebudowa kolumn i statystyki |
 | `TABLE` | ✅ | nazwana kontrolka prezentacji LIST/TUPLE/MARK w trybie graficznym |
 | `BUTTON` | ✅ | nazwana kontrolka GUI; wygląd + wykrywanie kliknięcia na hoście POSIX |
 | Host Linux | 🚧 | terminal + backend SDL2 dla grafiki |

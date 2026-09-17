@@ -1270,9 +1270,8 @@ Wartość spoza tego zakresu ma powodować błąd interpretera.
 
 ## 6.12. Rozszerzenia MARK
 
-**Status wdrożenia:** APPROVED AFTER CORE (pierwszy wycinek wdrożony wcześniej)  
-<span style="color: navy;">literał, odczyt, zapis wiersza/komórki, DELETE, LEN, IN, KEY/VALUE/MINFO w toku (zaawansowany etap) 2026-09-17</span>  
-<span style="color: yellow;">REKEY, VALUES z zakresem, CLEAR, algebra, statystyki, SORT zaczęte 2026-09-17</span>
+**Status wdrożenia:** APPROVED AFTER CORE — WDROŻONE  
+<span style="color: #006A4E;">REKEY, KEY/VALUE/VALUES, IN/FOR IN, algebra + - ><, EXTEND/CLEAR/REVERSE/SORT, MLIST/MEXTEND/MINSERT/MDROP i statystyki wykonane 2026-09-17</span>
 
 `MARK` jest autorską strukturą Nyoty łączącą klucze z uporządkowanymi
 kolumnami wartości. W v0.5 ma być traktowany jako lekka struktura tabelowa,
@@ -1518,8 +1517,8 @@ PRINT COUNT(dane, 0, 8), " ", MODE(dane, 0), " ", MODECOUNT(dane, 0)
 
 Dla kolumny `[5, 8, 5, 12, 5, 8]` wynik odpowiada wartościom `2 5 3`.
 
-Przypadek wielu równie częstych dominant wymaga jeszcze ostatecznego
-zdefiniowania w specyfikacji.
+Przy remisie kilku dominant `MODE()` zwraca tę, która występuje najwcześniej
+w aktualnej kolejności MARK-a. `MODECOUNT()` zwraca liczbę jej wystąpień.
 
 ### MEXTEND — dodawanie kolumn
 

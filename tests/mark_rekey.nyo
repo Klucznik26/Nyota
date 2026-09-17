@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera 10
+BEGIN
+VAR m := {2| "A" | 10, "B" | 20}
+REKEY m, "A", "C"
+PRINT m["C"][0]
+END

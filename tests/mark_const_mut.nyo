@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+CONST m := {2| "A" | 1}
+REKEY m, "A", "B"
+END
