@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - list-complete
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply-test-commit:
-    if: ${{ !contains(github.event.head_commit.message, '[list-upgrade-applied]') }}
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[list-upgrade-applied]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
