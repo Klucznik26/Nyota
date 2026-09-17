@@ -47,6 +47,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">LIST: literały (także zagnieżdżone), indeksowanie INTEGER, `+` `-` `><`, IN/LEN, APPEND/EXTEND/REMOVE/CLEAR/REVERSE/SORT, FOR...IN, RANDINT/RANDFLT wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">TUPLE: literał, indeksowanie, LEN, IN, FOR...IN i konwersje LIST/TUPLE wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">TIME: TIME(), TIME(HH.MM.SS), HOUR/MINUTE/SECOND, H/M/S, TIME-TIME, porównania i SORT wykonane 2026-09-17</span>
+- <span style="color: #006A4E;">TABLE: nazwana kontrolka prezentacji danych; kolumny i szerokości, czcionka/rozmiar, kolor tekstu, opcjonalne źródło LIST/TUPLE/MARK oraz TABLE_DATA wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>

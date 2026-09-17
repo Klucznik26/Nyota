@@ -1,0 +1,7 @@
+# Oczekiwane: OK
+BEGIN
+VAR a := [1, 2]
+GRAPH 1
+TABLE panel, 10, 10, 200, 100, 1, [200], "SYSTEM", 12, 255, 255, 255, a
+TABLE panel, 20, 20, 240, 100, 1, [240], "SYSTEM", 16, 200, 255, 200, a
+END

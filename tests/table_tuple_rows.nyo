@@ -1,0 +1,6 @@
+# Oczekiwane: OK
+BEGIN
+VAR dane := [(1, "A"), (2, "B")]
+GRAPH 1
+TABLE tuple_rows, 10, 10, 240, 100, 2, [80, 160], "SYSTEM", 10, 255, 220, 180, dane
+END

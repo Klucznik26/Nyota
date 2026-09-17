@@ -1,0 +1,6 @@
+# Oczekiwane: OK
+BEGIN
+VAR kraje := {3| "Polska" | "Warszawa" | "Wisla", "Niemcy" | "Berlin" | "Ren" }
+GRAPH 1
+TABLE kraje_view, 10, 10, 450, 120, 3, [150, 180, 120], "SYSTEM", 12, 220, 255, 220, kraje
+END
