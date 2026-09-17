@@ -25,7 +25,9 @@ jobs:
           sudo apt-get install -y build-essential pkg-config libsdl2-dev
 
       - name: Apply TUPLE and TIME upgrade
-        run: python3 scripts/tmp_tuple_time_upgrade.py
+        run: |
+          python3 scripts/fix_tmp_tuple_time.py
+          python3 scripts/tmp_tuple_time_upgrade.py
 
       - name: Build interpreter
         run: |
@@ -40,6 +42,7 @@ jobs:
 
       - name: Remove temporary upgrade machinery
         run: |
+          rm -f scripts/fix_tmp_tuple_time.py
           rm -f scripts/tmp_tuple_time_upgrade.py
           rm -f .github/workflows/tmp-tuple-time.yml
 
