@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera TIME(16.21.00)
+BEGIN
+VAR t := TIME(14.20.20) + H2 + S40
+PRINT t
+END

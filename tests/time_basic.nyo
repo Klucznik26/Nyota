@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera 14 20 5
+BEGIN
+VAR t := TIME(14.20.05)
+PRINT HOUR(t), MINUTE(t), SECOND(t)
+END

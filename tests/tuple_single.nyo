@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera (5,)
+BEGIN
+VAR t := (5,)
+PRINT t
+END

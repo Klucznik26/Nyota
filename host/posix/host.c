@@ -68,6 +68,13 @@ static uint64_t host_unix(void) {
     return (uint64_t)time(NULL);
 }
 
+static uint32_t host_local_time_seconds(void) {
+    time_t now = time(NULL);
+    struct tm tmv;
+    localtime_r(&now, &tmv);
+    return (uint32_t)(tmv.tm_hour * 3600 + tmv.tm_min * 60 + tmv.tm_sec);
+}
+
 static void gfx_ensure(void) {
     if (g_gfx) return;
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -284,6 +291,7 @@ int main(int argc, char **argv) {
 
     g_nyhost.emit = posix_emit;
     g_nyhost.unix_time = host_unix;
+    g_nyhost.local_time_seconds = host_local_time_seconds;
     g_nyhost.ticks_100hz = host_ticks;
     g_nyhost.wait_key = host_waitkey;
     g_nyhost.key_mods = host_mods;
