@@ -44,7 +44,6 @@ jobs:
         run: |
           rm -f scripts/fix_tmp_tuple_time.py
           rm -f scripts/tmp_tuple_time_upgrade.py
-          rm -f .github/workflows/tmp-tuple-time.yml
 
       - name: Commit validated implementation
         run: |
