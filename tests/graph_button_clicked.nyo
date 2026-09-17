@@ -1,0 +1,6 @@
+# Oczekiwane: OK
+BEGIN
+GRAPH 1
+BUTTON ok, 20, 20, 120, 40, "OK", "SYSTEM", 12, 255, 255, 255, 30, 120, 60
+VAR klik := BUTTON_CLICKED(ok)
+END

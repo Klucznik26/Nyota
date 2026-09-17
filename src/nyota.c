@@ -63,6 +63,13 @@ static uint8_t HostKeyMods(void) {
     return 0;
 }
 
+static uint8_t HostPointerState(int32_t *x, int32_t *y) {
+    if (g_host && g_host->pointer_state) return g_host->pointer_state(x, y);
+    if (x) *x = 0;
+    if (y) *y = 0;
+    return 0;
+}
+
 // ============================================================
 // KONFIGURACJA
 // ============================================================
@@ -80,6 +87,7 @@ static uint8_t HostKeyMods(void) {
 #define MAX_LIST_ITEMS  64      // max elementów listy
 #define MAX_TABLES      32      // max nazwanych kontrolek TABLE
 #define MAX_TABLE_COLS  16      // max kolumn jednej TABLE
+#define MAX_BUTTONS     64      // max nazwanych kontrolek BUTTON
 #define NYOTA_INDENT    4       // jeden poziom bloku = dokładnie 4 spacje
 
 // ============================================================
@@ -141,6 +149,18 @@ typedef struct {
     char source_name[64];
 } NyotaTable;
 
+// BUTTON jest nazwaną kontrolką GUI, a nie typem zmiennej Nyoty.
+typedef struct {
+    char name[64];
+    int32_t x, y, w, h;
+    char text[MAX_STR_LEN];
+    char font[64];
+    uint32_t font_size;
+    uint8_t text_r, text_g, text_b;
+    uint8_t bg_r, bg_g, bg_b;
+    uint8_t prev_down;
+} NyotaButton;
+
 // ============================================================
 // STAN GLOBALNY INTERPRETERA
 // ============================================================
@@ -158,6 +178,8 @@ static uint32_t  g_proc_count = 0;
 
 static NyotaTable g_tables[MAX_TABLES];
 static uint32_t   g_table_count = 0;
+static NyotaButton g_buttons[MAX_BUTTONS];
+static uint32_t    g_button_count = 0;
 
 // TinyML: Mikro-Sieć Neuronowa (Perceptron bez FPU)
 #define MAX_NN 4
@@ -1039,6 +1061,8 @@ static int32_t  EvalBool(const char *expr);
 static NyotaVal CallNamed(const char *name, const char *paren, const char **after_out);
 static NyotaVal ParseOr(const char **pp);
 static NyotaVal ParsePrimary(const char **pp);
+static NyotaButton *FindButton(const char *name);
+static int ButtonPollClicked(NyotaButton *b);
 
 static NyotaVal ValArith(const NyotaVal *a, char op, const NyotaVal *b) {
     NyotaVal r;
@@ -1789,6 +1813,56 @@ static NyotaVal ParsePrimary(const char **pp) {
             return result;
         }
         result = SeqCloneAs(&inner, is_tuple ? TYPE_TUPLE : TYPE_LIST);
+        *pp = call_open ? MatchParen(call_open) : expr;
+        return result;
+    }
+    if (NStrEqN(expr, "BUTTON_CLICKED(", 15)) {
+        char args[2][MAX_STR_LEN];
+        char bname[64];
+        int n = SplitFunctionArgs(expr + 15, args, 2);
+        NyotaButton *b;
+        int clicked;
+        if (n != 1) {
+            OutError("BUTTON_CLICKED() wymaga jednej nazwy BUTTON");
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        {
+            const char *a = NTrim(args[0]);
+            if (*a == '"') {
+                NyotaVal nv = Eval(a);
+                if (nv.type != TYPE_STR || !nv.s[0]) {
+                    OutError("BUTTON_CLICKED() wymaga nazwy BUTTON");
+                    ValClear(&result);
+                    *pp = call_open ? MatchParen(call_open) : expr;
+                    return result;
+                }
+                NStrCopy(bname, nv.s, sizeof(bname));
+            } else {
+                uint32_t bn = ParseIdent(a, bname, sizeof(bname));
+                if (!bname[0] || *NTrim(a + bn)) {
+                    OutError("BUTTON_CLICKED() wymaga identyfikatora albo STRING");
+                    ValClear(&result);
+                    *pp = call_open ? MatchParen(call_open) : expr;
+                    return result;
+                }
+            }
+        }
+        b = FindButton(bname);
+        if (!b) {
+            OutError("BUTTON_CLICKED: nieznany BUTTON");
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        clicked = ButtonPollClicked(b);
+        if (clicked < 0) {
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        ValFromBool(&result, clicked);
         *pp = call_open ? MatchParen(call_open) : expr;
         return result;
     }
@@ -2926,6 +3000,83 @@ static int RenderTable(NyotaTable *t) {
 }
 
 // ============================================================
+// BUTTON — nazwana kontrolka GUI
+// ============================================================
+static NyotaButton *FindButton(const char *name) {
+    uint32_t i;
+    for (i = 0; i < g_button_count; i++)
+        if (NStrEq(g_buttons[i].name, name)) return &g_buttons[i];
+    return 0;
+}
+
+static NyotaButton *GetOrCreateButton(const char *name) {
+    NyotaButton *b = FindButton(name);
+    if (b) return b;
+    if (g_button_count >= MAX_BUTTONS) {
+        OutError("Za duzo kontrolek BUTTON");
+        return 0;
+    }
+    b = &g_buttons[g_button_count++];
+    NStrCopy(b->name, name, sizeof(b->name));
+    b->prev_down = 0;
+    return b;
+}
+
+static int ButtonEvalInt(const char *expr, int32_t *out) {
+    NyotaVal v = Eval(expr);
+    if (v.type != TYPE_INT) {
+        OutError("BUTTON: parametr liczbowy wymaga INTEGER");
+        return 0;
+    }
+    *out = v.i;
+    return 1;
+}
+
+static void RenderButton(NyotaButton *b) {
+    uint32_t scale, text_w, text_h;
+    int32_t tx, ty;
+    char clipped[MAX_STR_LEN];
+    if (!b || !g_is_graphics) return;
+
+    HostRect((uint32_t)b->x, (uint32_t)b->y, (uint32_t)b->w, (uint32_t)b->h,
+             b->bg_r, b->bg_g, b->bg_b);
+    DrawLine(b->x, b->y, b->x + b->w - 1, b->y, 190, 190, 190);
+    DrawLine(b->x, b->y, b->x, b->y + b->h - 1, 190, 190, 190);
+    DrawLine(b->x, b->y + b->h - 1, b->x + b->w - 1, b->y + b->h - 1, 55, 55, 55);
+    DrawLine(b->x + b->w - 1, b->y, b->x + b->w - 1, b->y + b->h - 1, 55, 55, 55);
+
+    scale = (b->font_size + 7U) / 8U;
+    if (scale < 1) scale = 1;
+    if (scale > 8) scale = 8;
+    TableClipText(b->text, clipped, sizeof(clipped), b->w - 8, scale);
+    text_w = NStrLen(clipped) * 8U * scale;
+    text_h = 8U * scale;
+    tx = b->x + (b->w - (int32_t)text_w) / 2;
+    ty = b->y + (b->h - (int32_t)text_h) / 2;
+    if (tx < b->x + 2) tx = b->x + 2;
+    if (ty < b->y + 2) ty = b->y + 2;
+    HostText((uint32_t)tx, (uint32_t)ty, clipped,
+             b->text_r, b->text_g, b->text_b, scale);
+}
+
+static int ButtonPollClicked(NyotaButton *b) {
+    int32_t mx = 0, my = 0;
+    uint8_t buttons, down;
+    int inside, clicked;
+    if (!b) return 0;
+    if (!g_host || !g_host->pointer_state) {
+        OutError("BUTTON_CLICKED: host nie obsluguje wskaznika");
+        return -1;
+    }
+    buttons = HostPointerState(&mx, &my);
+    down = buttons & 1U;
+    inside = mx >= b->x && my >= b->y && mx < b->x + b->w && my < b->y + b->h;
+    clicked = down && !b->prev_down && inside;
+    b->prev_down = down;
+    return clicked ? 1 : 0;
+}
+
+// ============================================================
 // POMIŃ BLOK (skocz za blok wcięty o więcej niż cur_indent)
 // ============================================================
 static uint32_t SkipBlock(uint32_t from, uint32_t block_indent) {
@@ -3351,6 +3502,67 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         if (!t) return;
         *t = temp;
         RenderTable(t);
+        return;
+    }
+
+    // --- BUTTON nazwa, x, y, w, h, "tekst", "font", rozmiar, tr, tg, tb, br, bg, bb ---
+    if (PeekWord(line, "BUTTON")) {
+        const char *p = NTrim(line + 6);
+        char bname[64];
+        uint32_t bn = ParseIdent(p, bname, sizeof(bname));
+        char args[14][MAX_STR_LEN];
+        int n;
+        int32_t x, y, w, h, fsize, tr, tg, tb, br, bg, bb;
+        NyotaVal textv, fontv;
+        NyotaButton temp, *b;
+        if (!g_is_graphics) { OutError("BUTTON wymaga GRAPH"); return; }
+        if (!bname[0]) { OutError("BUTTON: brak nazwy kontrolki"); return; }
+        p = NTrim(p + bn);
+        if (*p != ',') { OutError("BUTTON: po nazwie wymagany przecinek"); return; }
+        p = NTrim(p + 1);
+        n = SplitFunctionArgs(p, args, 14);
+        if (n != 13) {
+            OutError("BUTTON: wymagane x,y,w,h,tekst,font,rozmiar,RGB tekstu,RGB tla");
+            return;
+        }
+        if (!ButtonEvalInt(args[0], &x) || !ButtonEvalInt(args[1], &y) ||
+            !ButtonEvalInt(args[2], &w) || !ButtonEvalInt(args[3], &h) ||
+            !ButtonEvalInt(args[6], &fsize) || !ButtonEvalInt(args[7], &tr) ||
+            !ButtonEvalInt(args[8], &tg) || !ButtonEvalInt(args[9], &tb) ||
+            !ButtonEvalInt(args[10], &br) || !ButtonEvalInt(args[11], &bg) ||
+            !ButtonEvalInt(args[12], &bb)) return;
+        if (x < 0 || y < 0 || w < 8 || h < 8) {
+            OutError("BUTTON: nieprawidlowa pozycja lub rozmiar");
+            return;
+        }
+        if (fsize <= 0 || fsize > 64) {
+            OutError("BUTTON: rozmiar czcionki poza zakresem 1..64");
+            return;
+        }
+        if (tr < 0 || tr > 255 || tg < 0 || tg > 255 || tb < 0 || tb > 255 ||
+            br < 0 || br > 255 || bg < 0 || bg > 255 || bb < 0 || bb > 255) {
+            OutError("BUTTON: kolory RGB wymagaja zakresu 0..255");
+            return;
+        }
+        textv = Eval(args[4]);
+        fontv = Eval(args[5]);
+        if (textv.type != TYPE_STR) { OutError("BUTTON: tekst wymaga STRING"); return; }
+        if (fontv.type != TYPE_STR || !fontv.s[0]) {
+            OutError("BUTTON: nazwa czcionki wymaga niepustego STRING");
+            return;
+        }
+        temp.x = x; temp.y = y; temp.w = w; temp.h = h;
+        temp.font_size = (uint32_t)fsize;
+        temp.text_r = (uint8_t)tr; temp.text_g = (uint8_t)tg; temp.text_b = (uint8_t)tb;
+        temp.bg_r = (uint8_t)br; temp.bg_g = (uint8_t)bg; temp.bg_b = (uint8_t)bb;
+        temp.prev_down = 0;
+        NStrCopy(temp.name, bname, sizeof(temp.name));
+        NStrCopy(temp.text, textv.s, sizeof(temp.text));
+        NStrCopy(temp.font, fontv.s, sizeof(temp.font));
+        b = GetOrCreateButton(bname);
+        if (!b) return;
+        *b = temp;
+        RenderButton(b);
         return;
     }
 
@@ -4500,6 +4712,7 @@ static void NyotaEmbedReset(void) {
     g_error_handler_proc = 0xFFFFFFFF;
     g_list_pool_used = 0;
     g_table_count = 0;
+    g_button_count = 0;
     g_is_graphics = 0;
     {
         int i;
@@ -4618,6 +4831,8 @@ void _start(AyoAPI *api) {
     g_return_flag = 0;
     g_error_handler_proc = 0xFFFFFFFF;
     g_list_pool_used = 0;
+    g_table_count = 0;
+    g_button_count = 0;
     for (int i = 0; i < MAX_NN; i++) g_nn[i].active = 0;
     for (int i = 0; i < MAX_STATES; i++) g_states_active[i] = 0;
 

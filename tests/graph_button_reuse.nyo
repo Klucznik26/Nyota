@@ -1,0 +1,6 @@
+# Oczekiwane: OK
+BEGIN
+GRAPH 1
+BUTTON akcja, 20, 20, 120, 40, "A", "SYSTEM", 12, 255, 255, 255, 30, 80, 140
+BUTTON akcja, 30, 30, 180, 50, "B", "SYSTEM", 14, 250, 250, 250, 70, 90, 120
+END

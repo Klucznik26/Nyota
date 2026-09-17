@@ -244,6 +244,21 @@ static uint8_t host_mods(void) {
     return g_shift ? 1 : 0;
 }
 
+static uint8_t host_pointer_state(int32_t *x, int32_t *y) {
+    int mx = 0, my = 0;
+    uint32_t state;
+    if (!g_gfx) {
+        if (x) *x = 0;
+        if (y) *y = 0;
+        return 0;
+    }
+    host_pump();
+    state = SDL_GetMouseState(&mx, &my);
+    if (x) *x = (int32_t)mx;
+    if (y) *y = (int32_t)my;
+    return (state & SDL_BUTTON(SDL_BUTTON_LEFT)) ? 1U : 0U;
+}
+
 static void host_exit(void) {
     if (g_gfx) {
         SDL_DestroyRenderer(g_ren);
@@ -295,6 +310,7 @@ int main(int argc, char **argv) {
     g_nyhost.ticks_100hz = host_ticks;
     g_nyhost.wait_key = host_waitkey;
     g_nyhost.key_mods = host_mods;
+    g_nyhost.pointer_state = host_pointer_state;
     g_nyhost.gfx_clear = host_clear;
     g_nyhost.gfx_rect = host_rect;
     g_nyhost.gfx_text = host_text;

@@ -21,6 +21,8 @@ typedef struct NyotaHost {
 
     uint8_t (*wait_key)(void);
     uint8_t (*key_mods)(void);
+    /* Zwraca maskę przycisków wskaźnika: bit 0 = lewy. */
+    uint8_t (*pointer_state)(int32_t *x, int32_t *y);
 
     void (*gfx_clear)(uint8_t r, uint8_t g, uint8_t b);
     void (*gfx_rect)(uint32_t x, uint32_t y, uint32_t w, uint32_t h,

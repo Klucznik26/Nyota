@@ -1,0 +1,5 @@
+# Oczekiwane: OK
+BEGIN
+GRAPH 1
+BUTTON zapisz, 20, 20, 160, 48, "Zapisz", "SYSTEM", 14, 255, 255, 255, 40, 110, 180
+END
