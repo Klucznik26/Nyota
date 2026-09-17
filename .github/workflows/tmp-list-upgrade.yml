@@ -27,6 +27,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libsdl2-dev
 
+      - name: Normalize upgrade script escapes
+        run: python3 scripts/fix_tmp_list_upgrade.py
+
       - name: Apply LIST upgrade
         run: python3 scripts/tmp_list_upgrade.py
 
@@ -44,6 +47,7 @@ jobs:
       - name: Remove temporary upgrade machinery
         run: |
           rm -f scripts/tmp_list_upgrade.py
+          rm -f scripts/fix_tmp_list_upgrade.py
           rm -f .github/workflows/tmp-list-upgrade.yml
 
       - name: Commit validated LIST implementation
