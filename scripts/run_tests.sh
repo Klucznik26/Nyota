@@ -45,6 +45,21 @@ for f in "$TDIR"/*.nyo; do
             fail=$((fail + 1))
         fi
         ;;
+    zawiera*)
+        needle=${expect#zawiera }
+        if echo "$out" | grep -q BLAD; then
+            echo "FAIL $base — nieoczekiwany BLAD"
+            echo "$out" | sed 's/^/  /'
+            fail=$((fail + 1))
+        elif echo "$out" | grep -F -q "$needle"; then
+            echo "PASS $base"
+            pass=$((pass + 1))
+        else
+            echo "FAIL $base — brak: $needle"
+            echo "$out" | sed 's/^/  /'
+            fail=$((fail + 1))
+        fi
+        ;;
     *)
         if echo "$out" | grep -q BLAD; then
             echo "FAIL $base — nieoczekiwany BLAD"

@@ -863,6 +863,70 @@ static NyotaVal ListSymDiff(const NyotaVal *a, const NyotaVal *b) {
     return ListConcat(&left, &right);
 }
 
+static int ValOrd(const NyotaVal *a, const NyotaVal *b) {
+    if (a->type != b->type) return 0;
+    if (a->type == TYPE_INT || a->type == TYPE_BOOL || a->type == TYPE_DATE) {
+        if (a->i < b->i) return -1;
+        if (a->i > b->i) return 1;
+        return 0;
+    }
+    if (a->type == TYPE_FLOAT) {
+        int32_t x = FloatMilli(a), y = FloatMilli(b);
+        if (x < y) return -1;
+        if (x > y) return 1;
+        return 0;
+    }
+    if (a->type == TYPE_STR) {
+        uint32_t i = 0;
+        while (a->s[i] && a->s[i] == b->s[i]) i++;
+        if ((unsigned char)a->s[i] < (unsigned char)b->s[i]) return -1;
+        if ((unsigned char)a->s[i] > (unsigned char)b->s[i]) return 1;
+        return 0;
+    }
+    return 0;
+}
+
+static void ListSort(NyotaVal *lst, int desc) {
+    uint32_t i, j;
+    if (!lst || lst->type != TYPE_LIST || lst->list_len < 2) return;
+    for (i = 1; i < lst->list_len; i++) {
+        NyotaVal key = lst->list_items[i];
+        j = i;
+        while (j > 0) {
+            int cmp = ValOrd(&lst->list_items[j - 1], &key);
+            if (desc) cmp = -cmp;
+            if (cmp <= 0) break;
+            lst->list_items[j] = lst->list_items[j - 1];
+            j--;
+        }
+        lst->list_items[j] = key;
+    }
+}
+
+static int32_t TruncMilli(int32_t milli, int n) {
+    int32_t div = 1;
+    int i;
+    if (n < 0) n = 0;
+    if (n > 3) n = 3;
+    for (i = 0; i < 3 - n; i++) div *= 10;
+    return milli / div;
+}
+
+static int ValEqN(const NyotaVal *a, const NyotaVal *b, int n) {
+    int32_t am, bm;
+    if (a->type != b->type) return -1;
+    if (a->type == TYPE_INT) {
+        am = a->i * 1000;
+        bm = b->i * 1000;
+    } else if (a->type == TYPE_FLOAT) {
+        am = FloatMilli(a);
+        bm = FloatMilli(b);
+    } else {
+        return -1;
+    }
+    return TruncMilli(am, n) == TruncMilli(bm, n);
+}
+
 // ============================================================
 // EWALUACJA WYRAŻEŃ
 // ============================================================
@@ -2034,10 +2098,23 @@ static NyotaVal ParseCompare(const char **pp) {
     }
     if (p[0] == '=' && NIsDigit(p[1])) {
         uint32_t k = 1;
-        while (NIsDigit(p[k])) k++;
+        int n = 0;
+        while (NIsDigit(p[k])) {
+            n = n * 10 + (p[k] - '0');
+            k++;
+        }
         if (p[k] == '=') {
-            OutError("Operator =N= nie jest dostepny w v0.5");
+            NyotaVal right;
+            int eq;
             *pp = p + k + 1;
+            right = ParseAdd(pp);
+            eq = ValEqN(&left, &right, n);
+            if (eq < 0) {
+                OutError("=N= wymaga INTEGER albo FLOAT tego samego typu");
+                ValClear(&left);
+                return left;
+            }
+            ValFromBool(&left, eq);
             return left;
         }
     }
@@ -2297,12 +2374,30 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
     if (NStartsWith(line, "PRINT")) {
         if (g_is_graphics) { OutError("PRINT niedozwolone po wywolaniu GRAPH"); return; }
         const char *arg = NTrim(line + 5);
-        // Może być lista argumentów oddzielona przecinkami
-        // Uproszczone: traktuj całość jako jedno wyrażenie
-        NyotaVal v = Eval(arg);
-        char buf[MAX_STR_LEN];
-        ValToStr(&v, buf, sizeof(buf));
-        OutPrintLine(buf);
+        if (!*arg) {
+            OutNewLine();
+            return;
+        }
+        {
+            char args[16][MAX_STR_LEN];
+            int n = SplitFunctionArgs(arg, args, 16);
+            int i;
+            if (n <= 0) {
+                NyotaVal v = Eval(arg);
+                char buf[MAX_STR_LEN];
+                ValToStr(&v, buf, sizeof(buf));
+                OutPrint(buf);
+            } else {
+                for (i = 0; i < n; i++) {
+                    NyotaVal v = Eval(args[i]);
+                    char buf[MAX_STR_LEN];
+                    ValToStr(&v, buf, sizeof(buf));
+                    OutPrint(buf);
+                    if (i + 1 < n) OutPrint(" ");
+                }
+            }
+            OutNewLine();
+        }
         return;
     }
 
@@ -3132,6 +3227,34 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
                 v->val.list_items[n - 1 - i] = tmp;
             }
         }
+        return;
+    }
+
+    // --- SORT lista  /  SORT lista, DESC ---
+    if (NStartsWith(line, "SORT")) {
+        const char *p = NTrim(line + 4);
+        char name[64];
+        uint32_t nlen = ParseIdent(p, name, sizeof(name));
+        NyotaVar *v = FindVar(name);
+        int desc = 0;
+        p = NTrim(p + nlen);
+        if (*p == ',') {
+            p = NTrim(p + 1);
+            if (PeekWord(p, "DESC")) desc = 1;
+            else if (PeekWord(p, "ASC")) desc = 0;
+            else { OutError("SORT: uzyj DESC albo ASC"); return; }
+        }
+        if (!v || v->val.type != TYPE_LIST) { OutError("SORT wymaga LIST"); return; }
+        {
+            uint32_t i;
+            for (i = 1; i < v->val.list_len; i++) {
+                if (v->val.list_items[i].type != v->val.list_items[0].type) {
+                    OutError("SORT: lista typow mieszanych");
+                    return;
+                }
+            }
+        }
+        ListSort(&v->val, desc);
         return;
     }
 

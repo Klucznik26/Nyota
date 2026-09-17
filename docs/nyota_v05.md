@@ -494,7 +494,8 @@ na kluczach i pozostawia wpisy występujące tylko w jednym z operandów.
 
 ## 3.9. PRINT z wieloma argumentami
 
-**Status wdrożenia:** APPROVED AFTER CORE
+**Status wdrożenia:** APPROVED AFTER CORE  
+<span style="color: #006A4E;">PRINT a, b, c ze spacją, konwersja tylko do wyświetlenia wykonane 2026-09-17</span>
 
 `PRINT` ma przyjmować wiele argumentów różnych podstawowych typów. Konwersja
 do tekstu odbywa się wyłącznie na potrzeby wyświetlenia i nie oznacza
@@ -747,7 +748,8 @@ należą do BLOCKS v0.5. Pozostałe nowości z tego działu nie blokują wydania
 
 ## 6.1. Operator `=N=` — porównanie z kontrolowaną precyzją
 
-**Status wdrożenia:** APPROVED AFTER CORE
+**Status wdrożenia:** APPROVED AFTER CORE  
+<span style="color: #006A4E;">=N= ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 
 `=N=` jest autorskim operatorem Nyoty.
 
@@ -830,7 +832,8 @@ istniejącego kodu.
 ## 6.2. SORT
 
 **Status wdrożenia:** APPROVED AFTER CORE  
-**Wybór algorytmu w składni:** FUTURE
+**Wybór algorytmu w składni:** FUTURE  
+<span style="color: #006A4E;">SORT lista i SORT lista, DESC; mieszane typy = błąd wykonane 2026-09-17</span>
 
 Planowana instrukcja sortowania. `SORT` zmienia kolekcję w miejscu.
 
@@ -2382,7 +2385,7 @@ a = 2 = b      # NIE jest =N= :  =   2   =
 a =k= b        # NIE jest =N=
 ```
 
-W v0.5 token `=N=` jest rozpoznawany i odrzucany jawnym błędem.
+Token `=N=` jest rozpoznawany i porównywany (ucięcie do N miejsc).
 
 ## C.4. Literał DATE
 

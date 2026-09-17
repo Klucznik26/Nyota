@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera OK
+BEGIN
+IF 2.5678 =2= 2.5611:
+    PRINT "OK"
+END

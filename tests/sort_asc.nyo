@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera 1
+BEGIN
+VAR a := [3, 1, 2]
+SORT a
+PRINT a[0]
+END

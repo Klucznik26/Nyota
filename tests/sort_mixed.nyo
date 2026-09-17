@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD SORT: lista typow mieszanych
+BEGIN
+VAR a := [1, "x"]
+SORT a
+END

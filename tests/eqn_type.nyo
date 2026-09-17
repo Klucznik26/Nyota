@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD =N= wymaga INTEGER albo FLOAT
+BEGIN
+IF 5 =2= 5.0:
+    PRINT "zgaduje"
+END

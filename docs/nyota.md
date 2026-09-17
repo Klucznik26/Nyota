@@ -44,7 +44,9 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">precedencja: `*` przed `+`, lewostronne `-`, nawiasy, NOT/AND/OR w wyrażeniu wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">WHILE (warunek BOOLEAN), CONTINUE, FOR STEP oraz operator MOD wykonane 2026-09-17</span>
 - <span style="color: navy;">MARK: literał, odczyt, zapis wiersza/komórki, DELETE, LEN, IN, KEY/VALUE/MINFO w toku (zaawansowany etap) 2026-09-17</span>
-- <span style="color: navy;">LIST: `+` `-` `><`, EXTEND, REMOVE po indeksie i wartości, CLEAR, REVERSE w toku (zaawansowany etap) 2026-09-17</span>
+- <span style="color: navy;">LIST: `+` `-` `><`, EXTEND, REMOVE po indeksie i wartości, CLEAR, REVERSE, SORT/DESC w toku (zaawansowany etap) 2026-09-17</span>
+- <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
+- <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>
 - <span style="color: navy;">Linux: interpreter woła NyotaHost, nie AyoAPI; PRINT/GRAPH/INPUT/DELAY przez host POSIX w toku (zaawansowany etap) 2026-09-17</span>
 - <span style="color: yellow;">pomoc Tunga / AyoEdit nadal opisuje 7 spacji zaczęte 2026-09-17</span>
@@ -345,6 +347,7 @@ Przykłady:
 
 ```nyota
 PRINT "Witaj"
+PRINT "A", 5, "B"
 DELAY 500
 GOTOXY 10, 5
 GRAPH 6
@@ -370,6 +373,13 @@ VAR tekst := INPUT("Podaj imie: ")
 Nyota używa `=` do porównania.
 
 Operator `==` nie istnieje.
+
+`=N=` porównuje liczby tego samego typu po ucięciu do N miejsc:
+
+```nyota
+IF 2.5678 =2= 2.5611:
+    PRINT "Rowne"
+```
 
 ```nyota
 IF x = 5:
@@ -817,6 +827,8 @@ REMOVE a, "trzy"
 REMOVE a, 5, ALL
 EXTEND a, b
 REVERSE a
+SORT a
+SORT a, DESC
 CLEAR a
 PRINT LEN(a)
 ```
@@ -833,7 +845,7 @@ Porównanie elementów jest ścisłe typowo: `5`, `"5"` i `5.0` są różne.
 
 Zasady:
 
-* `APPEND`, `REMOVE`, `EXTEND`, `REVERSE`, `CLEAR` są instrukcjami,
+* `APPEND`, `REMOVE`, `EXTEND`, `REVERSE`, `SORT`, `CLEAR` są instrukcjami,
 * `LEN(a)` jest funkcją,
 * `REMOVE a[i]` usuwa po indeksie; `REMOVE a, wartosc` po wartości,
 * przypisanie poza zakresem listy powoduje błąd,

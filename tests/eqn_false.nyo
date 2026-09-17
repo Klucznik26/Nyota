@@ -1,0 +1,7 @@
+# Oczekiwane: zawiera NO
+BEGIN
+IF 2.5699 =2= 2.5700:
+    PRINT "YES"
+ELSE:
+    PRINT "NO"
+END

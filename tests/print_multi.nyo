@@ -1,0 +1,4 @@
+# Oczekiwane: zawiera A 5 B
+BEGIN
+PRINT "A", 5, "B"
+END
