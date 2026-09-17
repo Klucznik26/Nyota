@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera A 2
+BEGIN
+VAR m := {2| 1 | "A", 2 | "B", 3 | "B", 4 | "A"}
+PRINT MODE(m, 0), MODECOUNT(m, 0)
+END

@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera [0, 2]
+BEGIN
+VAR m := {3| "A" | 1 | 2}
+CLEAR m
+PRINT MINFO(m)
+END

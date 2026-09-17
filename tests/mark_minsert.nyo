@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera [10, X, 20]
+BEGIN
+VAR m := {3| "A" | 10 | 20}
+MINSERT m, 1, "X"
+PRINT m["A"]
+END

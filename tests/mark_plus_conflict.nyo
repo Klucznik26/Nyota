@@ -1,0 +1,6 @@
+# Oczekiwane: BLAD
+BEGIN
+VAR a := {2| "A" | 1}
+VAR b := {2| "A" | 2}
+VAR c := a + b
+END

@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+VAR m := {2| "A" | 1}
+PRINT VALUE(m, 0, 0.0)
+END

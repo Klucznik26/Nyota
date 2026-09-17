@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera [A, B]
+BEGIN
+VAR m := {3| "A" | 10 | 11, "B" | 20 | 21}
+PRINT MLIST(m, KEY)
+END

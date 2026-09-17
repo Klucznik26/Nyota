@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera B
+BEGIN
+VAR m := {2| "A" | <2027.01.01>, "B" | <2026.01.01>}
+SORT m, VALUE 0
+PRINT KEY(m, 0)
+END

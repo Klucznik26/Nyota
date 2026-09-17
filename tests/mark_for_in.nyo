@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera A
+BEGIN
+VAR m := {2| "A" | 10, "B" | 20}
+FOR k IN m:
+    PRINT k
+END
