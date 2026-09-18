@@ -2,7 +2,7 @@
 
 Rozszerzenie VS Code dla języka Nyota.
 
-## Wersja 0.4.2
+## Wersja 0.5.0
 
 Rozszerzenie obsługuje:
 
@@ -59,14 +59,23 @@ npx @vscode/vsce package
 Dla tej wersji powstanie plik:
 
 ```text
-nyota-language-support-0.4.2.vsix
+nyota-language-support-0.5.0.vsix
 ```
 
 Instalacja:
 
 ```bash
-code --install-extension ./nyota-language-support-0.4.2.vsix --force
+code --install-extension ./nyota-language-support-0.5.0.vsix --force
 ```
+
+## Zmiany w 0.5.0
+
+- kolorowanie i rozpoznawanie nowych kontrolek NyotaUI: `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`,
+- właściwości `RADIUS`, `SHADOW`, `CSHADOW`, `SDEPTH`,
+- właściwości `CHECKED`, `CCHECK`, `CSYMBOL`, `RGROUP`,
+- konfiguracja `COMBO`: `ITEMS`, `SELECTED`, hover, kolory listy i strzałki,
+- konfiguracja zakładek: `TABBG`, `TABFONT`, `TABFSIZE`, `TABCTEXT`, `TABBORDER`, `TABRADIUS`,
+- funkcje `CBOX_CHECKED`, `CBOX_SET`, `RADIO_CHECKED`, `RADIO_SET`, `COMBO_INDEX`, `COMBO_VALUE`, `COMBO_SET`.
 
 ## Zmiany w 0.4.2
 
