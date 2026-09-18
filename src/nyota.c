@@ -5711,6 +5711,23 @@ static int UiListToItems(const NyotaVal *v,char *out,uint32_t cap){
     return 1;
 }
 static uint32_t UiItemsCount(const char *s){uint32_t n=0,i=0;if(!s)return 0;while(s[i]){if(s[i++]=='\n')n++;}return n;}
+static int UiItemText(const char *items,uint32_t wanted,char *out,uint32_t cap){
+    uint32_t cur=0,start=0,i=0;if(!out||!cap)return 0;out[0]='\0';
+    while(items&&items[i]){
+        if(items[i]=='\n'){
+            if(cur==wanted){uint32_t n=i-start;if(n>=cap)n=cap-1;memcpy(out,items+start,n);out[n]='\0';return 1;}
+            cur++;start=i+1;
+        }
+        i++;
+    }
+    return 0;
+}
+static int32_t UiWrapSigned(int32_t v,int32_t minv,int32_t maxv){
+    int64_t span=(int64_t)maxv-(int64_t)minv,x;
+    if(span<=0)return minv;
+    x=((int64_t)v-(int64_t)minv)%span;if(x<0)x+=span;
+    return (int32_t)((int64_t)minv+x);
+}
 
 static int UiEqValuesProperty(NyotaUiControlSpec *s,const char *rhs){
     NyotaVal v=Eval(rhs);uint32_t i;
