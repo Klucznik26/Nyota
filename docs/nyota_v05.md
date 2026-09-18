@@ -2702,3 +2702,8 @@ Zakres działa w `VALUES()` i jest domknięty po obu stronach.
 2. DATE, TIME, =N=, Hn/Mn/Sn i zakres a:b mają działającą semantykę.
 3. Dalsze rozszerzenia nie mogą zmieniać tych reguł tokenizacji.
 ```
+
+
+### NyotaUI — kolejny zestaw kontrolek (2026-09-18)
+
+Na branchu `nyota-v05-complete` wdrożono kontrakty i backend POSIX dla `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS/TAB`, wspólnego `RADIUS` oraz cienia dziedziczonego z `WIN.CONFIG`. Kod źródłowy `.nyo` pozostaje wspólny dla Linux/Windows/AyoOS; Windows i AyoOS wymagają własnych implementacji hosta. `TAREA` nie została jeszcze zdefiniowana jako pełna kontrolka, więc nie jest oznaczona jako wdrożona.
