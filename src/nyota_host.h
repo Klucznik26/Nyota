@@ -92,7 +92,11 @@ enum {
     NYOTA_UI_CTRL_TAB = 10,
     NYOTA_UI_CTRL_TAREA = 11,
     NYOTA_UI_CTRL_SBAR = 12,
-    NYOTA_UI_CTRL_PBAR = 13
+    NYOTA_UI_CTRL_PBAR = 13,
+    NYOTA_UI_CTRL_EQBOX = 14,
+    NYOTA_UI_CTRL_SLIDER = 15,
+    NYOTA_UI_CTRL_STATBAR = 16,
+    NYOTA_UI_CTRL_TOOLBAR = 17
 };
 
 enum {
@@ -166,6 +170,25 @@ enum {
     NYOTA_UI_PBAR_SHAPE_PARALLELOGRAM = 4
 };
 
+enum {
+    NYOTA_UI_EQ_SOLID = 0,
+    NYOTA_UI_EQ_CIRCLE = 1,
+    NYOTA_UI_EQ_SQUARE = 2,
+    NYOTA_UI_EQ_TRIANGLE = 3,
+    NYOTA_UI_EQ_DIAMOND = 4,
+    NYOTA_UI_EQ_PARALLELOGRAM = 5
+};
+
+enum {
+    NYOTA_UI_EQ_UP = 0,
+    NYOTA_UI_EQ_DOWN = 1,
+    NYOTA_UI_EQ_LEFT = 2,
+    NYOTA_UI_EQ_RIGHT = 3,
+    NYOTA_UI_EQ_CENTER = 4
+};
+
+#define NYOTA_UI_EQ_MAX_BARS 64u
+#define NYOTA_UI_EQ_LABEL_MAX 32u
 #define NYOTA_UI_TEXT_MAX 512u
 #define NYOTA_UI_FONT_MAX 128u
 #define NYOTA_UI_DROP_MAX 4096u
@@ -266,6 +289,29 @@ typedef struct {
     uint32_t progress_gap;
     NyotaColor progress_fill_color;
     NyotaColor progress_empty_color;
+
+    /* SLIDER. Uzywa wspolnego range_* oraz geometrii/kolorow thumb z SBAR. */
+    uint32_t slider_thumb_size;
+
+    /* EQBOX — szybki wieloslupek. Warstwy moga byc kolorem, gradientem lub IMG(). */
+    uint32_t eq_bars;
+    uint32_t eq_bar_width;
+    uint32_t eq_gap;
+    uint32_t eq_segment_gap;
+    uint32_t eq_min_height;
+    uint32_t eq_max_height;
+    uint32_t eq_blur;
+    uint8_t eq_build;
+    uint8_t eq_direction;
+    uint8_t eq_show_labels;
+    uint8_t eq_show_values;
+    NyotaUiBackground eq_bar_background;
+    NyotaUiBackground eq_bar_fill;
+    NyotaUiBackground eq_glow;
+    uint32_t eq_values[NYOTA_UI_EQ_MAX_BARS];
+    NyotaColor eq_bar_colors[NYOTA_UI_EQ_MAX_BARS];
+    uint8_t eq_bar_color_set[NYOTA_UI_EQ_MAX_BARS];
+    char eq_labels[NYOTA_UI_EQ_MAX_BARS][NYOTA_UI_EQ_LABEL_MAX];
 
     /* TAB: naglowek ma osobny wyglad; zawartosc uzywa pol PANEL. */
     NyotaUiBackground tab_background;
@@ -371,6 +417,10 @@ typedef struct NyotaHost {
     int32_t (*ui_tarea_changed)(int32_t handle);
     int32_t (*ui_range_value)(int32_t handle);
     int32_t (*ui_range_set_value)(int32_t handle, uint32_t value);
+
+    /* EQBOX ma osobna szybka sciezke aktualizacji bez przebudowy CONFIG. */
+    int32_t (*ui_eqbox_set_values)(int32_t handle, const uint32_t *values, uint32_t count);
+    int32_t (*ui_eqbox_set_bar)(int32_t handle, uint32_t index, uint32_t value);
 } NyotaHost;
 
 void NyotaSetHost(NyotaHost *h);
