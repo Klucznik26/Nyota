@@ -1,3 +1,4 @@
+# Oczekiwane: zawiera UI2_OK
 BEGIN
 WIN glowne, ROOT, [640, 480]
 WIN glowne.CONFIG:
