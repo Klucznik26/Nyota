@@ -123,6 +123,7 @@ static uint32_t host_ui_splitter_value_from_pointer(int idx,int x,int y);
 static int32_t host_ui_scale_value_from_pointer(int idx,int mx,int my);
 static int host_ui_tree_visible_row_to_index(const HostUiControl *ctl,uint32_t row,uint32_t *out);
 static int host_ui_tree_has_child(const HostUiControl *ctl,uint32_t index);
+static uint32_t host_ui_tree_depth_text(const char *s);
 static int g_ui_draw_clip_idx = -1;
 static uint8_t g_ui_initializing = 1;
 
@@ -909,7 +910,7 @@ static void host_pump(void) {
                 for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
                     HostUiControl *ctl=&g_host_ui_controls[i];
                     if(ctl->used&&ctl->window_handle==g_ui_windows[ui].handle&&ctl->focused&&
-                       ctl->spec.kind==NYOTA_UI_CTRL_TAREA&&ctl->spec.enabled&&!ctl->spec.readonly){
+                       (ctl->spec.kind==NYOTA_UI_CTRL_TAREA||ctl->spec.kind==NYOTA_UI_CTRL_TBOX)&&ctl->spec.enabled&&!ctl->spec.readonly){
                         changed=host_ui_tarea_insert(ctl,e.text.text);break;
                     }
                 }
@@ -928,18 +929,18 @@ static void host_pump(void) {
                     HostUiControl *sc=&g_host_ui_controls[i];
                     int64_t nv;
                     if(!sc->used||sc->window_handle!=g_ui_windows[ui].handle||!sc->focused||
-                       (sc->spec.kind!=NYOTA_UI_CTRL_SBAR&&sc->spec.kind!=NYOTA_UI_CTRL_SLIDER)||!sc->spec.enabled)continue;
+                       (sc->spec.kind!=NYOTA_UI_CTRL_SBAR&&sc->spec.kind!=NYOTA_UI_CTRL_SLIDER&&sc->spec.kind!=NYOTA_UI_CTRL_SPLITTER)||!sc->spec.enabled)continue;
                     nv=sc->spec.range_value;
                     if(k==SDLK_LEFT||k==SDLK_UP)nv-=(int64_t)sc->spec.range_step;
                     else if(k==SDLK_RIGHT||k==SDLK_DOWN)nv+=(int64_t)sc->spec.range_step;
-                    else if(k==SDLK_PAGEUP)nv-=(int64_t)sc->spec.range_page;
-                    else if(k==SDLK_PAGEDOWN)nv+=(int64_t)sc->spec.range_page;
+                    else if(k==SDLK_PAGEUP&&sc->spec.kind!=NYOTA_UI_CTRL_SPLITTER)nv-=(int64_t)sc->spec.range_page;
+                    else if(k==SDLK_PAGEDOWN&&sc->spec.kind!=NYOTA_UI_CTRL_SPLITTER)nv+=(int64_t)sc->spec.range_page;
                     else if(k==SDLK_HOME)nv=sc->spec.range_min;
                     else if(k==SDLK_END)nv=sc->spec.range_max;
                     else break;
                     {
                         uint32_t cv=host_ui_range_clamp(&sc->spec,nv);
-                        if(cv!=sc->spec.range_value){sc->spec.range_value=cv;changed=1;}
+                        if(cv!=sc->spec.range_value){sc->spec.range_value=cv;if(sc->spec.kind==NYOTA_UI_CTRL_SPLITTER)sc->changed=1;changed=1;}
                     }
                     handled=1;
                     if(changed)host_ui_mark_dirty(ui);
@@ -948,12 +949,59 @@ static void host_pump(void) {
                 if(handled)continue;
 
                 for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
+                    HostUiControl *sc=&g_host_ui_controls[i];int64_t nv;int32_t cv;
+                    if(!sc->used||sc->window_handle!=g_ui_windows[ui].handle||!sc->focused||
+                       (sc->spec.kind!=NYOTA_UI_CTRL_SPINBOX&&sc->spec.kind!=NYOTA_UI_CTRL_SCALE)||!sc->spec.enabled)continue;
+                    nv=sc->spec.signed_value;
+                    if(k==SDLK_LEFT||k==SDLK_DOWN)nv-=(int64_t)sc->spec.signed_step;
+                    else if(k==SDLK_RIGHT||k==SDLK_UP)nv+=(int64_t)sc->spec.signed_step;
+                    else if(k==SDLK_HOME)nv=sc->spec.signed_min;
+                    else if(k==SDLK_END)nv=sc->spec.kind==NYOTA_UI_CTRL_SCALE&&sc->spec.scale_wrap?sc->spec.signed_max-sc->spec.signed_step:sc->spec.signed_max;
+                    else break;
+                    cv=host_ui_signed_clamp(&sc->spec,nv);
+                    if(cv!=sc->spec.signed_value){sc->spec.signed_value=cv;sc->changed=1;changed=1;}
+                    handled=1;if(changed)host_ui_mark_dirty(ui);break;
+                }
+                if(handled)continue;
+
+                for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
+                    HostUiControl *lc=&g_host_ui_controls[i];uint32_t count,ix;
+                    if(!lc->used||lc->window_handle!=g_ui_windows[ui].handle||!lc->focused||
+                       (lc->spec.kind!=NYOTA_UI_CTRL_LISTVIEW&&lc->spec.kind!=NYOTA_UI_CTRL_TREEVIEW)||!lc->spec.enabled)continue;
+                    count=host_ui_combo_item_count(lc);ix=lc->spec.selected;
+                    if(k==SDLK_UP){
+                        if(lc->spec.kind==NYOTA_UI_CTRL_TREEVIEW){
+                            uint32_t j,prev=ix;for(j=0;j<ix;j++)if(host_ui_tree_item_visible(lc,j))prev=j;if(prev!=ix){lc->spec.selected=prev;lc->changed=1;changed=1;}
+                        }else if(ix>0){lc->spec.selected=ix-1;lc->changed=1;changed=1;}
+                        handled=1;
+                    }else if(k==SDLK_DOWN){
+                        if(lc->spec.kind==NYOTA_UI_CTRL_TREEVIEW){
+                            uint32_t j;for(j=ix+1;j<count;j++)if(host_ui_tree_item_visible(lc,j)){lc->spec.selected=j;lc->changed=1;changed=1;break;}
+                        }else if(ix+1<count){lc->spec.selected=ix+1;lc->changed=1;changed=1;}
+                        handled=1;
+                    }else if(lc->spec.kind==NYOTA_UI_CTRL_TREEVIEW&&(k==SDLK_LEFT||k==SDLK_RIGHT)){
+                        if(ix<64&&host_ui_tree_has_child(lc,ix)){
+                            uint64_t bit=1ULL<<ix;
+                            if(k==SDLK_LEFT)lc->tree_expanded_mask&=~bit;else lc->tree_expanded_mask|=bit;
+                            changed=1;handled=1;
+                        }
+                    }else if(k==SDLK_HOME&&count){lc->spec.selected=0;lc->changed=1;changed=handled=1;}
+                    else if(k==SDLK_END&&count){
+                        if(lc->spec.kind==NYOTA_UI_CTRL_TREEVIEW){uint32_t j,last=0;for(j=0;j<count;j++)if(host_ui_tree_item_visible(lc,j))last=j;lc->spec.selected=last;}
+                        else lc->spec.selected=count-1;
+                        lc->changed=1;changed=handled=1;
+                    }
+                    if(handled){if(lc->spec.selected<64)lc->list_selected_mask=1ULL<<lc->spec.selected;if(changed)host_ui_mark_dirty(ui);break;}
+                }
+                if(handled)continue;
+
+                for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
                     HostUiControl *ctl=&g_host_ui_controls[i];
                     if(!ctl->used||ctl->window_handle!=g_ui_windows[ui].handle||!ctl->focused||
-                       ctl->spec.kind!=NYOTA_UI_CTRL_TAREA||!ctl->spec.enabled)continue;
+                       (ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX)||!ctl->spec.enabled)continue;
                     if(k==SDLK_LEFT){ctl->caret=host_ui_utf8_prev(ctl->spec.text,ctl->caret);handled=1;}
                     else if(k==SDLK_RIGHT){ctl->caret=host_ui_utf8_next(ctl->spec.text,ctl->caret);handled=1;}
-                    else if(k==SDLK_UP||k==SDLK_DOWN){
+                    else if((k==SDLK_UP||k==SDLK_DOWN)&&ctl->spec.kind==NYOTA_UI_CTRL_TAREA){
                         SDL_Rect tr;int x=0,row=0,lineh;TTF_Font *tf;
                         if(host_ui_control_rect_index(i,&tr)){
                             host_ui_tarea_caret_visual(ctl,tr,&x,&row);
@@ -974,7 +1022,7 @@ static void host_pump(void) {
                     else if(k==SDLK_END){size_t nn=strlen(ctl->spec.text);while(ctl->caret<nn&&ctl->spec.text[ctl->caret]!='\n')ctl->caret=host_ui_utf8_next(ctl->spec.text,ctl->caret);handled=1;}
                     else if(k==SDLK_BACKSPACE&&!e.key.repeat){changed=host_ui_tarea_backspace(ctl);handled=1;}
                     else if(k==SDLK_DELETE&&!e.key.repeat){changed=host_ui_tarea_delete(ctl);handled=1;}
-                    else if((k==SDLK_RETURN||k==SDLK_KP_ENTER)&&!e.key.repeat){changed=host_ui_tarea_insert(ctl,"\n");handled=1;}
+                    else if((k==SDLK_RETURN||k==SDLK_KP_ENTER)&&!e.key.repeat){if(ctl->spec.kind==NYOTA_UI_CTRL_TAREA)changed=host_ui_tarea_insert(ctl,"\n");handled=1;}
                     if(handled)host_ui_mark_dirty(ui);
                     break;
                 }
