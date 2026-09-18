@@ -5694,6 +5694,8 @@ static int UiParseColorProperty(const char *rhs, NyotaColor *out, const char *la
 }
 static int UiParseBoolProperty(const char *rhs,uint8_t *out,const char *label){NyotaVal v=Eval(rhs);if(v.type!=TYPE_BOOL){char e[160];NStrCopy(e,label,sizeof(e));NStrAppend(e," wymaga BOOLEAN",sizeof(e));OutError(e);return 0;}*out=(uint8_t)(v.i!=0);return 1;}
 static int UiParseUIntProperty(const char *rhs,uint32_t *out,uint32_t minv,uint32_t maxv,const char *label){NyotaVal v=Eval(rhs);if(v.type!=TYPE_INT||v.i<(int32_t)minv||v.i>(int32_t)maxv){char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," ma nieprawidlowa wartosc",sizeof(e));OutError(e);return 0;}*out=(uint32_t)v.i;return 1;}
+static int UiParseIntProperty(const char *rhs,int32_t *out,int32_t minv,int32_t maxv,const char *label){NyotaVal v=Eval(rhs);if(v.type!=TYPE_INT||v.i<minv||v.i>maxv){char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," ma nieprawidlowa wartosc",sizeof(e));OutError(e);return 0;}*out=v.i;return 1;}
+static int UiParseStringProperty(const char *rhs,char *out,uint32_t cap,const char *label){NyotaVal v=Eval(rhs);if(v.type!=TYPE_STR){char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," wymaga STRING",sizeof(e));OutError(e);return 0;}NStrCopy(out,v.s,cap);return 1;}
 
 static int UiListToItems(const NyotaVal *v,char *out,uint32_t cap){
     uint32_t i,used=0;
@@ -5730,6 +5732,54 @@ static int UiEqColorsProperty(NyotaUiControlSpec *s,const char *rhs){
     memset(s->eq_bar_color_set,0,sizeof(s->eq_bar_color_set));s->eq_color_count=v.list_len;
     for(i=0;i<v.list_len;i++){if(!ValToColorValue(&v.list_items[i],&s->eq_bar_colors[i])||s->eq_bar_colors[i].mode==NYOTA_COLOR_BACKDROP){OutError("EQBOX BARCOLORS: nieprawidlowy kolor");return 0;}s->eq_bar_color_set[i]=1;}
     return 1;
+}
+
+static int UiClockIntList(const char *rhs,int32_t *out,uint32_t *count,uint32_t cap,const char *label){
+    NyotaVal v=Eval(rhs);uint32_t i;
+    if(v.type!=TYPE_LIST||v.list_len>cap){char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," wymaga LIST",sizeof(e));OutError(e);return 0;}
+    for(i=0;i<v.list_len;i++){if(v.list_items[i].type!=TYPE_INT){char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," wymaga INTEGER",sizeof(e));OutError(e);return 0;}out[i]=v.list_items[i].i;}
+    *count=v.list_len;return 1;
+}
+static int UiClockUIntList(const char *rhs,uint32_t *out,uint32_t *count,uint32_t cap,uint32_t maxv,const char *label){
+    NyotaVal v=Eval(rhs);uint32_t i;
+    if(v.type!=TYPE_LIST||v.list_len>cap){char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," wymaga LIST",sizeof(e));OutError(e);return 0;}
+    for(i=0;i<v.list_len;i++){if(v.list_items[i].type!=TYPE_INT||v.list_items[i].i<0||(uint32_t)v.list_items[i].i>maxv){char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," ma nieprawidlowy element",sizeof(e));OutError(e);return 0;}out[i]=(uint32_t)v.list_items[i].i;}
+    *count=v.list_len;return 1;
+}
+static int UiClockColorsProperty(NyotaUiControlSpec *s,const char *rhs){
+    NyotaVal v=Eval(rhs);uint32_t i;
+    if(v.type!=TYPE_LIST||v.list_len>NYOTA_UI_CLOCK_MAX_NEEDLES){OutError("CLOCK NEEDLECOLORS wymaga LIST do 8 kolorow");return 0;}
+    for(i=0;i<v.list_len;i++)if(!ValToColorValue(&v.list_items[i],&s->clock_needle_color[i])||s->clock_needle_color[i].mode==NYOTA_COLOR_BACKDROP){OutError("CLOCK NEEDLECOLORS: nieprawidlowy kolor");return 0;}
+    s->clock_color_count=v.list_len;return 1;
+}
+static int UiClockNeedleShapeName(const char *v,uint8_t *out){
+    if(NStrEq(v,"LINE"))*out=NYOTA_UI_NEEDLE_LINE;
+    else if(NStrEq(v,"TRIANGLE"))*out=NYOTA_UI_NEEDLE_TRIANGLE;
+    else if(NStrEq(v,"ARROW"))*out=NYOTA_UI_NEEDLE_ARROW;
+    else if(NStrEq(v,"DIAMOND"))*out=NYOTA_UI_NEEDLE_DIAMOND;
+    else if(NStrEq(v,"PARALLELOGRAM"))*out=NYOTA_UI_NEEDLE_PARALLELOGRAM;
+    else if(NStrEq(v,"BAR"))*out=NYOTA_UI_NEEDLE_BAR;
+    else if(NStrEq(v,"DOUBLE"))*out=NYOTA_UI_NEEDLE_DOUBLE;
+    else return 0;
+    return 1;
+}
+static int UiClockShapesProperty(NyotaUiControlSpec *s,const char *rhs){
+    NyotaVal v=Eval(rhs);uint32_t i;
+    if(v.type!=TYPE_LIST||v.list_len>NYOTA_UI_CLOCK_MAX_NEEDLES){OutError("CLOCK NEEDLESHAPES wymaga LIST do 8 STRING");return 0;}
+    for(i=0;i<v.list_len;i++){if(v.list_items[i].type!=TYPE_STR||!UiClockNeedleShapeName(v.list_items[i].s,&s->clock_needle_shape[i])){OutError("CLOCK NEEDLESHAPES: LINE/TRIANGLE/ARROW/DIAMOND/PARALLELOGRAM/BAR/DOUBLE");return 0;}}
+    s->clock_shape_count=v.list_len;return 1;
+}
+static int UiClockZonesProperty(NyotaUiControlSpec *s,const char *rhs){
+    NyotaVal v=Eval(rhs);uint32_t i;
+    if(v.type!=TYPE_LIST||v.list_len>NYOTA_UI_CLOCK_MAX_ZONES){OutError("CLOCK ZONES wymaga LIST do 8 stref");return 0;}
+    for(i=0;i<v.list_len;i++){
+        NyotaVal *z=&v.list_items[i];
+        if((z->type!=TYPE_LIST&&z->type!=TYPE_TUPLE)||z->list_len!=3||z->list_items[0].type!=TYPE_INT||z->list_items[1].type!=TYPE_INT||
+           !ValToColorValue(&z->list_items[2],&s->zone_color[i])||s->zone_color[i].mode==NYOTA_COLOR_BACKDROP){OutError("CLOCK ZONES: kazda strefa to [MIN, MAX, COLOR]");return 0;}
+        if(z->list_items[1].i<=z->list_items[0].i){OutError("CLOCK ZONES: MAX musi byc wieksze od MIN");return 0;}
+        s->zone_min[i]=z->list_items[0].i;s->zone_max[i]=z->list_items[1].i;
+    }
+    s->zone_count=v.list_len;return 1;
 }
 
 static int UiControlPropertyAllowed(uint8_t k,const char *p){
