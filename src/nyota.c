@@ -38,6 +38,16 @@ static void HostGfxMode(uint32_t w, uint32_t h) {
     if (g_host && g_host->gfx_mode) g_host->gfx_mode(w, h);
 }
 
+static int32_t HostScreenOpen(uint32_t id, uint32_t w, uint32_t h, uint32_t color_mode) {
+    if (g_host && g_host->gfx_screen_open) return g_host->gfx_screen_open(id, w, h, color_mode);
+    return -1;
+}
+
+static int32_t HostScreenSet(uint32_t id) {
+    if (g_host && g_host->gfx_screen_set) return g_host->gfx_screen_set(id);
+    return -1;
+}
+
 static int32_t HostSpriteLoad(const char *path) {
     if (g_host && g_host->gfx_sprite_load) return g_host->gfx_sprite_load(path);
     return -1;
@@ -191,6 +201,7 @@ static int32_t HostDirList(const char *path, char *out, uint32_t cap, uint32_t *
 #define MAX_SPRITES     64      // max nazwanych obiektow SPRITE
 #define MAX_RECORDS     32
 #define MAX_RECORD_FIELDS 16
+#define MAX_SCREENS     16
 #define NYOTA_INDENT    4       // jeden poziom bloku = dokładnie 4 spacje
 
 // ============================================================
@@ -347,6 +358,9 @@ static uint8_t  g_in_function[MAX_CALL_DEPTH + 1];
 // Bieżący wiersz wykonania
 static uint32_t g_cur_line = 0;
 static uint8_t  g_is_graphics = 0;  // 1 jesli wlaczono tryb GRAPH
+static uint32_t g_graph_w = 0, g_graph_h = 0;
+static uint8_t g_screen_exists[MAX_SCREENS];
+static uint32_t g_active_screen = 0;
 
 // Flagi kontrolne
 static uint8_t  g_ny_running = 0;
@@ -6917,9 +6931,57 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         return;
     }
 
-    // --- SCREEN id SET ---
+    // --- SCREEN id OPEN w, h, mode / SCREEN id SET ---
     if (NStartsWith(line, "SCREEN")) {
-        // Miejsce pod zaimplementowanie off-screen targetu w API.
+        const char *p = NTrim(line + 6);
+        char idbuf[64];
+        uint32_t bi = 0;
+        NyotaVal idv;
+        int32_t id;
+        while (*p && !NIsSpace(*p) && bi + 1 < sizeof(idbuf)) idbuf[bi++] = *p++;
+        idbuf[bi] = '\0';
+        idv = Eval(idbuf);
+        if (idv.type != TYPE_INT) { OutError("SCREEN: ID wymaga INTEGER"); return; }
+        id = idv.i;
+        if (id < 0 || id >= MAX_SCREENS) { OutError("SCREEN: ID poza zakresem 0..15"); return; }
+        p = NTrim(p);
+        if (PeekWord(p, "OPEN")) {
+            char args[3][MAX_STR_LEN];
+            int32_t w, h, mode;
+            int n;
+            if (!g_is_graphics) { OutError("SCREEN OPEN wymaga GRAPH"); return; }
+            if (id == 0) { OutError("SCREEN 0 nie moze zostac otwarty ponownie"); return; }
+            if (g_screen_exists[id]) { OutError("SCREEN: ID juz istnieje"); return; }
+            n = SplitFunctionArgs(NTrim(p + 4), args, 3);
+            if (n != 3) { OutError("SCREEN OPEN wymaga szerokosc, wysokosc, tryb_kolorow"); return; }
+            {
+                NyotaVal wv = Eval(args[0]), hv = Eval(args[1]), mv = Eval(args[2]);
+                if (wv.type != TYPE_INT || hv.type != TYPE_INT || mv.type != TYPE_INT) {
+                    OutError("SCREEN OPEN: parametry wymagaja INTEGER");
+                    return;
+                }
+                w = wv.i; h = hv.i; mode = mv.i;
+            }
+            if (w <= 0 || h <= 0 || mode <= 0) { OutError("SCREEN OPEN: parametry musza byc dodatnie"); return; }
+            if ((uint32_t)w != g_graph_w || (uint32_t)h != g_graph_h) {
+                OutError("SCREEN OPEN: rozdzielczosc musi byc identyczna z GRAPH");
+                return;
+            }
+            if (HostScreenOpen((uint32_t)id, (uint32_t)w, (uint32_t)h, (uint32_t)mode) != 0) {
+                OutError("SCREEN OPEN: host nie mogl utworzyc celu off-screen");
+                return;
+            }
+            g_screen_exists[id] = 1;
+            return;
+        }
+        if (PeekWord(p, "SET")) {
+            if (*NTrim(p + 3)) { OutError("SCREEN SET: nadmiarowa skladnia"); return; }
+            if (id != 0 && !g_screen_exists[id]) { OutError("SCREEN SET: ekran nie istnieje"); return; }
+            if (HostScreenSet((uint32_t)id) != 0) { OutError("SCREEN SET: host nie obsluguje celu"); return; }
+            g_active_screen = (uint32_t)id;
+            return;
+        }
+        OutError("SCREEN: oczekiwano OPEN albo SET");
         return;
     }
 
@@ -6939,7 +7001,15 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
             return;
         }
         g_is_graphics = 1;
+        g_graph_w = gw; g_graph_h = gh;
+        {
+            uint32_t si;
+            for (si = 0; si < MAX_SCREENS; si++) g_screen_exists[si] = 0;
+            g_screen_exists[0] = 1;
+            g_active_screen = 0;
+        }
         HostGfxMode(gw, gh);
+        if (g_host && g_host->gfx_screen_set) HostScreenSet(0);
         return;
     }
 
@@ -7436,6 +7506,12 @@ static void NyotaEmbedReset(void) {
     g_table_count = 0;
     g_button_count = 0;
     g_is_graphics = 0;
+    g_graph_w = g_graph_h = 0;
+    g_active_screen = 0;
+    {
+        uint32_t si;
+        for (si = 0; si < MAX_SCREENS; si++) g_screen_exists[si] = 0;
+    }
     g_scheduler_running = 0;
     {
         int i;
@@ -7587,6 +7663,10 @@ void _start(AyoAPI *api) {
     g_list_pool_used = 0;
     g_table_count = 0;
     g_button_count = 0;
+    g_is_graphics = 0;
+    g_graph_w = g_graph_h = 0;
+    g_active_screen = 0;
+    for (int si = 0; si < MAX_SCREENS; si++) g_screen_exists[si] = 0;
     g_scheduler_running = 0;
     for (int i = 0; i < MAX_EVERY_EVENTS; i++) g_every[i].active = 0;
     for (int i = 0; i < MAX_NN; i++) g_nn[i].active = 0;
