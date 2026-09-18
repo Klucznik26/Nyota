@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        8%{?dist}
+Release:        9%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,10 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-9
+- Add Enter/Space keyboard activation for focused NyotaUI controls.
+- Use latched NyotaUI button click events so mouse and keyboard activation are consistent.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-8
 - Add ENABLED state and disabled rendering for interactive NyotaUI controls.
 - Add keyboard focus traversal and focus indication on POSIX.
