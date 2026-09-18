@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        12%{?dist}
+Release:        13%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,12 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-13
+- Add ROW/COL AUTO layout for PANEL and TAB containers.
+- Add rounded child clipping across backgrounds, text, borders, shadows and UI primitives.
+- Enable HiDPI logical rendering on the POSIX NyotaUI host.
+- Add editable multiline TAREA/TextBox with UTF-8 input and host-neutral text API.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-12
 - Add portable PADX/PADY for textual controls and TABPADX/TABPADY for tab headers.
 - Use padding in both SDL2_ttf and bitmap fallback text rendering.
