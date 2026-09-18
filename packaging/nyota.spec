@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        9%{?dist}
+Release:        10%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,10 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-10
+- Anti-alias rounded and shaped NyotaUI surfaces on POSIX.
+- Make directional shadows follow control geometry while keeping the no-blur contract.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-9
 - Add Enter/Space keyboard activation for focused NyotaUI controls.
 - Use latched NyotaUI button click events so mouse and keyboard activation are consistent.
