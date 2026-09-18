@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD
+BEGIN
+WIN dziecko, brak, [200, 100], CENTER, FALSE
+END
