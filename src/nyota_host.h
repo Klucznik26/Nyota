@@ -105,7 +105,7 @@ enum {
     NYOTA_UI_CTRL_SCALE = 23,
     NYOTA_UI_CTRL_CLOCK = 24,
     NYOTA_UI_CTRL_ICONBUTTON = 25,
-    NYOTA_UI_CTRL_SWITCH = 26,
+    NYOTA_UI_CTRL_TOGGLE = 26,
     NYOTA_UI_CTRL_FRAME = 27,
     NYOTA_UI_CTRL_INPUT = 28
 };
@@ -424,15 +424,15 @@ typedef struct {
     char prefix[NYOTA_UI_AFFIX_MAX];
     char suffix[NYOTA_UI_AFFIX_MAX];
 
-    /* SWITCH. checked jest jego wartoscia logiczna. */
-    NyotaUiBackground switch_track_on;
-    NyotaUiBackground switch_track_off;
-    NyotaUiBackground switch_thumb_fill;
-    NyotaUiBackground switch_glow;
-    uint32_t switch_thumb_size;
-    uint32_t switch_blur;
-    char switch_on_text[NYOTA_UI_AFFIX_MAX];
-    char switch_off_text[NYOTA_UI_AFFIX_MAX];
+    /* TOGGLE. checked jest jego wartoscia logiczna. */
+    NyotaUiBackground toggle_track_on;
+    NyotaUiBackground toggle_track_off;
+    NyotaUiBackground toggle_thumb_fill;
+    NyotaUiBackground toggle_glow;
+    uint32_t toggle_thumb_size;
+    uint32_t toggle_blur;
+    char toggle_on_text[NYOTA_UI_AFFIX_MAX];
+    char toggle_off_text[NYOTA_UI_AFFIX_MAX];
 
     /* FRAME — kontener w stylu group-box. */
     uint8_t frame_title_pos;
