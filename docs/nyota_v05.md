@@ -1910,7 +1910,7 @@ jako rzeczywisty typ, bez zamiany na `[HH, MM, SS]`.
 
 ## 6.15. TABLE — nazwana kontrolka prezentacji danych
 
-**Status wdrożenia:** FUTURE (pierwszy etap wykonany wcześniej na prośbę)  
+**Status wdrożenia:** WDROŻONE — pierwszy etap zgodny z opisaną składnią  
 <span style="color: #006A4E;">nazwana kontrolka, układ kolumn, font/rozmiar, kolor tekstu, LIST/TUPLE/MARK i TABLE_DATA wykonane 2026-09-17</span>
 
 `TABLE` **nie jest typem zmiennej**. Jest kontrolką prezentacyjną działającą na
@@ -2012,14 +2012,13 @@ Poniższe elementy można projektować wcześniej. Nie należą do v0.5 i nie
 należą do pierwszej fali po rdzeniu:
 
 ```text
-relacyjny MARK
-DATETIME
-standard GUI Nyoty
-sprite'y
-audio
-assembler natywny
-Windows jako host Nyoty
-relacyjny MARK / DATETIME / standard GUI / audio
+relacyjny MARK — brak zdefiniowanych operatorów i reguł relacji
+DATETIME — brak zatwierdzonego literału, arytmetyki i reguł stref czasowych
+standard GUI Nyoty — brak zamkniętego modelu zdarzeń, focus i wspólnego API kontrolek
+dalszy rozwój sprite'ów — podstawowy SPRITE i animacja działają; kolejny etap nie ma jeszcze składni
+audio — brak składni języka i kontraktu hosta
+assembler natywny — brak ABI, modelu pamięci i granicy bezpieczeństwa
+Windows jako host Nyoty — cel portu; nie definiuje nowych elementów języka
 ```
 
 ---
