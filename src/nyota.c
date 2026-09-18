@@ -6305,7 +6305,8 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         PeekWord(line, "PANEL") || PeekWord(line, "DAREA") ||
         PeekWord(line, "CBOX") || PeekWord(line, "COMBO") ||
         PeekWord(line, "SEP") || PeekWord(line, "RADIO") ||
-        PeekWord(line, "TABS") || PeekWord(line, "TAB")) {
+        PeekWord(line, "TABS") || PeekWord(line, "TAB") ||
+        PeekWord(line, "TAREA")) {
         if (UiExecControl(ln, raw, line)) return;
         /* legacy GRAPH BUTTON falls through to its old implementation below */
     }
