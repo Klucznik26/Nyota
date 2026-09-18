@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        14%{?dist}
+Release:        15%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,10 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-15
+- Fix first NyotaUI window mapping on Fedora/Wayland by presenting again after SDL_ShowWindow().
+- Skip transparent control backgrounds and use SDL_FillRect for solid backgrounds to reduce startup cost.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-14
 - Batch NyotaUI initial construction off-screen and show windows only after the first complete frame.
 - Coalesce POSIX UI redraws to one render/present per SDL event batch.
