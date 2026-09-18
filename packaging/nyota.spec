@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        23%{?dist}
+Release:        24%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,10 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Sat Sep 19 2026 Marek <marekwnakle@gmail.com> - 0.5.0-24
+- Rename the NyotaUI SWITCH control to TOGGLE and keep SWITCH/CASE unambiguous.
+- Rename TOGGLE_VALUE/TOGGLE_SET/TOGGLE_CHANGED and synchronize docs/tests/editor support.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-23
 - Fix EQBOX peak timer recursion that could cause SIGSEGV during rendering.
 - Keep peak timing monotonic without pumping the GUI from inside the renderer.
