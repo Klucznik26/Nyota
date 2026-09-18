@@ -3064,6 +3064,15 @@ static void host_ui_draw_tick_mark(SDL_Renderer *ren,int idx,uint8_t style,int x
     }
 }
 
+static void host_ui_draw_control_label(SDL_Renderer *ren,const HostUiControl *ctl,const char *text,SDL_Rect r){
+    NyotaUiControlSpec ts;
+    if(!ren||!ctl||!text)return;
+    ts=ctl->spec;
+    strncpy(ts.text,text,sizeof(ts.text)-1);ts.text[sizeof(ts.text)-1]='\0';
+    ts.halign=NYOTA_UI_ALIGN_CENTER;ts.valign=NYOTA_UI_VALIGN_MIDDLE;ts.pad_x=0;ts.pad_y=0;
+    host_ui_draw_text(ren,&ts,r);
+}
+
 static void host_ui_draw_scale_ticks(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_Rect r){
     int64_t span=(int64_t)ctl->spec.signed_max-(int64_t)ctl->spec.signed_min,step=ctl->spec.minor_step,v,count=0;
     if(step<=0||span<=0)return;
@@ -3089,7 +3098,7 @@ static void host_ui_draw_scale_ticks(SDL_Renderer *ren,int idx,HostUiControl *ct
                 int cx=r.x+r.w/2,cy=r.y+r.h/2;double dx=(double)x-cx,dy=(double)y-cy,dl=sqrt(dx*dx+dy*dy);if(dl<1.0)dl=1.0;
                 lr.x=x2-(int)lround(dx/dl*ctl->spec.label_offset)-28;lr.y=y2-(int)lround(dy/dl*ctl->spec.label_offset)-10;
             }
-            host_ui_draw_simple_text(ren,buf,ctl->spec.text_color,lr,ctl->spec.font_size);
+            host_ui_draw_control_label(ren,ctl,buf,lr);
         }
         if(v+step<v)break;
     }
