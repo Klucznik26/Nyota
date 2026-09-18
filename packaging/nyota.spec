@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        21%{?dist}
+Release:        22%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,14 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-22
+- Add INPUT with TEXT/PASSWORD/NUMBER/SEARCH/EMAIL modes, icons, affixes and clear button.
+- Add ICONBUTTON with PNG icons, hover/pressed/on states and optional toggle behavior.
+- Add SWITCH with independent on/off tracks, thumb, labels and glow.
+- Add FRAME group-box container with title placement, clipping and automatic child layout.
+- Enhance TREEVIEW with node icons, configurable expanders, line styles and initial expansion state.
+- Add language APIs, tests and VS Code support for the new controls.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-21
 - Redesign segmented EQBOX rendering: no rectangular bar channel behind shaped segments.
 - Add SEGMENTS, SEGMENTSIZE and INACTIVEALPHA visual controls.
