@@ -646,15 +646,15 @@ Funkcje matematyczne wymagają nawiasów.
 FLOOR(x)
 CEIL(x)
 ROUND(x)
-SIN(x)
-COS(x)
-TG(x)
-CTG(x)
-ASIN(x)
-ACOS(x)
-ATG(x)
-ACTG(x)
+SIN(kat)
+COS(kat)
 ```
+
+`FLOOR()`, `CEIL()` i `ROUND()` zwracają `INTEGER`.
+
+`SIN()` i `COS()` przyjmują kąt w **stopniach** jako wartość liczbową konwertowaną do `INTEGER`. Bieżąca implementacja używa arytmetyki całkowitoliczbowej: wynik jest skalowany przez 1000, więc `SIN(90)` zwraca `1000`, `SIN(270)` zwraca `-1000`, a `COS(0)` zwraca `1000`.
+
+Funkcje `TG`, `CTG`, `ASIN`, `ACOS`, `ATG` i `ACTG` **nie są obecnie zaimplementowane** i nie należą do bieżącego kontraktu v0.5.
 
 ---
 
