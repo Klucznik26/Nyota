@@ -187,6 +187,12 @@ enum {
     NYOTA_UI_EQ_CENTER = 4
 };
 
+enum {
+    NYOTA_UI_EQ_LABEL_INSIDE = 0,
+    NYOTA_UI_EQ_LABEL_BOTTOM = 1,
+    NYOTA_UI_EQ_LABEL_TOP = 2
+};
+
 #define NYOTA_UI_EQ_MAX_BARS 64u
 #define NYOTA_UI_EQ_LABEL_MAX 32u
 #define NYOTA_UI_TEXT_MAX 512u
@@ -303,6 +309,7 @@ typedef struct {
     uint32_t eq_blur;
     uint8_t eq_build;
     uint8_t eq_direction;
+    uint8_t eq_label_pos;
     uint8_t eq_show_labels;
     uint8_t eq_show_values;
     NyotaUiBackground eq_bar_background;
