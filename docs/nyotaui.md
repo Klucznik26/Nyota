@@ -457,46 +457,86 @@ Oba obsługują `BG`, `BORDER`, `CBORDER`, `BWIDTH`, `RADIUS`, `CLIP`, `LAYOUT`,
 EQBOX eq, panel, [620, 270], [20, 120], BARS=8, VALUES=[15,30,55,80,100,72,44,22], MIN=0, MAX=100, ORIENTATION=VERTICAL, DIRECTION=UP
 
 EQBOX eq.CONFIG:
-    BARWIDTH = 38
-    GAP = 16
     BUILD = CIRCLE
+    SEGMENTS = 12
+    SEGMENTSIZE = 12
     SEGMENTGAP = 3
-    MAXHEIGHT = 190
+    GAP = 14
+
     BG = GRAD(LINEAR, VERTICAL, 2, [BLACK, DARKBLUE])
     BARBG = GRAD(LINEAR, VERTICAL, 2, [DARKGRAY, BLACK])
     BARFILL = GRAD(LINEAR, VERTICAL, 4, [EMERALD, LIME, GOLD, RUBY])
-    GLOW = GRAD(LINEAR, VERTICAL, 2, [SAPPHIRE, TRANSPARENT])
-    BLUR = 6
+
+    INACTIVEALPHA = 90
+
+    GLOW = SAPPHIRE
+    BLUR = 3
+
     LABELS = ["60","120","250","500","1K","2K","4K","8K"]
     SHOWLABELS = TRUE
     LABELPOS = BOTTOM
+
+    PEAK = TRUE
+    PEAKCOLOR = WHITE
+    PEAKHOLD = 500
+
     BORDER = TRUE
     CBORDER = GRAY
+    RADIUS = 10
 ```
 
-Najważniejsze właściwości:
+### Dwa tryby renderowania
 
-- geometria: `BARS`, `BARWIDTH`, `GAP`, `MINHEIGHT`, `MAXHEIGHT`, `ORIENTATION`, `DIRECTION`;
+`BUILD=SOLID` jest klasycznym ciągłym słupkiem. W tym trybie `BARWIDTH` określa szerokość słupka, `BARBG` jego tło, a `BARFILL` aktywną część.
+
+Dla `BUILD=CIRCLE/SQUARE/TRIANGLE/DIAMOND/PARALLELOGRAM` renderer używa wyłącznie segmentów. Nie jest rysowany prostokątny kanał pod segmentami ani prostokątne aktywne wypełnienie.
+
+W trybie segmentowanym:
+
+- `SEGMENTS` — liczba segmentów na słupek;
+- `SEGMENTSIZE` — fizyczny rozmiar pojedynczego segmentu;
+- `SEGMENTGAP` — odstęp między segmentami w jednym słupku;
+- `GAP` — odstęp między sąsiednimi słupkami;
+- `BARBG` — wygląd segmentów nieaktywnych;
+- `BARFILL` — wygląd segmentów aktywnych;
+- `INACTIVEALPHA=0..255` — dodatkowe przygaszenie segmentów nieaktywnych;
+- `GLOW` i `BLUR` — poświata wyłącznie aktywnych segmentów.
+
+Gradient `BARFILL` jest próbkowany zgodnie z pozycją segmentu w słupku. Dla `DIRECTION=UP` pierwszy kolor gradientu znajduje się u dołu, a ostatni u góry.
+
+### Peak marker
+
+```nyota
+PEAK = TRUE
+PEAKCOLOR = WHITE
+PEAKHOLD = 500
+```
+
+`PEAK` pokazuje najwyższy ostatnio osiągnięty segment. `PEAKHOLD` podaje czas podtrzymania w milisekundach. Po jego upływie marker wraca do bieżącej wartości przy kolejnej aktualizacji kontrolki.
+
+Dla `BUILD=SOLID` peak jest cienką linią na krawędzi aktualnego maksimum. Dla trybów segmentowanych peak zastępuje odpowiedni segment kolorem `PEAKCOLOR`.
+
+### Etykiety
+
+`LABELPOS=BOTTOM/TOP` w pionowym `EQBOX` rezerwuje osobny pas na etykiety, dlatego tekst nie nakłada się już na dolny lub górny segment. `LABELPOS=INSIDE` pozostawia etykietę wewnątrz aktywnej części.
+
+Pozostałe właściwości:
+
+- geometria: `BARS`, `GAP`, `MINHEIGHT`, `MAXHEIGHT`, `ORIENTATION`, `DIRECTION`;
 - dane: `MIN`, `MAX`, `VALUES`;
-- budowa słupka: `BUILD=SOLID/CIRCLE/SQUARE/TRIANGLE/DIAMOND/PARALLELOGRAM`, `SEGMENTGAP`;
-- warstwy: `BG`, `BARBG`, `BARFILL`, `GLOW`;
-- poświata: `BLUR`;
-- etykiety: `LABELS`, `LABELPOS=INSIDE/BOTTOM/TOP`, `SHOWLABELS`, `SHOWVALUES`, `FONT`, `FSIZE`, `CTEXT`;
-- obudowa: `BORDER`, `CBORDER`, `BWIDTH`, `RADIUS`;
+- etykiety: `LABELS`, `LABELPOS`, `SHOWLABELS`, `SHOWVALUES`, `FONT`, `FSIZE`, `CTEXT`;
+- obudowa: `BG`, `BORDER`, `CBORDER`, `BWIDTH`, `RADIUS`;
 - per-słupek: `BARCOLORS=[...]`.
 
-Warstwy `BG`, `BARBG`, `BARFILL` i `GLOW` używają tego samego typu tła co reszta NyotaUI, więc mogą przyjmować kolor, `GRAD(...)`, `IMG(...)` albo `TRANSPARENT`. Dzięki temu tło całej kontrolki może być np. PNG, słupki mogą mieć gradient, a poświata własny gradient.
-
-`BARCOLORS` pozwala nadpisać wypełnienie poszczególnych słupków kolorem. Gdy jest użyte dla danego słupka, jego kolor ma pierwszeństwo przed globalnym `BARFILL`.
-
-Do szybkich zmian danych służą osobne funkcje, które nie przebudowują `CONFIG`:
+Do szybkich zmian danych służą funkcje, które nie przebudowują `CONFIG`:
 
 ```nyota
 VAR ok := EQBOX_SET(eq, [20,40,60,80,95,75,50,25])
 VAR one := EQBOX_BAR(eq, 3, 88)
 ```
 
-Backend POSIX cache'uje statyczne warstwy słupków i poświaty. Zmiana wartości przechodzi osobnym kontraktem hosta, aby uniknąć ponownego parsowania stylu oraz ponownego ładowania obrazów przy każdej aktualizacji.
+Backend POSIX nie przebudowuje tła ani nie ładuje ponownie obrazów podczas szybkiej zmiany wartości.
+
 
 ## TBOX
 
