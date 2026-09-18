@@ -20,16 +20,16 @@ jobs:
       - name: Validate extension metadata
         working-directory: editors/vscode
         run: |
-          node -e "const p=require('./package.json'); if(p.version !== '0.5.1') process.exit(1)"
+          node -e "const p=require('./package.json'); if(p.version !== '0.5.2') process.exit(1)"
           node -e "JSON.parse(require('fs').readFileSync('syntaxes/nyota.tmLanguage.json','utf8'))"
 
       - name: Package VSIX
         working-directory: editors/vscode
-        run: npx --yes @vscode/vsce package --out nyota-language-support-0.5.1.vsix
+        run: npx --yes @vscode/vsce package --out nyota-language-support-0.5.2.vsix
 
       - name: Upload VSIX
         uses: actions/upload-artifact@v4
         with:
-          name: nyota-vscode-0.5.1
-          path: editors/vscode/nyota-language-support-0.5.1.vsix
+          name: nyota-vscode-0.5.2
+          path: editors/vscode/nyota-language-support-0.5.2.vsix
           if-no-files-found: error
