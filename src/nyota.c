@@ -76,6 +76,40 @@ static void HostWinDestroy(int32_t handle) {
     if (g_host && g_host->ui_win_destroy) g_host->ui_win_destroy(handle);
 }
 
+static int32_t HostUiControlCreate(const char *name, int32_t window_handle,
+                                   int32_t parent_control_handle,
+                                   const NyotaUiControlSpec *spec) {
+    if (g_host && g_host->ui_control_create)
+        return g_host->ui_control_create(name, window_handle, parent_control_handle, spec);
+    return -1;
+}
+
+static int32_t HostUiControlUpdate(int32_t handle, const NyotaUiControlSpec *spec) {
+    if (g_host && g_host->ui_control_update)
+        return g_host->ui_control_update(handle, spec);
+    return -1;
+}
+
+static void HostUiControlDestroy(int32_t handle) {
+    if (g_host && g_host->ui_control_destroy) g_host->ui_control_destroy(handle);
+}
+
+static int32_t HostUiButtonClicked(int32_t handle) {
+    if (g_host && g_host->ui_button_clicked) return g_host->ui_button_clicked(handle);
+    return -1;
+}
+
+static int32_t HostUiDareaDropped(int32_t handle) {
+    if (g_host && g_host->ui_darea_dropped) return g_host->ui_darea_dropped(handle);
+    return -1;
+}
+
+static int32_t HostUiDareaItems(int32_t handle, char *out, uint32_t cap, uint32_t *out_size) {
+    if (g_host && g_host->ui_darea_items)
+        return g_host->ui_darea_items(handle, out, cap, out_size);
+    return -1;
+}
+
 static int32_t HostSpriteLoad(const char *path) {
     if (g_host && g_host->gfx_sprite_load) return g_host->gfx_sprite_load(path);
     return -1;
@@ -231,6 +265,7 @@ static int32_t HostDirList(const char *path, char *out, uint32_t cap, uint32_t *
 #define MAX_RECORD_FIELDS 16
 #define MAX_SCREENS     16
 #define MAX_WINDOWS     32
+#define MAX_UI_CONTROLS 128
 #define NYOTA_INDENT    4       // jeden poziom bloku = dokładnie 4 spacje
 
 // ============================================================
@@ -341,6 +376,15 @@ typedef struct {
     NyotaUiBackground background;
 } NyotaWindow;
 
+typedef struct {
+    char name[64];
+    char parent_name[64];
+    int32_t host_handle;
+    int32_t window_handle;
+    int32_t parent_control_handle;
+    NyotaUiControlSpec spec;
+} NyotaUiControl;
+
 // ============================================================
 // STAN GLOBALNY INTERPRETERA
 // ============================================================
@@ -368,6 +412,8 @@ static NyotaSprite g_sprites[MAX_SPRITES];
 static uint32_t    g_sprite_count = 0;
 static NyotaWindow g_windows[MAX_WINDOWS];
 static uint32_t    g_window_count = 0;
+static NyotaUiControl g_ui_controls[MAX_UI_CONTROLS];
+static uint32_t    g_ui_control_count = 0;
 
 #define MAX_EVERY_EVENTS 16
 typedef struct {
@@ -1908,6 +1954,7 @@ static NyotaVal ParseOr(const char **pp);
 static NyotaVal ParsePrimary(const char **pp);
 static NyotaButton *FindButton(const char *name);
 static int ButtonPollClicked(NyotaButton *b);
+static NyotaUiControl *FindUiControl(const char *name);
 static NyotaSprite *FindSprite(const char *name);
 static int SpriteArgName(const char *arg, char *out, uint32_t out_size);
 static int SpriteHit(const NyotaSprite *a, const NyotaSprite *b);
@@ -2978,6 +3025,21 @@ static NyotaVal ParsePrimary(const char **pp) {
                 }
             }
         }
+        {
+            NyotaUiControl *uc = FindUiControl(bname);
+            if (uc && uc->spec.kind == NYOTA_UI_CTRL_BUTTON) {
+                clicked = HostUiButtonClicked(uc->host_handle);
+                if (clicked < 0) {
+                    OutError("BUTTON_CLICKED: host nie obsluguje zdarzen BUTTON");
+                    ValClear(&result);
+                    *pp = call_open ? MatchParen(call_open) : expr;
+                    return result;
+                }
+                ValFromBool(&result, clicked != 0);
+                *pp = call_open ? MatchParen(call_open) : expr;
+                return result;
+            }
+        }
         b = FindButton(bname);
         if (!b) {
             OutError("BUTTON_CLICKED: nieznany BUTTON");
@@ -2992,6 +3054,81 @@ static NyotaVal ParsePrimary(const char **pp) {
             return result;
         }
         ValFromBool(&result, clicked);
+        *pp = call_open ? MatchParen(call_open) : expr;
+        return result;
+    }
+    if (NStrEqN(expr, "DAREA_DROPPED(", 14)) {
+        char args[2][MAX_STR_LEN], name[64];
+        int n = SplitFunctionArgs(expr + 14, args, 2);
+        NyotaUiControl *uc;
+        int32_t dropped;
+        if (n != 1 || !SpriteArgName(args[0], name, sizeof(name))) {
+            OutError("DAREA_DROPPED() wymaga nazwy DAREA");
+            ValClear(&result); *pp = call_open ? MatchParen(call_open) : expr; return result;
+        }
+        uc = FindUiControl(name);
+        if (!uc || uc->spec.kind != NYOTA_UI_CTRL_DAREA) {
+            OutError("DAREA_DROPPED: nieznana DAREA");
+            ValClear(&result); *pp = call_open ? MatchParen(call_open) : expr; return result;
+        }
+        dropped = HostUiDareaDropped(uc->host_handle);
+        if (dropped < 0) {
+            OutError("DAREA_DROPPED: host nie obsluguje drop");
+            ValClear(&result); *pp = call_open ? MatchParen(call_open) : expr; return result;
+        }
+        ValFromBool(&result, dropped != 0);
+        *pp = call_open ? MatchParen(call_open) : expr;
+        return result;
+    }
+    if (NStrEqN(expr, "DAREA_ITEMS(", 12)) {
+        char args[2][MAX_STR_LEN], name[64], data[NYOTA_UI_DROP_MAX];
+        uint32_t out_size = 0, count = 0, i = 0, start = 0;
+        int n = SplitFunctionArgs(expr + 12, args, 2);
+        NyotaUiControl *uc;
+        NyotaVal *items;
+        if (n != 1 || !SpriteArgName(args[0], name, sizeof(name))) {
+            OutError("DAREA_ITEMS() wymaga nazwy DAREA");
+            ValClear(&result); *pp = call_open ? MatchParen(call_open) : expr; return result;
+        }
+        uc = FindUiControl(name);
+        if (!uc || uc->spec.kind != NYOTA_UI_CTRL_DAREA) {
+            OutError("DAREA_ITEMS: nieznana DAREA");
+            ValClear(&result); *pp = call_open ? MatchParen(call_open) : expr; return result;
+        }
+        if (HostUiDareaItems(uc->host_handle, data, sizeof(data), &out_size) != 0) {
+            OutError("DAREA_ITEMS: host nie zwrocil elementow");
+            ValClear(&result); *pp = call_open ? MatchParen(call_open) : expr; return result;
+        }
+        if (out_size >= sizeof(data)) out_size = sizeof(data) - 1;
+        data[out_size] = '\0';
+        for (i = 0; i < out_size; i++) if (data[i] == '\n') count++;
+        if (out_size && data[out_size - 1] != '\n') count++;
+        if (count > MAX_LIST_ITEMS) {
+            OutError("DAREA_ITEMS: za duzo elementow");
+            ValClear(&result); *pp = call_open ? MatchParen(call_open) : expr; return result;
+        }
+        items = count ? PoolAlloc(count) : 0;
+        if (count && !items) {
+            OutError("Pula list pelna");
+            ValClear(&result); *pp = call_open ? MatchParen(call_open) : expr; return result;
+        }
+        count = 0; start = 0;
+        for (i = 0; i <= out_size; i++) {
+            if (i == out_size || data[i] == '\n') {
+                if (i > start) {
+                    uint32_t len = i - start;
+                    ValClear(&items[count]);
+                    items[count].type = TYPE_STR;
+                    if (len >= sizeof(items[count].s)) len = sizeof(items[count].s) - 1;
+                    memcpy(items[count].s, data + start, len);
+                    items[count].s[len] = '\0';
+                    count++;
+                }
+                start = i + 1;
+            }
+        }
+        ValClear(&result);
+        result.type = TYPE_LIST; result.list_items = items; result.list_len = count; result.list_cap = count;
         *pp = call_open ? MatchParen(call_open) : expr;
         return result;
     }
@@ -4988,6 +5125,290 @@ static int UiExecWin(uint32_t ln, const char *raw, const char *line) {
 }
 
 // ============================================================
+// NYOTAUI — BUTTON / LABEL / PANEL / DAREA
+// ============================================================
+static NyotaUiControl *FindUiControl(const char *name) {
+    uint32_t i;
+    for (i = 0; i < g_ui_control_count; i++)
+        if (NStrEq(g_ui_controls[i].name, name)) return &g_ui_controls[i];
+    return 0;
+}
+
+static void UiColorSolid(NyotaColor *c, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    c->mode = NYOTA_COLOR_SOLID; c->r = r; c->g = g; c->b = b; c->a = a;
+}
+
+static void UiBackgroundTransparent(NyotaUiBackground *bg) {
+    UiBackgroundBlack(bg);
+    bg->colors[0].mode = NYOTA_COLOR_TRANSPARENT;
+    bg->colors[0].a = 0;
+}
+
+static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
+    memset(s, 0, sizeof(*s));
+    s->kind = kind;
+    s->position_mode = NYOTA_UI_POS_XY;
+    NStrCopy(s->font, "SYSTEM", sizeof(s->font));
+    s->font_size = 16;
+    UiColorSolid(&s->text_color, 0, 0, 0, 255);
+    s->halign = NYOTA_UI_ALIGN_LEFT;
+    s->valign = NYOTA_UI_VALIGN_MIDDLE;
+    UiBackgroundTransparent(&s->background);
+    UiBackgroundTransparent(&s->background_over);
+    s->border = 0;
+    UiColorSolid(&s->border_color, 128, 128, 128, 255);
+    s->border_width = 1;
+    UiColorSolid(&s->border_color_over, 160, 190, 255, 255);
+    s->border_width_over = 1;
+    s->clip = 1;
+    s->shape = NYOTA_UI_DAREA_RECT;
+    s->accept = NYOTA_UI_ACCEPT_ALL;
+    s->multi = 1;
+    if (kind == NYOTA_UI_CTRL_BUTTON) {
+        UiColorSolid(&s->text_color, 255, 255, 255, 255);
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 64, 96, 160, 255);
+        s->halign = NYOTA_UI_ALIGN_CENTER;
+        s->border = 1;
+    } else if (kind == NYOTA_UI_CTRL_PANEL) {
+        UiBackgroundTransparent(&s->background);
+    } else if (kind == NYOTA_UI_CTRL_DAREA) {
+        UiColorSolid(&s->text_color, 160, 160, 160, 255);
+        UiBackgroundTransparent(&s->background);
+    }
+}
+
+static int UiParseColorProperty(const char *rhs, NyotaColor *out, const char *label) {
+    NyotaVal v = Eval(rhs);
+    if (!ValToColorValue(&v, out) || out->mode == NYOTA_COLOR_BACKDROP) {
+        char err[160]; NStrCopy(err, label, sizeof(err));
+        NStrAppend(err, " wymaga koloru Nyoty", sizeof(err)); OutError(err); return 0;
+    }
+    return 1;
+}
+
+static int UiParseBoolProperty(const char *rhs, uint8_t *out, const char *label) {
+    NyotaVal v = Eval(rhs);
+    if (v.type != TYPE_BOOL) {
+        char err[160]; NStrCopy(err, label, sizeof(err));
+        NStrAppend(err, " wymaga BOOLEAN", sizeof(err)); OutError(err); return 0;
+    }
+    *out = (uint8_t)(v.i != 0); return 1;
+}
+
+static int UiParseUIntProperty(const char *rhs, uint32_t *out, uint32_t minv, uint32_t maxv, const char *label) {
+    NyotaVal v = Eval(rhs);
+    if (v.type != TYPE_INT || v.i < (int32_t)minv || v.i > (int32_t)maxv) {
+        char err[180]; NStrCopy(err, label, sizeof(err));
+        NStrAppend(err, " ma nieprawidlowa wartosc", sizeof(err)); OutError(err); return 0;
+    }
+    *out = (uint32_t)v.i; return 1;
+}
+
+static int UiControlPropertyAllowed(uint8_t kind, const char *prop) {
+    if (NStrEq(prop, "BG") || NStrEq(prop, "BORDER") || NStrEq(prop, "CBORDER") || NStrEq(prop, "BWIDTH")) return 1;
+    if (kind == NYOTA_UI_CTRL_PANEL) return NStrEq(prop, "CLIP");
+    if (kind == NYOTA_UI_CTRL_BUTTON || kind == NYOTA_UI_CTRL_LABEL || kind == NYOTA_UI_CTRL_DAREA) {
+        if (NStrEq(prop, "TEXT") || NStrEq(prop, "FONT") || NStrEq(prop, "FSIZE") ||
+            NStrEq(prop, "CTEXT") || NStrEq(prop, "BOLD") || NStrEq(prop, "ITALIC") ||
+            NStrEq(prop, "UNDERLINE") || NStrEq(prop, "HALIGN") || NStrEq(prop, "VALIGN") ||
+            NStrEq(prop, "WRAP")) return 1;
+    }
+    if (kind == NYOTA_UI_CTRL_DAREA) {
+        if (NStrEq(prop, "SHAPE") || NStrEq(prop, "ACCEPT") || NStrEq(prop, "MULTI") ||
+            NStrEq(prop, "BGOVER") || NStrEq(prop, "CBORDEROVER") || NStrEq(prop, "BWIDTHOVER")) return 1;
+    }
+    return 0;
+}
+
+static int UiApplyControlProperty(NyotaUiControl *ctl, const char *prop, const char *rhs) {
+    NyotaUiControlSpec *s = &ctl->spec;
+    if (!UiControlPropertyAllowed(s->kind, prop)) {
+        OutError("NyotaUI CONFIG: wlasciwosc niedozwolona dla tej kontrolki"); return 0;
+    }
+    if (NStrEq(prop, "TEXT")) {
+        NyotaVal v = Eval(rhs);
+        if (v.type != TYPE_STR) { OutError("TEXT wymaga STRING"); return 0; }
+        NStrCopy(s->text, v.s, sizeof(s->text));
+    } else if (NStrEq(prop, "FONT")) {
+        NyotaVal v = Eval(rhs);
+        if (v.type != TYPE_STR || !v.s[0]) { OutError("FONT wymaga niepustego STRING"); return 0; }
+        NStrCopy(s->font, v.s, sizeof(s->font));
+    } else if (NStrEq(prop, "FSIZE")) {
+        if (!UiParseUIntProperty(rhs, &s->font_size, 1, 128, "FSIZE")) return 0;
+    } else if (NStrEq(prop, "CTEXT")) {
+        if (!UiParseColorProperty(rhs, &s->text_color, "CTEXT")) return 0;
+    } else if (NStrEq(prop, "BOLD")) {
+        if (!UiParseBoolProperty(rhs, &s->bold, "BOLD")) return 0;
+    } else if (NStrEq(prop, "ITALIC")) {
+        if (!UiParseBoolProperty(rhs, &s->italic, "ITALIC")) return 0;
+    } else if (NStrEq(prop, "UNDERLINE")) {
+        if (!UiParseBoolProperty(rhs, &s->underline, "UNDERLINE")) return 0;
+    } else if (NStrEq(prop, "WRAP")) {
+        if (!UiParseBoolProperty(rhs, &s->wrap, "WRAP")) return 0;
+    } else if (NStrEq(prop, "HALIGN")) {
+        if (NStrEq(NTrim(rhs), "LEFT")) s->halign = NYOTA_UI_ALIGN_LEFT;
+        else if (NStrEq(NTrim(rhs), "CENTER")) s->halign = NYOTA_UI_ALIGN_CENTER;
+        else if (NStrEq(NTrim(rhs), "RIGHT")) s->halign = NYOTA_UI_ALIGN_RIGHT;
+        else { OutError("HALIGN wymaga LEFT/CENTER/RIGHT"); return 0; }
+    } else if (NStrEq(prop, "VALIGN")) {
+        if (NStrEq(NTrim(rhs), "TOP")) s->valign = NYOTA_UI_VALIGN_TOP;
+        else if (NStrEq(NTrim(rhs), "MIDDLE")) s->valign = NYOTA_UI_VALIGN_MIDDLE;
+        else if (NStrEq(NTrim(rhs), "BOTTOM")) s->valign = NYOTA_UI_VALIGN_BOTTOM;
+        else { OutError("VALIGN wymaga TOP/MIDDLE/BOTTOM"); return 0; }
+    } else if (NStrEq(prop, "BG")) {
+        if (!UiParseBackground(rhs, &s->background)) return 0;
+    } else if (NStrEq(prop, "BORDER")) {
+        if (!UiParseBoolProperty(rhs, &s->border, "BORDER")) return 0;
+    } else if (NStrEq(prop, "CBORDER")) {
+        if (!UiParseColorProperty(rhs, &s->border_color, "CBORDER")) return 0;
+    } else if (NStrEq(prop, "BWIDTH")) {
+        if (!UiParseUIntProperty(rhs, &s->border_width, 1, 64, "BWIDTH")) return 0;
+    } else if (NStrEq(prop, "CLIP")) {
+        if (!UiParseBoolProperty(rhs, &s->clip, "CLIP")) return 0;
+    } else if (NStrEq(prop, "SHAPE")) {
+        if (NStrEq(NTrim(rhs), "RECT")) s->shape = NYOTA_UI_DAREA_RECT;
+        else if (NStrEq(NTrim(rhs), "CIRCLE")) s->shape = NYOTA_UI_DAREA_CIRCLE;
+        else if (NStrEq(NTrim(rhs), "ELLIPSE")) s->shape = NYOTA_UI_DAREA_ELLIPSE;
+        else { OutError("DAREA SHAPE wymaga RECT/CIRCLE/ELLIPSE"); return 0; }
+    } else if (NStrEq(prop, "ACCEPT")) {
+        if (NStrEq(NTrim(rhs), "FILES")) s->accept = NYOTA_UI_ACCEPT_FILES;
+        else if (NStrEq(NTrim(rhs), "DIRS")) s->accept = NYOTA_UI_ACCEPT_DIRS;
+        else if (NStrEq(NTrim(rhs), "ALL")) s->accept = NYOTA_UI_ACCEPT_ALL;
+        else { OutError("DAREA ACCEPT wymaga FILES/DIRS/ALL"); return 0; }
+    } else if (NStrEq(prop, "MULTI")) {
+        if (!UiParseBoolProperty(rhs, &s->multi, "MULTI")) return 0;
+    } else if (NStrEq(prop, "BGOVER")) {
+        if (!UiParseBackground(rhs, &s->background_over)) return 0;
+    } else if (NStrEq(prop, "CBORDEROVER")) {
+        if (!UiParseColorProperty(rhs, &s->border_color_over, "CBORDEROVER")) return 0;
+    } else if (NStrEq(prop, "BWIDTHOVER")) {
+        if (!UiParseUIntProperty(rhs, &s->border_width_over, 1, 64, "BWIDTHOVER")) return 0;
+    }
+    return 1;
+}
+
+static int UiParseNamedProperty(NyotaUiControl *ctl, const char *arg) {
+    char prop[64];
+    const char *p = NTrim(arg), *eq;
+    uint32_t n = ParseIdent(p, prop, sizeof(prop));
+    if (!prop[0]) { OutError("NyotaUI: oczekiwano WLASCIWOSC=wartosc"); return 0; }
+    eq = NTrim(p + n);
+    if (*eq != '=') { OutError("NyotaUI: oczekiwano WLASCIWOSC=wartosc"); return 0; }
+    return UiApplyControlProperty(ctl, prop, NTrim(eq + 1));
+}
+
+static int UiApplyControlConfig(uint32_t ln, const char *raw, NyotaUiControl *ctl) {
+    uint32_t my_indent = NIndent(raw), body_start = ln + 1, body_end = SkipBlock(ln + 1, NIndent(raw)), i;
+    for (i = body_start; i < body_end; i++) {
+        const char *cl = NTrim(g_lines[i]);
+        if (!*cl || *cl == '#') continue;
+        g_cur_line = i;
+        if (NIndent(g_lines[i]) != my_indent + NYOTA_INDENT) {
+            OutError("NyotaUI CONFIG: wymagane dokladnie 4 spacje"); g_cur_line = body_end; return 0;
+        }
+        if (!UiParseNamedProperty(ctl, cl)) { g_cur_line = body_end; return 0; }
+    }
+    if (HostUiControlUpdate(ctl->host_handle, &ctl->spec) != 0) {
+        OutError("NyotaUI CONFIG: host odrzucil ustawienie"); g_cur_line = body_end; return 0;
+    }
+    g_cur_line = body_end; return 1;
+}
+
+static int UiControlKindFromLine(const char *line, uint8_t *kind, uint32_t *kwlen) {
+    if (PeekWord(line, "BUTTON")) { *kind = NYOTA_UI_CTRL_BUTTON; *kwlen = 6; return 1; }
+    if (PeekWord(line, "LABEL")) { *kind = NYOTA_UI_CTRL_LABEL; *kwlen = 5; return 1; }
+    if (PeekWord(line, "PANEL")) { *kind = NYOTA_UI_CTRL_PANEL; *kwlen = 5; return 1; }
+    if (PeekWord(line, "DAREA")) { *kind = NYOTA_UI_CTRL_DAREA; *kwlen = 5; return 1; }
+    return 0;
+}
+
+/* Returns 1 when consumed as NyotaUI. Returns 0 only for legacy GRAPH BUTTON. */
+static int UiExecControl(uint32_t ln, const char *raw, const char *line) {
+    uint8_t kind; uint32_t kwlen;
+    const char *p;
+    char name[64];
+    uint32_t nn;
+    NyotaUiControl *existing;
+    if (!UiControlKindFromLine(line, &kind, &kwlen)) return 0;
+    p = NTrim(line + kwlen);
+    nn = ParseIdent(p, name, sizeof(name));
+    if (!name[0]) { OutError("NyotaUI: brak nazwy kontrolki"); return 1; }
+    p = NTrim(p + nn);
+
+    if (NStrEq(p, ".CONFIG:")) {
+        existing = FindUiControl(name);
+        if (!existing || existing->spec.kind != kind) {
+            g_cur_line = SkipBlock(ln + 1, NIndent(raw));
+            OutError("NyotaUI CONFIG: nieznana kontrolka"); return 1;
+        }
+        UiApplyControlConfig(ln, raw, existing);
+        return 1;
+    }
+
+    if (*p != ',') { OutError("NyotaUI: po nazwie wymagany przecinek"); return 1; }
+    {
+        char args[24][MAX_STR_LEN], parent_name[64];
+        int n = SplitFunctionArgs(NTrim(p + 1), args, 24), i;
+        uint32_t pn;
+        NyotaWindow *pw = 0;
+        NyotaUiControl *pc = 0, temp;
+        int32_t wi, hi, x = 0, y = 0, handle;
+        uint8_t pos_mode = NYOTA_UI_POS_XY;
+
+        /* Preserve the old GRAPH-only BUTTON syntax for existing v0.5 programs/tests. */
+        if (kind == NYOTA_UI_CTRL_BUTTON && n == 13) {
+            pn = ParseIdent(NTrim(args[0]), parent_name, sizeof(parent_name));
+            if (!parent_name[0] || (!FindWindow(parent_name) && !FindUiControl(parent_name))) return 0;
+        }
+
+        if (n < 3) { OutError("NyotaUI: wymagane rodzic, [w,h], [x,y]/CENTER"); return 1; }
+        if (FindUiControl(name) || FindWindow(name)) { OutError("NyotaUI: nazwa juz istnieje"); return 1; }
+        if (g_ui_control_count >= MAX_UI_CONTROLS) { OutError("NyotaUI: przekroczono limit kontrolek"); return 1; }
+        if (!g_host || !g_host->ui_control_create || !g_host->ui_control_update) {
+            OutError("NyotaUI: host nie obsluguje kontrolek"); return 1;
+        }
+
+        pn = ParseIdent(NTrim(args[0]), parent_name, sizeof(parent_name));
+        if (!parent_name[0] || *NTrim(NTrim(args[0]) + pn) || NStrEq(parent_name, "ROOT")) {
+            OutError("NyotaUI: rodzic musi byc WIN albo PANEL"); return 1;
+        }
+        pw = FindWindow(parent_name);
+        if (!pw) {
+            pc = FindUiControl(parent_name);
+            if (!pc || pc->spec.kind != NYOTA_UI_CTRL_PANEL) {
+                OutError("NyotaUI: rodzic musi byc WIN albo PANEL"); return 1;
+            }
+        }
+        if (!UiEvalPair(args[1], &wi, &hi, 1, "NyotaUI: rozmiar")) return 1;
+        if (NStrEq(NTrim(args[2]), "CENTER")) pos_mode = NYOTA_UI_POS_CENTER;
+        else {
+            if (!UiEvalPair(args[2], &x, &y, 0, "NyotaUI: pozycja")) return 1;
+            pos_mode = NYOTA_UI_POS_XY;
+        }
+
+        memset(&temp, 0, sizeof(temp));
+        NStrCopy(temp.name, name, sizeof(temp.name));
+        NStrCopy(temp.parent_name, parent_name, sizeof(temp.parent_name));
+        UiControlDefaults(&temp.spec, kind);
+        temp.spec.w = (uint32_t)wi; temp.spec.h = (uint32_t)hi;
+        temp.spec.x = x; temp.spec.y = y; temp.spec.position_mode = pos_mode;
+        if (pw) {
+            temp.window_handle = pw->host_handle; temp.parent_control_handle = 0;
+        } else {
+            temp.window_handle = pc->window_handle; temp.parent_control_handle = pc->host_handle;
+        }
+        for (i = 3; i < n; i++) if (!UiParseNamedProperty(&temp, args[i])) return 1;
+
+        handle = HostUiControlCreate(temp.name, temp.window_handle, temp.parent_control_handle, &temp.spec);
+        if (handle <= 0) { OutError("NyotaUI: host nie utworzyl kontrolki"); return 1; }
+        temp.host_handle = handle;
+        g_ui_controls[g_ui_control_count++] = temp;
+    }
+    return 1;
+}
+
+// ============================================================
 // POMOCNICZE: RYSOWANIE LINII (Bresenham)
 // ============================================================
 static void DrawLine(int x0, int y0, int x1, int y1, uint8_t r, uint8_t g, uint8_t b) {
@@ -5707,8 +6128,15 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
     // Pusta lub komentarz
     if (!*line || *line == '#') return;
 
+    // --- NyotaUI child controls ---
+    if (PeekWord(line, "BUTTON") || PeekWord(line, "LABEL") ||
+        PeekWord(line, "PANEL") || PeekWord(line, "DAREA")) {
+        if (UiExecControl(ln, raw, line)) return;
+        /* legacy GRAPH BUTTON falls through to its old implementation below */
+    }
+
     // --- NyotaUI WIN / WIN name.CONFIG: ---
-    if (NStartsWith(line, "WIN")) {
+    if (PeekWord(line, "WIN")) {
         UiExecWin(ln, raw, line);
         return;
     }
@@ -8029,6 +8457,7 @@ static void NyotaEmbedReset(void) {
     g_list_pool_used = 0;
     g_table_count = 0;
     g_button_count = 0;
+    g_ui_control_count = 0;
     g_window_count = 0;
     g_is_graphics = 0;
     g_graph_w = g_graph_h = 0;
