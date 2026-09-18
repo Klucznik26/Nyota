@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+VAR x := 2147483647 + 1
+PRINT x
+END
