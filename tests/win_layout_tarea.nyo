@@ -1,0 +1,26 @@
+# Oczekiwane: zawiera LAYOUT_TAREA_OK
+BEGIN
+WIN glowne, ROOT, [640, 420]
+
+PANEL flow, glowne, [590, 80], [20, 20], LAYOUT=ROW, GAP=10, LPADX=12, LPADY=12, BG=DARKGRAY, RADIUS=8
+BUTTON a, flow, [100, 36], AUTO, TEXT="Pierwszy"
+BUTTON b, flow, [100, 36], AUTO, TEXT="Drugi"
+LABEL c, flow, [160, 36], AUTO, TEXT="AUTO layout"
+
+TAREA tekst, glowne, [590, 240], [20, 120], TEXT="Ala", BORDER=TRUE, RADIUS=8, PADX=10, PADY=8, CCARET=WHITE
+
+IF TAREA_TEXT(tekst) <> "Ala":
+    PRINT "TAREA_TEXT_FAIL"
+
+VAR ustawiono := TAREA_SET(tekst, "Ala ma kota")
+IF NOT ustawiono:
+    PRINT "TAREA_SET_FAIL"
+
+IF TAREA_TEXT(tekst) <> "Ala ma kota":
+    PRINT "TAREA_SET_TEXT_FAIL"
+
+IF NOT TAREA_CHANGED(tekst):
+    PRINT "TAREA_CHANGED_FAIL"
+
+PRINT "LAYOUT_TAREA_OK"
+END
