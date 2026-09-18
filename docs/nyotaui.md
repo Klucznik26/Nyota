@@ -235,3 +235,173 @@ Ramka jest rysowana wewnątrz zadeklarowanego rozmiaru kontrolki, więc `[300,40
 Rdzeń przekazuje `WIN` przez `NyotaHost`; program `.nyo` nie używa SDL, AyoAPI ani WinAPI. Backend POSIX/Linux implementuje wiele okien SDL2, hierarchię rodziców i pozycjonowanie, resize, TITLE, ICO, obrazy przez SDL2_image, gradienty LINEAR/SHAPE/SPIRAL oraz BUTTON/LABEL/PANEL/DAREA. Kontrakt hosta nie zawiera typów SDL i pozostaje wspólny dla Linuxa, Windowsa i późniejszego backendu AyoOS.
 
 Windows i AyoOS mają używać identycznego kodu `.nyo`; różnice należą wyłącznie do implementacji hosta. Backend Windows nie jest jeszcze zaimplementowany. AyoOS/Nexa/Sayari jest obecnie świadomie odłożony, ale kontrakt NyotaHost jest projektowany tak, aby nie wymagał późniejszej zmiany składni programu.
+
+
+---
+
+## CBOX
+
+`CBOX` jest samodzielnym polem wyboru bez wbudowanego opisu. Opis tworzy się osobnym `LABEL`.
+
+```nyota
+CBOX zgoda, glowne, [20, 20]
+CBOX zgoda2, glowne, [20, 60], 2
+```
+
+Ostatni parametr to logiczny rozmiar kontrolki; domyślnie `1`. Kolejne wartości `2`, `3`, ... skalują pole. W aktualnym backendzie POSIX jedna jednostka odpowiada bazowemu polu 20x20 jednostek NyotaUI.
+
+```nyota
+CBOX zgoda.CONFIG:
+    BG = WHITE
+    BORDER = TRUE
+    CBORDER = GRAY
+    BWIDTH = 1
+    CCHECK = EMERALD
+    CHECKED = TRUE
+    CSYMBOL = X
+```
+
+`CSYMBOL=X` jest domyślny. Można podać inny niepusty symbol jako `STRING`, np. `CSYMBOL="+"`. Aktualny renderer POSIX używa prostego fontu 8x8 i nie gwarantuje jeszcze pełnego Unicode.
+
+Stan:
+```nyota
+CBOX_CHECKED(zgoda)
+CBOX_SET(zgoda, TRUE)
+```
+
+## RADIO
+
+`RADIO` jest zawsze kołem. Składnia rozmiaru i wyglądu jest zgodna z `CBOX`, ale kontrolki łączy się przez `RGROUP`.
+
+```nyota
+RADIO r1, glowne, [20, 20], 1
+RADIO r2, glowne, [20, 60], 1
+
+RADIO r1.CONFIG:
+    RGROUP = tryb
+    CHECKED = TRUE
+    BG = WHITE
+    BORDER = TRUE
+    CBORDER = GRAY
+    BWIDTH = 1
+    CCHECK = SAPPHIRE
+
+RADIO r2.CONFIG:
+    RGROUP = tryb
+```
+
+W jednej grupie zaznaczenie jednego `RADIO` odznacza pozostałe. Odczyt i ustawienie stanu: `RADIO_CHECKED(...)`, `RADIO_SET(..., BOOLEAN)`.
+
+## COMBO
+
+```nyota
+VAR tryby := ["Automatyczny", "Reczny", "Wylaczony"]
+
+COMBO tryb, glowne, [220, 32], [20, 20],
+      ITEMS=tryby,
+      SELECTED=0
+```
+
+`.CONFIG`:
+
+```nyota
+COMBO tryb.CONFIG:
+    BG = DARKGRAY
+    CTEXT = WHITE
+    BORDER = TRUE
+    CBORDER = GRAY
+    BWIDTH = 1
+    CARROW = WHITE
+
+    BGDROP = BLACK
+    CDROP = LIGHTGRAY
+    BGSELECT = SAPPHIRE
+    CSELECT = WHITE
+
+    HOVER = ON
+    BGHOVER = DARKSAPPHIRE
+    CHOVER = WHITE
+    MAXVISIBLE = 8
+    RADIUS = 6
+```
+
+`HOVER` przyjmuje `ON/OFF`. Odczyt: `COMBO_INDEX(...)`, `COMBO_VALUE(...)`; ustawienie indeksu: `COMBO_SET(..., indeks)`.
+
+## SEP
+
+```nyota
+SEP linia, panel, [20, 120], 260
+SEP pion, panel, [300, 20], 180, VERTICAL
+```
+
+Domyślna orientacja to `HORIZONTAL`.
+
+```nyota
+SEP linia.CONFIG:
+    EFFECT = INSET
+    CSEP = GRAY
+    THICK = 2
+```
+
+`EFFECT`: `NORMAL`, `INSET`, `RAISED`, `GRADIENT`. Dla `INSET/RAISED` wymagane jest `THICK >= 2`. Przy `GRADIENT` używa się zwykłego `BG = GRAD(...)`.
+
+## SHADOW dziedziczony z WIN
+
+Cień definiuje się wyłącznie w `WIN.CONFIG`; wszystkie kontrolki należące do tego okna dziedziczą tę samą politykę cienia. Nie jest to cień dekoracji systemowego okna `WIN ... ROOT`.
+
+```nyota
+WIN glowne.CONFIG:
+    SHADOW = RD
+    CSHADOW = BLACK
+    SDEPTH = 2
+```
+
+`SHADOW`: `OFF`, `R`, `L`, `U`, `D`, `RU`, `RD`, `LU`, `LD`.
+
+## RADIUS
+
+`RADIUS` zaokrągla prostokątne tło i border. Obecnie działa dla `PANEL`, `BUTTON`, `COMBO`, prostokątnego `DAREA` i obszaru zawartości `TAB`. `DAREA` z `CIRCLE/ELLIPSE` nie przyjmuje `RADIUS`.
+
+`TAREA` pozostaje osobną kontrolką do zdefiniowania; samo `RADIUS` nie tworzy jej kontraktu.
+
+## TABS / TAB
+
+`TABS` jest kontenerem zakładek, a każda `TAB` jest pełnoprawnym rodzicem dla kontrolek.
+
+```nyota
+TABS ustawienia, glowne, [500, 320], [20, 20]
+
+TAB general, ustawienia, "General"
+TAB driver, ustawienia, "Driver"
+TAB resources, ustawienia, "Resources"
+
+LABEL opis, general, [220, 24], [20, 20], TEXT="Ustawienia ogolne"
+```
+
+Zawartość `TAB` ma ten sam model co `PANEL`: `BG`, `BORDER`, `CBORDER`, `BWIDTH`, `CLIP`, `RADIUS`.
+
+Główka zakładki ma osobne właściwości:
+
+```nyota
+TAB general.CONFIG:
+    TABBG = SAPPHIRE
+    TABFONT = "SYSTEM"
+    TABFSIZE = 14
+    TABCTEXT = WHITE
+    TABBOLD = TRUE
+    TABITALIC = FALSE
+    TABUNDERLINE = FALSE
+    TABBORDER = TRUE
+    TABCBORDER = LIGHTGRAY
+    TABBWIDTH = 1
+    TABRADIUS = 6
+
+    BG = DARKGRAY
+    BORDER = TRUE
+    CBORDER = GRAY
+    BWIDTH = 1
+    RADIUS = 8
+    CLIP = TRUE
+```
+
+`TABBORDER` rysuje górną oraz boczne krawędzie główki, bez dolnej. `TABRADIUS` zaokrągla górne rogi. Dzieci `TAB` używają współrzędnych względem jej obszaru zawartości.
