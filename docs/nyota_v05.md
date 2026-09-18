@@ -2014,7 +2014,7 @@ należą do pierwszej fali po rdzeniu:
 ```text
 relacyjny MARK — brak zdefiniowanych operatorów i reguł relacji
 DATETIME — brak zatwierdzonego literału, arytmetyki i reguł stref czasowych
-standard GUI Nyoty — brak zamkniętego modelu zdarzeń, focus i wspólnego API kontrolek
+standard GUI Nyoty — kontrakt kolorów jest zamknięty; model zdarzeń, focus i wspólne API kontrolek są nadal projektowane
 dalszy rozwój sprite'ów — podstawowy SPRITE i animacja działają; kolejny etap nie ma jeszcze składni
 audio — brak składni języka i kontraktu hosta
 NC — planowany moduł kodu C przez wspólne ABI i NyotaNativeAPI
@@ -2057,6 +2057,20 @@ Przed implementacją NC/NZ/NA trzeba zamknąć:
 5. ładowanie modułu na AyoOS/Linux/Windows,
 6. politykę bezpieczeństwa i błędów,
 7. cache/build dla wielu targetów.
+
+## 6.18. NyotaUI — kontrakt kolorów
+
+**Status wdrożenia:** WDROŻONE jako wspólny kontrakt i parser; integracja z CONFIG kontrolek jest kolejnym etapem.
+
+Ustalono 32 rodziny kolorów z wariantami DARK / podstawowym / LIGHT,
+osobne BLACK i WHITE bez sztucznych wariantów oraz dwa tryby specjalne:
+TRANSPARENT i BACKDROP.
+
+Parser `src/nyota_color.h` przyjmuje również `0xRRGGBB` i
+`0xRRGGBBAA`. Wartości nazwanych kolorów są stałe dla wszystkich hostów
+zgodnie z Nyota Platform Invariance Rule.
+
+Pełna tabela i semantyka: `docs/colors.md`.
 
 ---
 
