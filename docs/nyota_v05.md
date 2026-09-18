@@ -2017,9 +2017,46 @@ DATETIME — brak zatwierdzonego literału, arytmetyki i reguł stref czasowych
 standard GUI Nyoty — brak zamkniętego modelu zdarzeń, focus i wspólnego API kontrolek
 dalszy rozwój sprite'ów — podstawowy SPRITE i animacja działają; kolejny etap nie ma jeszcze składni
 audio — brak składni języka i kontraktu hosta
-assembler natywny — brak ABI, modelu pamięci i granicy bezpieczeństwa
+NC — planowany moduł kodu C przez wspólne ABI i NyotaNativeAPI
+NZ — planowany moduł kodu Zig przez to samo ABI i NyotaNativeAPI
+NA — planowany moduł natywnego assemblera CPU; zależny od architektury, nie od systemu operacyjnego
 Windows jako host Nyoty — cel portu; nie definiuje nowych elementów języka
 ```
+
+## 6.17. NC / NZ / NA — plan modułów natywnych
+
+**Status wdrożenia:** PLAN / FUTURE
+
+Planowane są trzy rodziny modułów:
+
+```text
+NC   kod C
+NZ   kod Zig
+NA   natywny assembler procesora
+```
+
+Wszystkie trzy podlegają twardej regule przenośności Nyoty:
+
+- kod programu Nyoty ma być identyczny na AyoOS, Linuxie i Windowsie,
+- źródła NC i NZ mają być identyczne na wszystkich oficjalnych hostach,
+- NA może zależeć od architektury CPU, ale nie od systemu operacyjnego;
+  ten sam kod NA x86-64 ma działać bez zmian na AyoOS, Linuxie i Windowsie x86-64,
+- moduły nie mogą wymagać bezpośrednich wywołań AyoAPI, POSIX ani WinAPI,
+- system operacyjny jest ukryty za wspólnym `NyotaNativeAPI`,
+- typy i reprezentacja ABI muszą mieć stałe rozmiary niezależne od hosta,
+- kompilator/toolchain może być inny za kulisami, lecz programista nie zmienia źródła.
+
+`NYASM` pozostaje osobnym mechanizmem: przenośną VM Nyoty działającą
+identycznie niezależnie od CPU i systemu.
+
+Przed implementacją NC/NZ/NA trzeba zamknąć:
+1. format modułu i wersjonowanie ABI,
+2. mapowanie typów Nyoty na ABI,
+3. zasady eksportu i importu symboli,
+4. `NyotaNativeAPI`,
+5. ładowanie modułu na AyoOS/Linux/Windows,
+6. politykę bezpieczeństwa i błędów,
+7. cache/build dla wielu targetów.
 
 ---
 
