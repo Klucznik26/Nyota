@@ -263,7 +263,7 @@ konstrukcji nie oznacza automatycznie, że należy do BLOCKS v0.5.
 
 ## 3.1. Wcięcia: 4 spacje zamiast 7
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">interpreter: dokładne +4 spacje przy wejściu w blok, tabulator i skoki poziomów są błędem wykonane 2026-09-18</span>  
 Pomoc Tunga/AyoEdit znajduje się poza dostępnym repozytorium Nyoty; źródłem prawdy jest reguła 4 spacji.
 
@@ -284,7 +284,7 @@ Do zmiany zostaje pomoc Tunga / AyoEdit.
 
 ## 3.2. Modulo: `MOD` zamiast `/%`
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">MOD w parserze; /% nadal alias; % zostaje procentem wykonane 2026-09-17</span>
 
 Operator `%` pozostaje operatorem procentu.
@@ -310,7 +310,7 @@ MOD   modulo
 
 ## 3.3. `^^` pozostaje operatorem pierwiastkowania
 
-**Status wdrożenia:** BLOCKS v0.5
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)
 
 ```nyota
 9 ^^ 2
@@ -327,7 +327,7 @@ Przypadki brzegowe są domknięte:
 
 ## 3.4. Jawne konwersje typów
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">INT / FLT / STR / BOOL oraz brak niejawnych konwersji wykonane</span>
 
 Nyota nie powinna automatycznie zgadywać, czy programista chce wykonać działanie
@@ -362,7 +362,7 @@ BOOL(x)   -> BOOLEAN
 
 ## 3.5. Konwersja BOOLEAN
 
-**Status wdrożenia:** BLOCKS v0.5
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)
 
 ```nyota
 INT(TRUE)    # 1
@@ -408,7 +408,7 @@ VAR d := INT(BOOL(a)) + INT(b)   # 2
 
 ## 3.6. Operatory równości
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">`=` i `<>` są ścisłe typowo; `==` jest błędem; `=N=` działa dla INTEGER/FLOAT z N=0..3 wykonane 2026-09-18</span>
 
 Decyzja jest zamknięta. `=` pozostaje ścisłe typowo, zgodnie z obecną
@@ -518,7 +518,7 @@ Wszystkie punkty tego działu mają status **BLOCKS v0.5**.
 
 ## 4.1. Wywołania FUNCTION w wyrażeniach
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">wywołanie FUNCTION w wyrażeniu zwraca wartość RETURN wykonane 2026-09-17</span>
 
 Interpreter rozpoznaje funkcję użytkownika w wyrażeniu, ale ścieżka wykonania
@@ -537,7 +537,7 @@ Oczekiwane: `wynik = 5`.
 
 ## 4.2. Parametry PROCEDURE i FUNCTION
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">parametry, VAR, liczba argumentów i lokalne parametry wykonane 2026-09-17</span>
 
 Do pełnego wdrożenia i naprawy:
@@ -551,7 +551,7 @@ Do pełnego wdrożenia i naprawy:
 
 ## 4.3. Zakres zmiennych i przesłanianie
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">lokalne VAR przesłania globalne; po powrocie globalne zostają wykonane 2026-09-17</span>
 
 Zmienne lokalne muszą poprawnie przesłaniać globalne.
@@ -578,7 +578,7 @@ Oczekiwane:
 
 ## 4.4. Precedencja i łączność operatorów
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">`2 * 3 + 4 = 10`, `2 + 3 * 4 = 14`, `10 - 3 - 2 = 5`, nawiasy, NOT/AND/OR i porównania w parserze wyrażeń wykonane 2026-09-17</span>  
 <span style="color: #006A4E;">SHL/SHR/BAND/BXOR/BOR i silnia `!` w pełnym parserze precedencji wykonane 2026-09-18</span>
 
@@ -599,7 +599,7 @@ Należy zbudować formalną tabelę precedencji obejmującą m.in. `NOT`, `^`, `
 
 ## 4.5. IF / ELIF / ELSE
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">łańcuch IF/ELIF/ELSE wykonuje tylko pierwszą prawdziwą gałąź; osierocony ELIF/ELSE to błąd wykonane 2026-09-17</span>
 
 Cały łańcuch musi być traktowany jako jedna konstrukcja. Po wykonaniu jednej
@@ -607,7 +607,7 @@ prawdziwej gałęzi interpreter nie może wykonać kolejnego `ELIF` ani `ELSE`.
 
 ## 4.6. Walidacja wcięć
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">tabulacja, wielokrotność 4 i dokładne +4 od instrukcji otwierającej blok wykonane 2026-09-18</span>
 
 Po przejściu na 4 spacje interpreter ma wymagać poprawnych poziomów wcięcia.
@@ -615,7 +615,7 @@ Niepoprawne wcięcie nie może być cicho akceptowane.
 
 ## 4.7. Nieznane instrukcje
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">nieznana instrukcja zgłasza błąd interpretera wykonane 2026-09-17</span>
 
 ```nyota
@@ -626,7 +626,7 @@ musi zgłosić błąd interpretera zamiast zostać cicho zignorowane.
 
 ## 4.8. BEGIN / END
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">brak BEGIN/END, END przed BEGIN, druga para i kod poza blokiem są błędem wykonane 2026-09-17</span>
 
 Jeżeli specyfikacja wymaga `BEGIN ... END`, interpreter musi to egzekwować.
@@ -634,7 +634,7 @@ Brak `BEGIN` albo `END` nie powinien powodować automatycznego wykonania całego
 
 ## 4.9. Niejawne konwersje w `+`
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">`4 + "8"` i `"8" + 4` są błędem typu; STRING + STRING oraz INTEGER + INTEGER działają wykonane 2026-09-17</span>
 
 ```nyota
@@ -647,7 +647,7 @@ Oba przypadki powinny wymagać jawnej konwersji.
 
 ## 4.10. FLOAT
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">FLOAT: fixed-point 3 miejsca, ucinanie nadmiaru cyfr, liczby ujemne i przepełnienia domknięte 2026-09-18</span>
 
 Domknięte zasady:
@@ -668,7 +668,7 @@ Dzielenie przez zero i `MOD 0` muszą generować jawny błąd interpretera.
 
 ## 4.12. RETURN
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">RETURN z wartością w FUNCTION, zakaz w PROCEDURE, błąd braku RETURN wykonane 2026-09-17</span>  
 <span style="color: #006A4E;">pre-scan RETURN + blokada typu zwracanego podczas wykonania wykonane 2026-09-18</span>
 
@@ -902,7 +902,7 @@ nie ma jeszcze zamkniętej specyfikacji ABI i bezpieczeństwa.
 
 ## 6.6. WHILE
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">WHILE z warunkiem BOOLEAN, zero iteracji, EXIT/CONTINUE wykonane 2026-09-17</span>
 
 `WHILE` jest pętlą z warunkiem sprawdzanym **przed** każdą iteracją.
@@ -931,7 +931,7 @@ WHILE BOOL(x):
 
 ## 6.7. CONTINUE
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">CONTINUE w FOR/WHILE/REPEAT/DO; poza pętlą błąd wykonane 2026-09-17</span>
 
 `CONTINUE` pomija pozostałą część bieżącej iteracji najbliższej pętli i przechodzi do następnej iteracji.
@@ -947,7 +947,7 @@ FOR i := 1 TO 10:
 
 ## 6.8. STEP dla FOR
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">FOR ... STEP n, w tym krok ujemny; STEP 0 to błąd wykonane 2026-09-17</span>
 
 `FOR` otrzymuje możliwość jawnego określenia kroku.
@@ -1986,7 +1986,7 @@ warunek istnienia podstawowej kontrolki prezentacyjnej.
 
 ## 6.14a. BUTTON — nazwana kontrolka GUI
 
-**Status wdrożenia:** FUTURE (pierwszy etap wykonany wcześniej na prośbę)  
+**Status wdrożenia:** WDROŻONE — pierwszy etap zgodny z opisaną składnią  
 <span style="color: #006A4E;">nazwa logiczna, geometria, tekst, font/rozmiar, kolory tekstu/tła, renderowanie i BUTTON_CLICKED() na hoście POSIX wykonane 2026-09-17</span>
 
 `BUTTON` nie jest typem zmiennej. Nazwa identyfikuje kontrolkę, tak aby program
@@ -2225,7 +2225,7 @@ END
 
 ## 9.9. Ścisłe porównanie `=`
 
-**Status wdrożenia:** BLOCKS v0.5
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)
 
 ```nyota
 BEGIN
