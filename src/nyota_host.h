@@ -90,7 +90,9 @@ enum {
     NYOTA_UI_CTRL_RADIO = 8,
     NYOTA_UI_CTRL_TABS = 9,
     NYOTA_UI_CTRL_TAB = 10,
-    NYOTA_UI_CTRL_TAREA = 11
+    NYOTA_UI_CTRL_TAREA = 11,
+    NYOTA_UI_CTRL_SBAR = 12,
+    NYOTA_UI_CTRL_PBAR = 13
 };
 
 enum {
@@ -145,6 +147,23 @@ enum {
     NYOTA_UI_ACCEPT_FILES = 1,
     NYOTA_UI_ACCEPT_DIRS = 2,
     NYOTA_UI_ACCEPT_ALL = 3
+};
+
+enum {
+    NYOTA_UI_SBAR_THUMB_RECT = 0,
+    NYOTA_UI_SBAR_THUMB_ROUND = 1,
+    NYOTA_UI_SBAR_THUMB_CIRCLE = 2,
+    NYOTA_UI_SBAR_THUMB_DIAMOND = 3,
+    NYOTA_UI_SBAR_THUMB_TRIANGLE = 4,
+    NYOTA_UI_SBAR_THUMB_PARALLELOGRAM = 5
+};
+
+enum {
+    NYOTA_UI_PBAR_SHAPE_BAR = 0,
+    NYOTA_UI_PBAR_SHAPE_CIRCLE = 1,
+    NYOTA_UI_PBAR_SHAPE_TRIANGLE = 2,
+    NYOTA_UI_PBAR_SHAPE_SQUARE = 3,
+    NYOTA_UI_PBAR_SHAPE_PARALLELOGRAM = 4
 };
 
 #define NYOTA_UI_TEXT_MAX 512u
@@ -223,11 +242,30 @@ typedef struct {
     NyotaColor selected_text_color;
     NyotaColor arrow_color;
 
-    /* SEP. */
+    /* SEP / SBAR / PBAR. */
     uint8_t orientation;
     uint8_t sep_effect;
     NyotaColor sep_color;
     uint32_t sep_thickness;
+
+    /* SBAR / PBAR — wspolny zakres wartosci. */
+    uint32_t range_min;
+    uint32_t range_max;
+    uint32_t range_value;
+
+    /* SBAR. */
+    uint32_t range_page;
+    uint32_t range_step;
+    uint8_t thumb_shape;
+    NyotaColor thumb_color;
+    NyotaColor thumb_hover_color;
+
+    /* PBAR. */
+    uint8_t progress_shape;
+    uint32_t progress_segments;
+    uint32_t progress_gap;
+    NyotaColor progress_fill_color;
+    NyotaColor progress_empty_color;
 
     /* TAB: naglowek ma osobny wyglad; zawartosc uzywa pol PANEL. */
     NyotaUiBackground tab_background;
@@ -331,6 +369,8 @@ typedef struct NyotaHost {
     int32_t (*ui_tarea_get_text)(int32_t handle, char *out, uint32_t cap, uint32_t *out_size);
     int32_t (*ui_tarea_set_text)(int32_t handle, const char *text);
     int32_t (*ui_tarea_changed)(int32_t handle);
+    int32_t (*ui_range_value)(int32_t handle);
+    int32_t (*ui_range_set_value)(int32_t handle, uint32_t value);
 } NyotaHost;
 
 void NyotaSetHost(NyotaHost *h);
