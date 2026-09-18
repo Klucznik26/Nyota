@@ -312,6 +312,9 @@ typedef struct {
     uint8_t eq_label_pos;
     uint8_t eq_show_labels;
     uint8_t eq_show_values;
+    uint32_t eq_value_count;
+    uint32_t eq_label_count;
+    uint32_t eq_color_count;
     NyotaUiBackground eq_bar_background;
     NyotaUiBackground eq_bar_fill;
     NyotaUiBackground eq_glow;
