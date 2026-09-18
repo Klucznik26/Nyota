@@ -1978,6 +1978,7 @@ static NyotaVal ParsePrimary(const char **pp);
 static NyotaButton *FindButton(const char *name);
 static int ButtonPollClicked(NyotaButton *b);
 static NyotaUiControl *FindUiControl(const char *name);
+static uint32_t UiItemsCount(const char *s);
 static NyotaSprite *FindSprite(const char *name);
 static int SpriteArgName(const char *arg, char *out, uint32_t out_size);
 static int SpriteHit(const NyotaSprite *a, const NyotaSprite *b);
