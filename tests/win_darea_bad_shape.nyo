@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD zawiera DAREA SHAPE
+BEGIN
+WIN glowne, ROOT, [320, 240], CENTER, FALSE
+DAREA drop, glowne, [120, 120], CENTER, SHAPE=STAR
+END
