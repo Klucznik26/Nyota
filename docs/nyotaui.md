@@ -485,7 +485,7 @@ TAREA opis, panel, [420, 180], AUTO, TEXT="Tekst początkowy"
 
 Obsługiwane właściwości obejmują typografię, `BG`, `BORDER`, `RADIUS`, `PADX/PADY`, `WRAP`, `ENABLED`, `READONLY` i kolor kursora `CCARET`.
 
-Na hoście POSIX pole obsługuje UTF-8 przez SDL text input, kursor, `Left/Right`, `Home/End`, `Backspace`, `Delete` i `Enter`. Focus działa wspólnie z resztą NyotaUI przez `Tab/Shift+Tab`.
+Na hoście POSIX pole obsługuje UTF-8 przez SDL text input, kliknięcie ustawiające kursor, `Left/Right/Up/Down`, `Home/End`, `Backspace`, `Delete`, `Enter` oraz wklejanie `Ctrl+V`. Focus działa wspólnie z resztą NyotaUI przez `Tab/Shift+Tab`.
 
 Odczyt, ustawienie i sygnał zmiany:
 
