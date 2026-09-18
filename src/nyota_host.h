@@ -103,7 +103,11 @@ enum {
     NYOTA_UI_CTRL_TREEVIEW = 21,
     NYOTA_UI_CTRL_SPLITTER = 22,
     NYOTA_UI_CTRL_SCALE = 23,
-    NYOTA_UI_CTRL_CLOCK = 24
+    NYOTA_UI_CTRL_CLOCK = 24,
+    NYOTA_UI_CTRL_ICONBUTTON = 25,
+    NYOTA_UI_CTRL_SWITCH = 26,
+    NYOTA_UI_CTRL_FRAME = 27,
+    NYOTA_UI_CTRL_INPUT = 28
 };
 
 enum {
@@ -246,6 +250,41 @@ enum {
 };
 
 enum {
+    NYOTA_UI_ICON_LEFT = 0,
+    NYOTA_UI_ICON_RIGHT = 1,
+    NYOTA_UI_ICON_TOP = 2,
+    NYOTA_UI_ICON_BOTTOM = 3,
+    NYOTA_UI_ICON_CENTER = 4
+};
+
+enum {
+    NYOTA_UI_INPUT_TEXT = 0,
+    NYOTA_UI_INPUT_PASSWORD = 1,
+    NYOTA_UI_INPUT_NUMBER = 2,
+    NYOTA_UI_INPUT_SEARCH = 3,
+    NYOTA_UI_INPUT_EMAIL = 4
+};
+
+enum {
+    NYOTA_UI_FRAME_TITLE_TOPLEFT = 0,
+    NYOTA_UI_FRAME_TITLE_TOPCENTER = 1,
+    NYOTA_UI_FRAME_TITLE_TOPRIGHT = 2
+};
+
+enum {
+    NYOTA_UI_TREE_LINE_NONE = 0,
+    NYOTA_UI_TREE_LINE_SOLID = 1,
+    NYOTA_UI_TREE_LINE_DASH = 2,
+    NYOTA_UI_TREE_LINE_DOT = 3
+};
+
+enum {
+    NYOTA_UI_TREE_EXPANDER_PLUS = 0,
+    NYOTA_UI_TREE_EXPANDER_TRIANGLE = 1,
+    NYOTA_UI_TREE_EXPANDER_CHEVRON = 2
+};
+
+enum {
     NYOTA_UI_NEEDLE_LINE = 0,
     NYOTA_UI_NEEDLE_TRIANGLE = 1,
     NYOTA_UI_NEEDLE_ARROW = 2,
@@ -267,6 +306,7 @@ enum {
 #define NYOTA_UI_ITEMS_MAX 4096u
 #define NYOTA_UI_GROUP_MAX 64u
 #define NYOTA_UI_SYMBOL_MAX 32u
+#define NYOTA_UI_AFFIX_MAX 64u
 
 typedef struct {
     uint8_t kind;
@@ -365,10 +405,38 @@ typedef struct {
     /* SLIDER. Uzywa wspolnego range_* oraz geometrii/kolorow thumb z SBAR. */
     uint32_t slider_thumb_size;
 
-    /* TBOX — jednowierszowy edytor tekstu. */
+    /* TBOX / INPUT — jednowierszowy edytor tekstu. */
     char placeholder[NYOTA_UI_PLACEHOLDER_MAX];
     uint32_t max_length;
     uint8_t password;
+
+    /* ICONBUTTON / INPUT: opcjonalna ikona PNG i jej geometria. */
+    char icon_path[NYOTA_UI_PATH_MAX];
+    uint32_t icon_size;
+    uint8_t icon_pos;
+    uint32_t icon_gap;
+    NyotaUiBackground pressed_background;
+    uint8_t toggle;
+
+    /* INPUT — bogatsze pole wejściowe. */
+    uint8_t input_type;
+    uint8_t clear_button;
+    char prefix[NYOTA_UI_AFFIX_MAX];
+    char suffix[NYOTA_UI_AFFIX_MAX];
+
+    /* SWITCH. checked jest jego wartoscia logiczna. */
+    NyotaUiBackground switch_track_on;
+    NyotaUiBackground switch_track_off;
+    NyotaUiBackground switch_thumb_fill;
+    NyotaUiBackground switch_glow;
+    uint32_t switch_thumb_size;
+    uint32_t switch_blur;
+    char switch_on_text[NYOTA_UI_AFFIX_MAX];
+    char switch_off_text[NYOTA_UI_AFFIX_MAX];
+
+    /* FRAME — kontener w stylu group-box. */
+    uint8_t frame_title_pos;
+    uint32_t frame_title_pad;
 
     /* SPINBOX — podpisana wartosc signed + przyciski +/- po prawej. */
     int32_t signed_min;
@@ -381,6 +449,13 @@ typedef struct {
     uint32_t row_height;
     uint32_t tree_indent;
     uint8_t show_lines;
+    uint8_t tree_line_style;
+    uint8_t tree_expander_style;
+    uint32_t tree_icon_spacing;
+    uint64_t tree_expanded_mask;
+    char tree_icon_leaf[NYOTA_UI_PATH_MAX];
+    char tree_icon_closed[NYOTA_UI_PATH_MAX];
+    char tree_icon_open[NYOTA_UI_PATH_MAX];
 
     /* SPLITTER — interaktywny separator z wartoscia pozycji. */
     uint32_t splitter_thickness;
