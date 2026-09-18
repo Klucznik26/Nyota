@@ -737,6 +737,10 @@ static NyotaVar *GetOrCreateVar(const char *name) {
     return v;
 }
 
+static void ValClear(NyotaVal *v);
+static NyotaVal *PoolAlloc(uint32_t n);
+static NyotaVal Eval(const char *expr);
+
 static NyotaRecordDef *FindRecordDef(const char *name) {
     uint32_t i;
     for (i = 0; i < g_record_count; i++)
