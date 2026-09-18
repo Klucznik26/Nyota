@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+VAR a := (-16) ^^ 2
+PRINT a
+END
