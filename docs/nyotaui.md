@@ -657,7 +657,7 @@ CLOCK hw.CONFIG:
     ZONES = [[0, 70, EMERALD], [70, 90, GOLD], [90, 110, RUBY]]
 ```
 
-`SHAPE=ARC/CIRCLE`. Kształty wskazówek: `LINE`, `TRIANGLE`, `ARROW`, `DIAMOND`, `PARALLELOGRAM`, `BAR`, `DOUBLE`. `NEEDLE=<shape>` ustawia wspólny kształt, a tablice `NEEDLE*` pozwalają personalizować każdą wskazówkę osobno. Każda wskazówka może mieć własny zakres przez `NEEDLEMINS` i `NEEDLEMAXS`.
+`SHAPE=ARC/CIRCLE`. Kształty wskazówek: `LINE`, `TRIANGLE`, `ARROW`, `DIAMOND`, `PARALLELOGRAM`, `BAR`, `DOUBLE`. `NEEDLE`, `CNEEDLE`, `NEEDLEWIDTH`, `NEEDLELEN` i `NEEDLEBLUR` ustawiają wspólny styl, a tablice `NEEDLE*` pozwalają personalizować każdą wskazówkę osobno. Każda wskazówka może mieć własny zakres przez `NEEDLEMINS` i `NEEDLEMAXS`.
 
 Tarcza obsługuje standardowe `BG` NyotaUI, więc może być kolorem, gradientem, obrazem albo przezroczysta. `ZONES` rysuje kolorowe strefy zakresu.
 
