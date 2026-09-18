@@ -97,6 +97,16 @@ static uint8_t HostPointerState(int32_t *x, int32_t *y) {
 
 static int32_t HostFileRead(const char *path, char *out, uint32_t cap, uint32_t *out_size) {
     if (g_host && g_host->file_read) return g_host->file_read(path, out, cap, out_size);
+#ifndef NYOTA_EMBEDDED
+    if (g_api && g_api->ReadFile && path && out && cap > 0) {
+        uint32_t got = 0;
+        int32_t rc = g_api->ReadFile(path, (uint8_t *)out, cap - 1, &got);
+        if (rc != 0 || got >= cap) return rc ? rc : -1;
+        out[got] = '\0';
+        if (out_size) *out_size = got;
+        return 0;
+    }
+#endif
     return -1;
 }
 
@@ -351,6 +361,9 @@ static uint32_t g_rng = 0x12345678;
 #define SORT_COUNTING_RANGE 4096
 static char g_dir_list_buf[MAX_DIR_LIST_BYTES];
 static uint16_t g_sort_counting[SORT_COUNTING_RANGE];
+#define MAX_IMPORT_LINES 256
+static char g_import_buf[MAX_SOURCE];
+static char g_import_lines[MAX_IMPORT_LINES][MAX_LINE_LEN];
 
 // Bufor wyjścia na ekran
 static uint32_t  g_out_x = 0;
@@ -3964,6 +3977,129 @@ static void ParseSourceToLines(void) {
         }
     }
 }
+static int ParseImportBufferLines(uint32_t size, uint32_t *out_count) {
+    uint32_t li = 0, col = 0, i;
+    for (i = 0; i <= size; i++) {
+        char c = (i < size) ? g_import_buf[i] : '\n';
+        if (c == '\r') continue;
+        if (c == '\n') {
+            if (li >= MAX_IMPORT_LINES) {
+                OutError("IMPORT: plik ma za duzo linii");
+                return 0;
+            }
+            g_import_lines[li][col] = '\0';
+            NRTrim(g_import_lines[li]);
+            li++;
+            col = 0;
+        } else {
+            if (col + 1 >= MAX_LINE_LEN) {
+                OutError("IMPORT: linia jest za dluga");
+                return 0;
+            }
+            g_import_lines[li][col++] = c;
+        }
+    }
+    *out_count = li;
+    return 1;
+}
+
+static int ValidateImportedDeclarations(uint32_t count) {
+    uint32_t i;
+    int body_owner = 0;
+    for (i = 0; i < count; i++) {
+        const char *raw = g_import_lines[i];
+        const char *line = NTrim(raw);
+        uint32_t ind;
+        if (!*line || *line == '#') continue;
+        if (NLineHasTab(raw)) {
+            OutError("IMPORT: tabulator jest zabroniony");
+            return 0;
+        }
+        ind = NIndent(raw);
+        if ((ind % NYOTA_INDENT) != 0) {
+            OutError("IMPORT: wciecie musi byc wielokrotnoscia 4");
+            return 0;
+        }
+        if (NStrEq(line, "BEGIN") || NStrEq(line, "END")) {
+            OutError("IMPORT: plik importowany nie moze zawierac BEGIN/END");
+            return 0;
+        }
+        if (NStartsWith(line, "IMPORT")) {
+            OutError("IMPORT: import zagniezdzony jest zabroniony");
+            return 0;
+        }
+        if (ind == 0) {
+            if (NStartsWith(line, "CONST")) body_owner = 0;
+            else if (NStartsWith(line, "RECORD") ||
+                     NStartsWith(line, "FUNCTION") ||
+                     NStartsWith(line, "PROCEDURE")) body_owner = 1;
+            else {
+                OutError("IMPORT: dozwolone sa tylko CONST, RECORD, FUNCTION i PROCEDURE");
+                return 0;
+            }
+        } else if (!body_owner) {
+            OutError("IMPORT: kod wykonywalny lub osierocone wciecie w pliku importowanym");
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int ExpandImports(void) {
+    uint32_t i = 0;
+    int saw_begin = 0;
+    while (i < g_line_count) {
+        const char *line = NTrim(g_lines[i]);
+        if (NStrEq(line, "BEGIN")) saw_begin = 1;
+        if (!NStartsWith(line, "IMPORT")) { i++; continue; }
+        if (saw_begin || NIndent(g_lines[i]) != 0) {
+            g_cur_line = i;
+            OutError("IMPORT musi wystapic na poziomie 0 przed BEGIN");
+            return 0;
+        }
+        {
+            const char *p = NTrim(line + 6);
+            char path[MAX_STR_LEN];
+            uint32_t used = 0, got = 0, icount = 0, tail, new_count, k;
+            int32_t rc;
+            if (!ParseStringLit(p, path, sizeof(path), &used) || !path[0] ||
+                *NTrim(p + used)) {
+                g_cur_line = i;
+                OutError("IMPORT wymaga jednej sciezki STRING");
+                return 0;
+            }
+            rc = HostFileRead(path, g_import_buf, sizeof(g_import_buf), &got);
+            if (rc != 0) {
+                g_cur_line = i;
+                OutError("IMPORT: nie mozna odczytac pliku");
+                return 0;
+            }
+            if (!ParseImportBufferLines(got, &icount)) { g_cur_line = i; return 0; }
+            if (!ValidateImportedDeclarations(icount)) { g_cur_line = i; return 0; }
+            new_count = g_line_count - 1 + icount;
+            if (new_count > MAX_LINES) {
+                g_cur_line = i;
+                OutError("IMPORT: laczny program przekracza limit linii");
+                return 0;
+            }
+            tail = g_line_count - (i + 1);
+            if (icount != 1) {
+                int32_t src_index;
+                for (src_index = (int32_t)tail - 1; src_index >= 0; src_index--) {
+                    uint32_t from = i + 1 + (uint32_t)src_index;
+                    uint32_t to = i + icount + (uint32_t)src_index;
+                    NStrCopy(g_lines[to], g_lines[from], MAX_LINE_LEN);
+                }
+            }
+            for (k = 0; k < icount; k++)
+                NStrCopy(g_lines[i + k], g_import_lines[k], MAX_LINE_LEN);
+            g_line_count = new_count;
+            i += icount;
+        }
+    }
+    return 1;
+}
+
 
 // ============================================================
 // WYSZUKIWANIE PROCEDUR (pre-scan)
@@ -7200,6 +7336,10 @@ void NyotaEmbedRun(const char *src, void (*emit)(char c)) {
 
     NyotaEmbedReset();
     ParseSourceToLines();
+    if (!ExpandImports()) {
+        g_ny_emit = 0;
+        return;
+    }
     if (!ValidateSourceLayout()) {
         g_ny_emit = 0;
         return;
@@ -7285,8 +7425,13 @@ void _start(AyoAPI *api) {
     }
     g_source[g_source_size] = '\0';
 
-    // Parsuj linie
+    // Parsuj linie i rozwiń IMPORT
     ParseSourceToLines();
+    if (!ExpandImports()) {
+        HostWaitKey();
+        g_api->Exit();
+        return;
+    }
     if (!ValidateSourceLayout()) {
         HostWaitKey();
         g_api->Exit();
