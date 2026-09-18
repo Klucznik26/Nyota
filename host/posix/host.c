@@ -1072,6 +1072,53 @@ static int host_ui_inside_rounded_corners(int x,int y,int w,int h,uint32_t radiu
 static int host_ui_inside_rounded(int x,int y,int w,int h,uint32_t radius){
     return host_ui_inside_rounded_corners(x,y,w,h,radius,1,1,1,1);
 }
+
+static int host_ui_inside_rounded_corners_f(double x,double y,int w,int h,uint32_t radius,
+                                            int tl,int tr,int br,int bl){
+    double r=(double)radius,dx,dy;
+    if(r<=0.0)return 1;
+    if(r>(double)w/2.0)r=(double)w/2.0;
+    if(r>(double)h/2.0)r=(double)h/2.0;
+    if(x<r && y<r && tl){dx=r-x;dy=r-y;return dx*dx+dy*dy<=r*r;}
+    if(x>(double)w-r && y<r && tr){dx=x-((double)w-r);dy=r-y;return dx*dx+dy*dy<=r*r;}
+    if(x>(double)w-r && y>(double)h-r && br){dx=x-((double)w-r);dy=y-((double)h-r);return dx*dx+dy*dy<=r*r;}
+    if(x<r && y>(double)h-r && bl){dx=r-x;dy=y-((double)h-r);return dx*dx+dy*dy<=r*r;}
+    return 1;
+}
+
+static int host_ui_shape_sample_inside(const NyotaUiControlSpec *s,double x,double y){
+    if(!s)return 0;
+    if(s->kind==NYOTA_UI_CTRL_RADIO){
+        double rr=(double)(s->w<s->h?s->w:s->h)/2.0;
+        double dx=x-(double)s->w/2.0,dy=y-(double)s->h/2.0;
+        return dx*dx+dy*dy<=rr*rr;
+    }
+    if(s->kind==NYOTA_UI_CTRL_DAREA && s->shape==NYOTA_UI_DAREA_CIRCLE){
+        double rr=(double)(s->w<s->h?s->w:s->h)/2.0;
+        double dx=x-(double)s->w/2.0,dy=y-(double)s->h/2.0;
+        return dx*dx+dy*dy<=rr*rr;
+    }
+    if(s->kind==NYOTA_UI_CTRL_DAREA && s->shape==NYOTA_UI_DAREA_ELLIPSE){
+        double rx=(double)s->w/2.0,ry=(double)s->h/2.0;
+        double dx=(x-rx)/rx,dy=(y-ry)/ry;
+        return dx*dx+dy*dy<=1.0;
+    }
+    if(s->radius && s->kind==NYOTA_UI_CTRL_TAB)
+        return host_ui_inside_rounded_corners_f(x,y,(int)s->w,(int)s->h,s->radius,0,0,1,1);
+    if(s->radius && s->kind==NYOTA_UI_CTRL_TABS)
+        return host_ui_inside_rounded_corners_f(x,y,(int)s->w,(int)s->h,s->radius,1,1,0,0);
+    if(s->radius)
+        return host_ui_inside_rounded_corners_f(x,y,(int)s->w,(int)s->h,s->radius,1,1,1,1);
+    return 1;
+}
+
+static uint8_t host_ui_shape_coverage(const NyotaUiControlSpec *s,int x,int y){
+    static const double p[4]={0.125,0.375,0.625,0.875};
+    int sx,sy,inside=0;
+    for(sy=0;sy<4;sy++)for(sx=0;sx<4;sx++)
+        if(host_ui_shape_sample_inside(s,(double)x+p[sx],(double)y+p[sy]))inside++;
+    return (uint8_t)inside;
+}
 static SDL_Surface *host_ui_control_background_surface(const NyotaUiControlSpec *s,
                                                         const NyotaUiBackground *bg) {
     SDL_Surface *dst = NULL, *src = NULL, *conv = NULL;
@@ -1145,17 +1192,13 @@ static SDL_Surface *host_ui_control_background_surface(const NyotaUiControlSpec 
             for (y = 0; y < s->h; y++) {
                 uint32_t *row = (uint32_t *)((uint8_t *)dst->pixels + y * dst->pitch);
                 for (x = 0; x < s->w; x++) {
-                    int inside=1;
-                    if (s->kind == NYOTA_UI_CTRL_RADIO) {
-                        double dx=(double)x+0.5-(double)s->w/2.0,dy=(double)y+0.5-(double)s->h/2.0;
-                        double rr=(double)(s->w<s->h?s->w:s->h)/2.0; inside=dx*dx+dy*dy<=rr*rr;
-                    } else if (s->kind == NYOTA_UI_CTRL_DAREA && s->shape != NYOTA_UI_DAREA_RECT) inside=host_ui_shape_inside(s,(int)x,(int)y,(int)s->w,(int)s->h);
-                    else if (s->radius && s->kind == NYOTA_UI_CTRL_TAB)
-                        inside=host_ui_inside_rounded_corners((int)x,(int)y,(int)s->w,(int)s->h,s->radius,0,0,1,1);
-                    else if (s->radius && s->kind == NYOTA_UI_CTRL_TABS)
-                        inside=host_ui_inside_rounded_corners((int)x,(int)y,(int)s->w,(int)s->h,s->radius,1,1,0,0);
-                    else if (s->radius) inside=host_ui_inside_rounded((int)x,(int)y,(int)s->w,(int)s->h,s->radius);
-                    if(!inside) row[x]=SDL_MapRGBA(dst->format,0,0,0,0);
+                    uint8_t cov=host_ui_shape_coverage(s,(int)x,(int)y);
+                    if(cov<16){
+                        uint8_t rr,gg,bb,aa;
+                        SDL_GetRGBA(row[x],dst->format,&rr,&gg,&bb,&aa);
+                        aa=(uint8_t)(((uint32_t)aa*(uint32_t)cov+8u)/16u);
+                        row[x]=SDL_MapRGBA(dst->format,rr,gg,bb,aa);
+                    }
                 }
             }
             SDL_UnlockSurface(dst);
@@ -1368,9 +1411,31 @@ static void host_ui_draw_shadow(SDL_Renderer *ren,const NyotaUiControlSpec *s,SD
     if(s->shadow==NYOTA_UI_SHADOW_L||s->shadow==NYOTA_UI_SHADOW_LU||s->shadow==NYOTA_UI_SHADOW_LD)dx=-d;
     if(s->shadow==NYOTA_UI_SHADOW_U||s->shadow==NYOTA_UI_SHADOW_RU||s->shadow==NYOTA_UI_SHADOW_LU)dy=-d;
     if(s->shadow==NYOTA_UI_SHADOW_D||s->shadow==NYOTA_UI_SHADOW_RD||s->shadow==NYOTA_UI_SHADOW_LD)dy=d;
-    q.x+=dx;q.y+=dy;SDL_SetRenderDrawBlendMode(ren,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(ren,s->shadow_color.r,s->shadow_color.g,s->shadow_color.b,s->shadow_color.a);
-    if(s->kind==NYOTA_UI_CTRL_SEP){if(s->orientation==NYOTA_UI_SEP_VERTICAL)q.w=(int)s->sep_thickness;else q.h=(int)s->sep_thickness;SDL_RenderFillRect(ren,&q);}
-    else SDL_RenderFillRect(ren,&q);
+    q.x+=dx;q.y+=dy;
+    SDL_SetRenderDrawBlendMode(ren,SDL_BLENDMODE_BLEND);
+    if(s->kind==NYOTA_UI_CTRL_SEP){
+        SDL_SetRenderDrawColor(ren,s->shadow_color.r,s->shadow_color.g,s->shadow_color.b,s->shadow_color.a);
+        if(s->orientation==NYOTA_UI_SEP_VERTICAL)q.w=(int)s->sep_thickness;else q.h=(int)s->sep_thickness;
+        SDL_RenderFillRect(ren,&q);
+    }else{
+        NyotaUiControlSpec ss=*s;
+        NyotaUiBackground bg;
+        SDL_Surface *sf;
+        SDL_Texture *tx;
+        memset(&bg,0,sizeof(bg));
+        bg.kind=NYOTA_UI_BG_COLOR;bg.color_count=1;bg.colors[0]=s->shadow_color;
+        ss.w=(uint32_t)r.w;ss.h=(uint32_t)r.h;
+        sf=host_ui_control_background_surface(&ss,&bg);
+        if(sf){
+            tx=SDL_CreateTextureFromSurface(ren,sf);
+            SDL_FreeSurface(sf);
+            if(tx){
+                SDL_SetTextureBlendMode(tx,SDL_BLENDMODE_BLEND);
+                SDL_RenderCopy(ren,tx,NULL,&q);
+                SDL_DestroyTexture(tx);
+            }
+        }
+    }
 }
 static uint8_t host_ui_shift_chan(uint8_t v,int delta){
     int n=(int)v+delta;
