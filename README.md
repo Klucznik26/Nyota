@@ -110,7 +110,7 @@ Wspólny model kontrolek jest prosty: obiekt ma nazwę, rodzica, geometrię i w�
 |---|---|
 | **Okna i kontenery** | `WIN`, `PANEL`, `FRAME`, `TABS/TAB`, `TOOLBAR`, `STATBAR` |
 | **Tekst i wejście** | `LABEL`, `INPUT`, `TBOX`, `TAREA`, `SPINBOX` |
-| **Wybór i sterowanie** | `BUTTON`, `ICONBUTTON`, `CBOX`, `RADIO`, `COMBO`, `SWITCH`, `SLIDER`, `SBAR`, `SPLITTER` |
+| **Wybór i sterowanie** | `BUTTON`, `ICONBUTTON`, `CBOX`, `RADIO`, `COMBO`, `TOGGLE`, `SLIDER`, `SBAR`, `SPLITTER` |
 | **Dane i struktury** | `TABLE`, `LISTVIEW`, `TREEVIEW`, `DAREA` |
 | **Postęp i wizualizacja** | `PBAR`, `EQBOX` |
 | **Skale i telemetria** | liniowa/obrotowa `SCALE`, wielowskazówkowy `CLOCK` |
@@ -144,7 +144,7 @@ FRAME settings.CONFIG:
     LPADY = 28
 
 INPUT search, settings, [320, 38], AUTO, TYPE=SEARCH, PLACEHOLDER="Szukaj...", CLEARBUTTON=TRUE
-SWITCH wifi, settings, [92, 34], AUTO, VALUE=TRUE
+TOGGLE wifi, settings, [92, 34], AUTO, VALUE=TRUE
 ICONBUTTON save, settings, [140, 38], AUTO, TEXT="Zapisz"
 
 TREEVIEW tree, app, [440, 540], [430, 20], ITEMS=["System", "System/CPU", "System/GPU", "Storage", "Storage/NVMe"], EXPANDED=[0, 3]
@@ -158,7 +158,7 @@ Ten kod pozostaje kodem Nyoty. Program nie zawiera wywołań SDL2 ani typów hos
 
 Najbardziej reprezentatywne programy demonstracyjne są już częścią repozytorium:
 
-- [`tests/win_modern_controls.nyo`](tests/win_modern_controls.nyo) — `FRAME`, `INPUT`, `SWITCH`, `ICONBUTTON`, `TREEVIEW`;
+- [`tests/win_modern_controls.nyo`](tests/win_modern_controls.nyo) — `FRAME`, `INPUT`, `TOGGLE`, `ICONBUTTON`, `TREEVIEW`;
 - [`tests/win_advanced_controls.nyo`](tests/win_advanced_controls.nyo) — `TBOX`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, liniowe i obrotowe `SCALE`, wielowskazówkowy `CLOCK`;
 - [`tests/win_extra_controls.nyo`](tests/win_extra_controls.nyo) — `TOOLBAR`, `SLIDER`, `EQBOX`, `STATBAR`.
 
@@ -203,7 +203,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `NYASM` | ✅ | bezpieczna VM R0-R3 z jawnym INPUT/OUTPUT |
 | Host Linux | 🚧 | terminal + SDL2 / SDL2_image / SDL2_ttf / fontconfig dla grafiki, NyotaUI i FILE/DIR |
 | Host AyoOS | 🚧 | docelowo wspólny `src/nyota.c` dla wszystkich hostów |
-| VS Code | ✅ | Nyota Language Support 0.5.3: kolorowanie + uruchamianie przez `▶` / `Ctrl+F5` + próbki/picker kolorów NyotaUI |
+| VS Code | ✅ | Nyota Language Support 0.5.4: kolorowanie + uruchamianie przez `▶` / `Ctrl+F5` + próbki/picker kolorów NyotaUI |
 
 Szczegółowy stan interpretera znajduje się w [`docs/nyota.md`](docs/nyota.md), a droga do stabilizacji i rozwoju w [`docs/nyota_v05.md`](docs/nyota_v05.md).
 
@@ -378,7 +378,7 @@ Najważniejsze dokumenty projektu:
 
 **NyotaUI nie jest elementem przyszłej roadmapy — działa już dziś na hoście POSIX/Linux.** Dalszy rozwój GUI oznacza rozszerzanie istniejącego NyotaUI, dopracowywanie kontrolek i dodawanie kolejnych backendów hosta, przede wszystkim dla AyoOS. Równolegle Nyota ma rozwijać bogatsze struktury danych, `DATETIME`, relacyjny `MARK`, `TABLE`, audio i sprite'y.
 
-Poza AyoOS działa rozszerzenie **Nyota Language Support 0.5.3** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię, automatycznie normalizuje wpisane polecenie `eqbox` do `EQBOX` i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Wersja 0.5.3 zna pełną składnię v0.5 oraz rozwiniętą składnię NyotaUI `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `INPUT`, `ICONBUTTON`, `SWITCH`, `FRAME`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `IMG` i `GRAD`, w tym FILE/DIR, SCREEN, RECORD/WITH, IMPORT, EVERY, obsługę błędów, jawne algorytmy SORT i NYASM. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
+Poza AyoOS działa rozszerzenie **Nyota Language Support 0.5.4** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię, automatycznie normalizuje wpisane polecenie `eqbox` do `EQBOX` i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Wersja 0.5.4 zna pełną składnię v0.5 oraz rozwiniętą składnię NyotaUI `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `INPUT`, `ICONBUTTON`, `TOGGLE`, `FRAME`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `IMG` i `GRAD`, w tym FILE/DIR, SCREEN, RECORD/WITH, IMPORT, EVERY, obsługę błędów, jawne algorytmy SORT i NYASM. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
 
 Nyota nie ma zastępować C lub Zig w najniższych warstwach systemu. Jej celem jest wygodne tworzenie aplikacji, narzędzi, automatyzacji, grafiki i prostych gier przy zachowaniu własnej, spójnej semantyki.
 
