@@ -416,3 +416,16 @@ Kontrolki interaktywne mają hostowe stany wizualne hover/pressed bez zmiany kod
 Domyślny motyw NyotaUI jest neutralnym ciemnym motywem desktopowym. Jawne ustawienia w `.CONFIG` nadal mają pierwszeństwo.
 
 Dla `TAB` właściwość `RADIUS` dotyczy części zawartości i zaokrągla tylko dwa dolne rogi. Górna krawędź pozostaje prosta, aby wizualnie łączyć zawartość z główką zakładki. `TABRADIUS` dotyczy główki i zaokrągla jej górne rogi.
+
+
+## Stany interaktywne
+
+Kontrolki interaktywne `BUTTON`, `CBOX`, `RADIO`, `COMBO`, `DAREA` i `TAB` mają stan `ENABLED`.
+
+```nyota
+BUTTON zapisz, panel, [120, 36], [20, 20], TEXT="Zapisz", ENABLED=FALSE
+```
+
+`ENABLED=FALSE` wyszarza kontrolkę i wyłącza obsługę wejścia. Domyślna wartość to `TRUE`.
+
+Backend POSIX utrzymuje też focus klawiatury dla kontrolek interaktywnych. Kliknięcie nadaje focus, a `Tab` oraz `Shift+Tab` przechodzą między aktywnymi kontrolkami. Focus jest sygnalizowany subtelnym obrysem i nie wymaga dodatkowej właściwości w kodzie Nyoty.
