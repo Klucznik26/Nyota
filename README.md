@@ -18,6 +18,8 @@
 
 **Nyota** to własny język programowania tworzony dla **AyoOS**, ale projektowany tak, aby sam język nie był zależny od jednego edytora ani jednego systemu operacyjnego.
 
+**To repozytorium zawiera zarówno rdzeń języka, jak i działającą hostową warstwę NyotaUI dla POSIX/Linux.** Rdzeń interpretera (`src/nyota.c`) definiuje składnię i semantykę Nyoty, natomiast `host/posix/` realizuje okna `WIN` i kontrolki NyotaUI przez SDL2. Te warstwy są rozdzielone przez `NyotaHost`, dzięki czemu kod `.nyo` nie zależy od SDL2.
+
 AyoOS jest pierwszym systemem-hostem Nyoty. Równolegle rozwijany jest host dla Linuksa, a architektura interpretera rozdziela rdzeń języka od warstwy platformowej.
 
 **Tunga** jest osobnym edytorem i nie stanowi części Nyoty. Docelowo ten sam kod `.nyo` ma być uruchamiany przez różne środowiska bez zmiany semantyki języka.
@@ -67,7 +69,7 @@ BEGIN/END   rama kodu wykonywalnego
 
 ## NyotaUI — GUI jest częścią języka
 
-Nyota rozwija własną warstwę interfejsu **NyotaUI**. Program `.nyo` nie wywołuje bezpośrednio SDL, WinAPI ani AyoAPI — używa kontrolek i właściwości Nyoty, a host realizuje ten sam kontrakt na danej platformie.
+Nyota rozwija własną warstwę interfejsu **NyotaUI**. To nie jest już tylko plan ani pojedynczy `BUTTON`: na hoście POSIX/SDL2 działają `WIN`, `TABS/TAB` oraz rozbudowany zestaw kontrolek i kontenerów. Program `.nyo` nie wywołuje bezpośrednio SDL, WinAPI ani AyoAPI — używa kontrolek i właściwości Nyoty, a host realizuje ten sam kontrakt na danej platformie.
 
 Dzięki temu składnia aplikacji pozostaje niezależna od backendu:
 
@@ -125,6 +127,9 @@ Backend POSIX używa obecnie SDL2, SDL2_image, SDL2_ttf i fontconfig. Tekst jest
 `EQBOX`, `SCALE` i `CLOCK` są projektowane nie tylko jako klasyczne kontrolki formularzy, ale również jako efektowne, szybko aktualizowane elementy telemetryczne i wizualizacyjne.
 
 Pełny kontrakt znajduje się w [`docs/nyotaui.md`](docs/nyotaui.md).
+
+> **NyotaUI działa dziś na POSIX/Linux przez SDL2.**
+> Działający przykład: [`tests/win_extra_controls.nyo`](tests/win_extra_controls.nyo) tworzy prawdziwe `WIN` z `TOOLBAR`, `BUTTON`, `SLIDER`, `EQBOX`, `STATBAR` i `LABEL`. Target [`make test-graph`](Makefile) uruchamia ten program przez backend POSIX/SDL2 i sprawdza zakończenie `EXTRA_UI_OK`.
 
 ---
 
@@ -274,7 +279,12 @@ Nyota source (.nyo)
  Linux + SDL2       AyoOS
 ```
 
-Rdzeń interpretera jest oddzielany od platformy. Polecenia języka takie jak `PRINT`, `GRAPH`, `INPUT` czy `DELAY` należą do Nyoty; host dostarcza jedynie ich backend dla danego systemu.
+Architektura rozdziela dwie rzeczy, które w praktyce rozwijają się równolegle:
+
+- **rdzeń języka** — parser, typy, sterowanie przepływem, `MARK`, `RECORD`, `IMPORT`, `SORT`, `NYASM`, kontrakt `WIN`/kontrolek i pozostała semantyka w `src/`;
+- **warstwę hosta/UI** — kod, który na POSIX/Linux rzeczywiście otwiera okna i renderuje NyotaUI przez SDL2, SDL2_image, SDL2_ttf i fontconfig w `host/posix/`.
+
+Polecenia języka takie jak `PRINT`, `GRAPH`, `INPUT` czy `DELAY` oraz obiekty NyotaUI należą do Nyoty; host dostarcza ich wykonanie dla konkretnego systemu. Dzięki temu działające dziś okno POSIX/SDL2 nie oznacza uzależnienia języka od SDL2 — jest jedną implementacją wspólnego kontraktu `NyotaHost`.
 
 Interpreter udostępnia również punkt wejścia do osadzania:
 
