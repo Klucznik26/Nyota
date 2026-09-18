@@ -5660,15 +5660,21 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
     s->eq_bars = 8;
     s->eq_bar_width = 18;
     s->eq_gap = 6;
-    s->eq_segment_gap = 2;
+    s->eq_segments = 12;
+    s->eq_segment_size = 12;
+    s->eq_segment_gap = 3;
+    s->eq_inactive_alpha = 90;
     s->eq_min_height = 0;
     s->eq_max_height = 0;
     s->eq_blur = 0;
+    s->eq_peak_hold = 50;
     s->eq_build = NYOTA_UI_EQ_SOLID;
     s->eq_direction = NYOTA_UI_EQ_UP;
     s->eq_label_pos = NYOTA_UI_EQ_LABEL_BOTTOM;
     s->eq_show_labels = 0;
     s->eq_show_values = 0;
+    s->eq_peak = 0;
+    UiColorSolid(&s->eq_peak_color, 245, 248, 252, 255);
     s->eq_value_count = 0;
     s->eq_label_count = 0;
     s->eq_color_count = 0;
@@ -5941,7 +5947,7 @@ static int UiControlPropertyAllowed(uint8_t k,const char *p){
     if(k==NYOTA_UI_CTRL_PBAR) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ORIENTATION")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"VALUE")||NStrEq(p,"SHAPE")||NStrEq(p,"SEGMENTS")||NStrEq(p,"SPACING")||NStrEq(p,"CFILL")||NStrEq(p,"CEMPTY");
     if(k==NYOTA_UI_CTRL_SLIDER) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"ORIENTATION")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"VALUE")||NStrEq(p,"STEP")||NStrEq(p,"THUMB")||NStrEq(p,"THUMBSIZE")||NStrEq(p,"CTHUMB")||NStrEq(p,"CTHUMBOVER");
     if(k==NYOTA_UI_CTRL_STATBAR||k==NYOTA_UI_CTRL_TOOLBAR) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"CLIP")||NStrEq(p,"LAYOUT")||NStrEq(p,"GAP")||NStrEq(p,"LPADX")||NStrEq(p,"LPADY");
-    if(k==NYOTA_UI_CTRL_EQBOX) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ORIENTATION")||NStrEq(p,"DIRECTION")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"BARS")||NStrEq(p,"VALUES")||NStrEq(p,"BARWIDTH")||NStrEq(p,"GAP")||NStrEq(p,"SEGMENTGAP")||NStrEq(p,"MINHEIGHT")||NStrEq(p,"MAXHEIGHT")||NStrEq(p,"BUILD")||NStrEq(p,"BARBG")||NStrEq(p,"BARFILL")||NStrEq(p,"BARCOLORS")||NStrEq(p,"GLOW")||NStrEq(p,"BLUR")||NStrEq(p,"LABELS")||NStrEq(p,"LABELPOS")||NStrEq(p,"SHOWLABELS")||NStrEq(p,"SHOWVALUES");
+    if(k==NYOTA_UI_CTRL_EQBOX) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ORIENTATION")||NStrEq(p,"DIRECTION")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"BARS")||NStrEq(p,"VALUES")||NStrEq(p,"BARWIDTH")||NStrEq(p,"GAP")||NStrEq(p,"SEGMENTS")||NStrEq(p,"SEGMENTSIZE")||NStrEq(p,"SEGMENTGAP")||NStrEq(p,"INACTIVEALPHA")||NStrEq(p,"MINHEIGHT")||NStrEq(p,"MAXHEIGHT")||NStrEq(p,"BUILD")||NStrEq(p,"BARBG")||NStrEq(p,"BARFILL")||NStrEq(p,"BARCOLORS")||NStrEq(p,"GLOW")||NStrEq(p,"BLUR")||NStrEq(p,"LABELS")||NStrEq(p,"LABELPOS")||NStrEq(p,"SHOWLABELS")||NStrEq(p,"SHOWVALUES")||NStrEq(p,"PEAK")||NStrEq(p,"PEAKCOLOR")||NStrEq(p,"PEAKHOLD");
     if(k==NYOTA_UI_CTRL_TBOX) return NStrEq(p,"TEXT")||NStrEq(p,"PLACEHOLDER")||NStrEq(p,"PASSWORD")||NStrEq(p,"MAXLEN")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"UNDERLINE")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"PADX")||NStrEq(p,"PADY")||NStrEq(p,"READONLY")||NStrEq(p,"CCARET");
     if(k==NYOTA_UI_CTRL_SPINBOX) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"VALUE")||NStrEq(p,"STEP");
     if(k==NYOTA_UI_CTRL_LISTVIEW) return NStrEq(p,"ITEMS")||NStrEq(p,"SELECTED")||NStrEq(p,"MULTI")||NStrEq(p,"ROWHEIGHT")||NStrEq(p,"BG")||NStrEq(p,"CTEXT")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"BOLD")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"PADX")||NStrEq(p,"PADY")||NStrEq(p,"BGSELECT")||NStrEq(p,"CSELECT")||NStrEq(p,"BGHOVER")||NStrEq(p,"CHOVER");
@@ -6066,7 +6072,10 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     }
     else if(NStrEq(prop,"CTHUMB")){if(!UiParseColorProperty(rhs,&s->thumb_color,"CTHUMB"))return 0;}
     else if(NStrEq(prop,"CTHUMBOVER")){if(!UiParseColorProperty(rhs,&s->thumb_hover_color,"CTHUMBOVER"))return 0;}
-    else if(NStrEq(prop,"SEGMENTS")){if(!UiParseUIntProperty(rhs,&s->progress_segments,1,256,"SEGMENTS"))return 0;}
+    else if(NStrEq(prop,"SEGMENTS")){
+        if(s->kind==NYOTA_UI_CTRL_EQBOX){if(!UiParseUIntProperty(rhs,&s->eq_segments,1,256,"SEGMENTS"))return 0;}
+        else if(!UiParseUIntProperty(rhs,&s->progress_segments,1,256,"SEGMENTS"))return 0;
+    }
     else if(NStrEq(prop,"SPACING")){if(!UiParseUIntProperty(rhs,&s->progress_gap,0,128,"SPACING"))return 0;}
     else if(NStrEq(prop,"CFILL")){if(!UiParseColorProperty(rhs,&s->progress_fill_color,"CFILL"))return 0;}
     else if(NStrEq(prop,"CEMPTY")){if(!UiParseColorProperty(rhs,&s->progress_empty_color,"CEMPTY"))return 0;}
@@ -6074,7 +6083,9 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"BARS")){if(!UiParseUIntProperty(rhs,&s->eq_bars,1,NYOTA_UI_EQ_MAX_BARS,"BARS"))return 0;}
     else if(NStrEq(prop,"VALUES")){if(s->kind==NYOTA_UI_CTRL_CLOCK){if(!UiClockIntList(rhs,s->clock_values,&s->clock_value_count,NYOTA_UI_CLOCK_MAX_NEEDLES,"CLOCK VALUES"))return 0;}else if(!UiEqValuesProperty(s,rhs))return 0;}
     else if(NStrEq(prop,"BARWIDTH")){if(!UiParseUIntProperty(rhs,&s->eq_bar_width,1,1024,"BARWIDTH"))return 0;}
+    else if(NStrEq(prop,"SEGMENTSIZE")){if(!UiParseUIntProperty(rhs,&s->eq_segment_size,2,512,"SEGMENTSIZE"))return 0;}
     else if(NStrEq(prop,"SEGMENTGAP")){if(!UiParseUIntProperty(rhs,&s->eq_segment_gap,0,128,"SEGMENTGAP"))return 0;}
+    else if(NStrEq(prop,"INACTIVEALPHA")){if(!UiParseUIntProperty(rhs,&s->eq_inactive_alpha,0,255,"INACTIVEALPHA"))return 0;}
     else if(NStrEq(prop,"MINHEIGHT")){if(!UiParseUIntProperty(rhs,&s->eq_min_height,0,4096,"MINHEIGHT"))return 0;}
     else if(NStrEq(prop,"MAXHEIGHT")){if(!UiParseUIntProperty(rhs,&s->eq_max_height,0,4096,"MAXHEIGHT"))return 0;}
     else if(NStrEq(prop,"BUILD")){const char*v=NTrim(rhs);if(NStrEq(v,"SOLID"))s->eq_build=NYOTA_UI_EQ_SOLID;else if(NStrEq(v,"CIRCLE"))s->eq_build=NYOTA_UI_EQ_CIRCLE;else if(NStrEq(v,"SQUARE"))s->eq_build=NYOTA_UI_EQ_SQUARE;else if(NStrEq(v,"TRIANGLE"))s->eq_build=NYOTA_UI_EQ_TRIANGLE;else if(NStrEq(v,"DIAMOND"))s->eq_build=NYOTA_UI_EQ_DIAMOND;else if(NStrEq(v,"PARALLELOGRAM"))s->eq_build=NYOTA_UI_EQ_PARALLELOGRAM;else{OutError("EQBOX BUILD wymaga SOLID/CIRCLE/SQUARE/TRIANGLE/DIAMOND/PARALLELOGRAM");return 0;}}
@@ -6088,6 +6099,9 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"LABELPOS")){const char*v=NTrim(rhs);if(NStrEq(v,"INSIDE"))s->eq_label_pos=NYOTA_UI_EQ_LABEL_INSIDE;else if(NStrEq(v,"BOTTOM"))s->eq_label_pos=NYOTA_UI_EQ_LABEL_BOTTOM;else if(NStrEq(v,"TOP"))s->eq_label_pos=NYOTA_UI_EQ_LABEL_TOP;else{OutError("EQBOX LABELPOS wymaga INSIDE/BOTTOM/TOP");return 0;}}
     else if(NStrEq(prop,"SHOWLABELS")){if(s->kind==NYOTA_UI_CTRL_EQBOX){if(!UiParseBoolProperty(rhs,&s->eq_show_labels,"SHOWLABELS"))return 0;}else if(!UiParseBoolProperty(rhs,&s->show_labels,"SHOWLABELS"))return 0;}
     else if(NStrEq(prop,"SHOWVALUES")){if(!UiParseBoolProperty(rhs,&s->eq_show_values,"SHOWVALUES"))return 0;}
+    else if(NStrEq(prop,"PEAK")){if(!UiParseBoolProperty(rhs,&s->eq_peak,"PEAK"))return 0;}
+    else if(NStrEq(prop,"PEAKCOLOR")){if(!UiParseColorProperty(rhs,&s->eq_peak_color,"PEAKCOLOR"))return 0;}
+    else if(NStrEq(prop,"PEAKHOLD")){if(!UiParseUIntProperty(rhs,&s->eq_peak_hold,0,60000,"PEAKHOLD"))return 0;}
     else if(NStrEq(prop,"PLACEHOLDER")){if(!UiParseStringProperty(rhs,s->placeholder,sizeof(s->placeholder),"PLACEHOLDER"))return 0;}
     else if(NStrEq(prop,"PASSWORD")){if(!UiParseBoolProperty(rhs,&s->password,"PASSWORD"))return 0;}
     else if(NStrEq(prop,"MAXLEN")){if(!UiParseUIntProperty(rhs,&s->max_length,1,NYOTA_UI_TEXT_MAX-1u,"MAXLEN"))return 0;}
