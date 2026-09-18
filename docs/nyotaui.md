@@ -1,6 +1,6 @@
-# NyotaUI — WIN i tła
+# NyotaUI — WIN i kontrolki
 
-**Status:** składnia i backend POSIX/Linux wdrożone.  
+**Status:** WIN oraz pierwszy zestaw kontrolek NyotaUI mają składnię i backend POSIX/Linux.  
 **Data decyzji:** 2026-09-18.  
 **Zasada:** kod Nyoty jest identyczny na AyoOS, Linuxie i Windowsie; host realizuje ten sam kontrakt.
 
@@ -127,8 +127,111 @@ BG = GRAD(SPIRAL, [220, 150], 45, 5, CCW, 4, [WHITE, GOLD, ORANGE, DARKRED])
 
 `liczba_kolorow` musi mieścić się w zakresie 2..64 i dokładnie odpowiadać długości LIST. Każdy element listy musi być kolorem Nyoty. `BACKDROP` nie może być punktem gradientu; `TRANSPARENT` może nim być i wnosi alfę 0.
 
-## 10. Hosty
+## 10. Wspólny model kontrolek
 
-Rdzeń przekazuje `WIN` przez `NyotaHost`; program `.nyo` nie używa SDL, AyoAPI ani WinAPI. Backend POSIX/Linux implementuje wiele okien SDL2, hierarchię rodziców i pozycjonowanie, resize, TITLE, ICO, obrazy przez SDL2_image oraz gradienty LINEAR/SHAPE/SPIRAL, także z ponownym rysowaniem po zmianie rozmiaru.
+Kontrolki NyotaUI używają wspólnego konstruktora:
 
-AyoOS ma ten sam kontrakt języka, ale callbacki NyotaUI `WIN` nie są jeszcze podłączone do Nexa/Sayari. Brakujący etap jest zadaniem hosta AyoOS, a nie osobnej składni programu.
+```text
+KONTROLKA nazwa, rodzic, [w,h], [x,y]/CENTER [, WLASCIWOSC=wartosc ...]
+```
+
+Rodzicem może być `WIN` albo `PANEL`. `ROOT` jest rodzicem tylko dla `WIN`. Współrzędne kontrolki są liczone względem jej rodzica, a `CENTER` centruje ją w obszarze rodzica. Właściwości mogą być podane inline lub w bloku `.CONFIG:`.
+
+### BUTTON
+
+```nyota
+BUTTON zapisz, glowne, [160, 48], [40, 40], TEXT="Zapisz"
+BUTTON zapisz.CONFIG:
+    FONT = "SYSTEM"
+    FSIZE = 16
+    CTEXT = WHITE
+    BG = SAPPHIRE
+```
+
+`BUTTON_CLICKED(zapisz)` działa dla nowego BUTTON NyotaUI. Stara składnia BUTTON powiązana z GRAPH pozostaje tylko jako zgodność przejściowa i nie jest nową składnią NyotaUI.
+
+### LABEL
+
+```nyota
+LABEL tytul, glowne, [320, 50], [20, 20], TEXT="Ustawienia"
+
+LABEL tytul.CONFIG:
+    FONT = "SYSTEM"
+    FSIZE = 22
+    CTEXT = WHITE
+    BOLD = TRUE
+    ITALIC = FALSE
+    UNDERLINE = FALSE
+    HALIGN = CENTER
+    VALIGN = MIDDLE
+    WRAP = FALSE
+    BG = TRANSPARENT
+    BORDER = TRUE
+    CBORDER = GRAY
+    BWIDTH = 1
+```
+
+`HALIGN`: `LEFT/CENTER/RIGHT`. `VALIGN`: `TOP/MIDDLE/BOTTOM`.
+
+### PANEL
+
+`PANEL` jest kontenerem. Dzieci liczą pozycję względem panelu, a panel może być zagnieżdżony w innym panelu.
+
+```nyota
+PANEL boczny, glowne, [280, 520], [20, 20],
+      BG=GRAD(LINEAR, VERTICAL, 2, [DARKNAVY, BLACK]),
+      BORDER=TRUE, CBORDER=GRAY, BWIDTH=1
+
+PANEL boczny.CONFIG:
+    CLIP = TRUE
+```
+
+`BG` panelu korzysta z dokładnie tego samego modelu co `WIN`: kolor, `IMG(...)` oraz `GRAD(...)`. PNG jest obowiązkowym formatem obrazu NyotaUI; backend może obsługiwać dodatkowe formaty, ale program nie powinien polegać na nich dla przenośności. Kanał alfa PNG jest zachowywany. `CLIP=TRUE` (domyślnie) przycina dzieci do obszaru panelu.
+
+### DAREA — Drop Area
+
+```nyota
+DAREA import, glowne, [220, 220], [30, 80],
+      TEXT="Upusc pliki",
+      SHAPE=CIRCLE,
+      ACCEPT=FILES,
+      MULTI=TRUE,
+      BORDER=TRUE,
+      CBORDER=SAPPHIRE,
+      BWIDTH=2
+
+DAREA import.CONFIG:
+    BG = DARKGRAY
+    BGOVER = DARKSAPPHIRE
+    CBORDEROVER = LIGHTSAPPHIRE
+    BWIDTHOVER = 3
+```
+
+`SHAPE` ma dokładnie trzy wartości: `RECT`, `CIRCLE`, `ELLIPSE`. Domyślne jest `RECT`. Kształt definiuje zarówno rysowanie tła i ramki, jak i aktywny hit-test dropu. `CIRCLE` używa średnicy `min(w,h)`, natomiast `ELLIPSE` wypełnia zadany prostokąt.
+
+`ACCEPT` przyjmuje `FILES`, `DIRS` albo `ALL`. `MULTI` jest BOOLEAN. Program odbiera zdarzenie i listę ścieżek przez:
+
+```nyota
+IF DAREA_DROPPED(import):
+    VAR elementy := DAREA_ITEMS(import)
+```
+
+`DAREA_ITEMS()` zwraca LIST ścieżek przekazanych przez host.
+
+## 11. Border
+
+Wspólne właściwości ramki:
+
+```text
+BORDER   TRUE/FALSE
+CBORDER  kolor
+BWIDTH   INTEGER
+```
+
+Ramka jest rysowana wewnątrz zadeklarowanego rozmiaru kontrolki, więc `[300,40]` pozostaje rozmiarem `300x40` niezależnie od `BWIDTH`.
+
+## 12. Hosty
+
+Rdzeń przekazuje `WIN` przez `NyotaHost`; program `.nyo` nie używa SDL, AyoAPI ani WinAPI. Backend POSIX/Linux implementuje wiele okien SDL2, hierarchię rodziców i pozycjonowanie, resize, TITLE, ICO, obrazy przez SDL2_image, gradienty LINEAR/SHAPE/SPIRAL oraz BUTTON/LABEL/PANEL/DAREA. Kontrakt hosta nie zawiera typów SDL i pozostaje wspólny dla Linuxa, Windowsa i późniejszego backendu AyoOS.
+
+Windows i AyoOS mają używać identycznego kodu `.nyo`; różnice należą wyłącznie do implementacji hosta. Backend Windows nie jest jeszcze zaimplementowany. AyoOS/Nexa/Sayari jest obecnie świadomie odłożony, ale kontrakt NyotaHost jest projektowany tak, aby nie wymagał późniejszej zmiany składni programu.
