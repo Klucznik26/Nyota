@@ -178,9 +178,7 @@ LABEL tytul.CONFIG:
 `PANEL` jest kontenerem. Dzieci liczą pozycję względem panelu, a panel może być zagnieżdżony w innym panelu.
 
 ```nyota
-PANEL boczny, glowne, [280, 520], [20, 20],
-      BG=GRAD(LINEAR, VERTICAL, 2, [DARKNAVY, BLACK]),
-      BORDER=TRUE, CBORDER=GRAY, BWIDTH=1
+PANEL boczny, glowne, [280, 520], [20, 20], BG=GRAD(LINEAR, VERTICAL, 2, [DARKNAVY, BLACK]), BORDER=TRUE, CBORDER=GRAY, BWIDTH=1
 
 PANEL boczny.CONFIG:
     CLIP = TRUE
@@ -297,9 +295,7 @@ W jednej grupie zaznaczenie jednego `RADIO` odznacza pozostałe. Odczyt i ustawi
 ```nyota
 VAR tryby := ["Automatyczny", "Reczny", "Wylaczony"]
 
-COMBO tryb, glowne, [220, 32], [20, 20],
-      ITEMS=tryby,
-      SELECTED=0
+COMBO tryb, glowne, [220, 32], [20, 20], ITEMS=tryby, SELECTED=0
 ```
 
 `.CONFIG`:
@@ -666,9 +662,7 @@ API: `SPINBOX_VALUE(name)`, `SPINBOX_SET(name, value)`, `SPINBOX_CHANGED(name)`.
 ```nyota
 LISTVIEW disks, panel, [260, 180], [20, 160], ITEMS=["C:", "D:", "E:"], SELECTED=0
 
-TREEVIEW tree, panel, [300, 220], [300, 160],
-         ITEMS=["System", "System/CPU", "System/GPU", "Storage", "Storage/SSD"],
-         INDENT=22, SHOWLINES=TRUE
+TREEVIEW tree, panel, [300, 220], [300, 160], ITEMS=["System", "System/CPU", "System/GPU", "Storage", "Storage/SSD"], INDENT=22, SHOWLINES=TRUE
 ```
 
 Gałęzie `TREEVIEW` można rozwijać i zwijać myszą albo klawiszami Left/Right. Up/Down, Home/End zmieniają zaznaczenie. `ROWHEIGHT` lub `NODEHEIGHT` ustala wysokość wiersza. `EXPANDED=[0,3]` wskazuje gałęzie rozwinięte przy tworzeniu. `EXPANDER=PLUS/TRIANGLE/CHEVRON` wybiera znacznik gałęzi, a `LINESTYLE=NONE/SOLID/DASH/DOT` styl linii hierarchii.
@@ -706,9 +700,7 @@ Dla `TREEVIEW_VALUE` zwracana jest pełna ścieżka elementu, np. `"Storage/SSD"
 `SPLITTER` jest interaktywną linią podziału poruszającą się wewnątrz prostokątnego obszaru. `ORIENTATION=VERTICAL` oznacza pionową linię poruszającą się poziomo; `HORIZONTAL` — linię poziomą poruszającą się pionowo.
 
 ```nyota
-SPLITTER split, panel, [600, 40], [20, 400],
-         ORIENTATION=VERTICAL, MIN=0, MAX=1000, VALUE=500,
-         STEP=10, THICK=8, CSEP=SAPPHIRE
+SPLITTER split, panel, [600, 40], [20, 400], ORIENTATION=VERTICAL, MIN=0, MAX=1000, VALUE=500, STEP=10, THICK=8, CSEP=SAPPHIRE
 ```
 
 API: `SPLITTER_VALUE`, `SPLITTER_SET`, `SPLITTER_CHANGED`. Kontrolka raportuje pozycję; sposób zmiany rozmiaru sąsiednich paneli pozostaje decyzją aplikacji.
