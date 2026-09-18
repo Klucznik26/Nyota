@@ -658,6 +658,7 @@ static int NLineHasTab(const char *line) {
 }
 
 static NyotaVal CallNamed(const char *name, const char *paren, const char **after_out);
+static uint32_t SkipBlock(uint32_t from, uint32_t block_indent);
 
 // ============================================================
 // WYJŚCIE NA EKRAN
