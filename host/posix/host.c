@@ -33,7 +33,10 @@ static const char *g_input_feed;
 static int g_input_pos;
 
 #define HOST_MAX_SPRITES 64
+#define HOST_MAX_SCREENS 16
 static SDL_Texture *g_sprite_tex[HOST_MAX_SPRITES];
+static SDL_Texture *g_screen_tex[HOST_MAX_SCREENS];
+static uint32_t g_active_screen;
 
 static void posix_emit(char c) {
     fputc(c, stdout);
@@ -263,15 +266,61 @@ static void gfx_ensure(void) {
 }
 
 static void host_setres(uint32_t w, uint32_t h) {
+    int i;
     g_gw = w ? w : 640;
     g_gh = h ? h : 480;
     gfx_ensure();
     if (g_gfx && g_win) {
+        /* Zmiana GRAPH unieważnia wszystkie cele off-screen poprzedniego trybu. */
+        SDL_SetRenderTarget(g_ren, NULL);
+        g_active_screen = 0;
+        for (i = 1; i < HOST_MAX_SCREENS; i++) {
+            if (g_screen_tex[i]) {
+                SDL_DestroyTexture(g_screen_tex[i]);
+                g_screen_tex[i] = 0;
+            }
+        }
         SDL_SetWindowSize(g_win, (int)g_gw, (int)g_gh);
         SDL_SetRenderDrawColor(g_ren, 0, 0, 0, 255);
         SDL_RenderClear(g_ren);
         SDL_RenderPresent(g_ren);
     }
+}
+
+static int32_t host_screen_open(uint32_t id, uint32_t w, uint32_t h, uint32_t color_mode) {
+    SDL_Texture *tex;
+    SDL_Texture *saved;
+    (void)color_mode;
+    gfx_ensure();
+    if (!g_gfx || !g_ren || id == 0 || id >= HOST_MAX_SCREENS || g_screen_tex[id])
+        return -1;
+    tex = SDL_CreateTexture(g_ren, SDL_PIXELFORMAT_RGBA8888,
+                            SDL_TEXTUREACCESS_TARGET, (int)w, (int)h);
+    if (!tex) return -1;
+    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+    saved = SDL_GetRenderTarget(g_ren);
+    if (SDL_SetRenderTarget(g_ren, tex) != 0) {
+        SDL_DestroyTexture(tex);
+        return -1;
+    }
+    SDL_SetRenderDrawColor(g_ren, 0, 0, 0, 255);
+    SDL_RenderClear(g_ren);
+    SDL_SetRenderTarget(g_ren, saved);
+    g_screen_tex[id] = tex;
+    return 0;
+}
+
+static int32_t host_screen_set(uint32_t id) {
+    if (!g_gfx || !g_ren) return -1;
+    if (id == 0) {
+        if (SDL_SetRenderTarget(g_ren, NULL) != 0) return -1;
+        g_active_screen = 0;
+        return 0;
+    }
+    if (id >= HOST_MAX_SCREENS || !g_screen_tex[id]) return -1;
+    if (SDL_SetRenderTarget(g_ren, g_screen_tex[id]) != 0) return -1;
+    g_active_screen = id;
+    return 0;
 }
 
 static void host_clear(uint8_t r, uint8_t g, uint8_t b) {
@@ -510,6 +559,12 @@ static void host_exit(void) {
                 g_sprite_tex[i] = 0;
             }
         }
+        for (i = 1; i < HOST_MAX_SCREENS; i++) {
+            if (g_screen_tex[i]) {
+                SDL_DestroyTexture(g_screen_tex[i]);
+                g_screen_tex[i] = 0;
+            }
+        }
         SDL_DestroyRenderer(g_ren);
         SDL_DestroyWindow(g_win);
         SDL_Quit();
@@ -577,6 +632,8 @@ int main(int argc, char **argv) {
     g_nyhost.gfx_rect = host_rect;
     g_nyhost.gfx_text = host_text;
     g_nyhost.gfx_mode = host_setres;
+    g_nyhost.gfx_screen_open = host_screen_open;
+    g_nyhost.gfx_screen_set = host_screen_set;
     g_nyhost.gfx_sprite_load = host_sprite_load;
     g_nyhost.gfx_sprite_free = host_sprite_free;
     g_nyhost.gfx_sprite_draw = host_sprite_draw;
