@@ -1,0 +1,50 @@
+name: Fedora RPM
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  fedora-44-rpm:
+    runs-on: ubuntu-latest
+    container: fedora:44
+    steps:
+      - name: Install Fedora build dependencies
+        run: |
+          dnf -y install \
+            git rpm-build gcc make pkgconf-pkg-config \
+            sdl2-compat-devel tar gzip findutils
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build RPM and SRPM
+        run: make rpm
+
+      - name: Verify package contents
+        run: |
+          RPM="$(find packaging -maxdepth 1 -type f -name 'nyota-*.x86_64.rpm' | head -n 1)"
+          test -n "$RPM"
+          rpm -qpl "$RPM" | grep -q '/usr/bin/nyota'
+          rpm -qpl "$RPM" | grep -q '/usr/share/nyota/tests/assets/sprite_test.bmp'
+          rpm -qpl "$RPM" | grep -q '/usr/share/doc/nyota/do_wdrożenia.md'
+
+      - name: Install package and smoke test
+        run: |
+          RPM="$(find packaging -maxdepth 1 -type f -name 'nyota-*.x86_64.rpm' | head -n 1)"
+          dnf -y install "$RPM"
+          test -x /usr/bin/nyota
+          test -f /usr/share/nyota/tests/assets/sprite_test.bmp
+          nyota /usr/share/nyota/tests/add_int.nyo | grep -q '12'
+          rpm -q nyota
+
+      - name: Upload RPM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nyota-fedora-44-rpm
+          path: |
+            packaging/nyota-*.rpm
+          if-no-files-found: error

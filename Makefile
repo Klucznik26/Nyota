@@ -25,8 +25,10 @@ install: nyota
 	install -m 755 nyota "$(DESTDIR)$(PREFIX)/bin/nyota"
 	install -d "$(DESTDIR)$(PREFIX)/share/nyota/tests"
 	install -m 644 tests/*.nyo "$(DESTDIR)$(PREFIX)/share/nyota/tests/"
+	install -d "$(DESTDIR)$(PREFIX)/share/nyota/tests/assets"
+	install -m 644 tests/assets/* "$(DESTDIR)$(PREFIX)/share/nyota/tests/assets/"
 	install -d "$(DESTDIR)$(PREFIX)/share/doc/nyota"
-	install -m 644 README.md docs/nyota.md docs/nyota_v05.md "$(DESTDIR)$(PREFIX)/share/doc/nyota/"
+	install -m 644 README.md docs/nyota.md docs/nyota_v05.md docs/do_wdrożenia.md "$(DESTDIR)$(PREFIX)/share/doc/nyota/"
 
 uninstall:
 	rm -f "$(DESTDIR)$(PREFIX)/bin/nyota"

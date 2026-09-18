@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -11,7 +11,6 @@ Source0:        %{name}-%{version}.tar.gz
 BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  pkgconfig(sdl2)
-Requires:       sdl2-compat
 
 %description
 Nyota is a programming language. PRINT, GRAPH, INPUT and DELAY are part
@@ -31,6 +30,7 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 
 %check
 %make_build test
+%make_build test-graph
 
 %files
 %{_bindir}/nyota
@@ -38,5 +38,11 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-2
+- Update Fedora package for current Nyota interpreter.
+- Include sprite test assets and full project documentation.
+- Run regression and headless graphics tests during RPM build.
+- Let RPM automatic dependency generation resolve the SDL2 runtime.
+
 * Thu Sep 17 2026 Marek <marekwnakle@gmail.com> - 0.5.0-1
 - First Fedora package of the Linux Nyota host.
