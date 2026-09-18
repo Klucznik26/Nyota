@@ -194,7 +194,7 @@ wcześniej, wdrożenie nie należy nawet do fali po rdzeniu v0.5:
 wybór algorytmu SORT jako składnia języka (BUBBLE, QUICK, ...) — wykonane 2026-09-18
 relacyjny MARK
 DATETIME
-standard GUI Nyoty
+standard GUI Nyoty — pierwszy etap WIN/tła wykonany 2026-09-18; dalsze kontrolki i zdarzenia pozostają FUTURE
 dalszy rozwój sprite'ów (podstawowy SPRITE i animacja klatkowa są już wdrożone)
 audio
 NYASM — bezpieczna VM wykonana 2026-09-18; assembler natywny nadal FUTURE
@@ -2060,7 +2060,7 @@ Przed implementacją NC/NZ/NA trzeba zamknąć:
 
 ## 6.18. NyotaUI — kontrakt kolorów
 
-**Status wdrożenia:** WDROŻONE jako wspólny kontrakt i parser; integracja z CONFIG kontrolek jest kolejnym etapem.
+**Status wdrożenia:** WDROŻONE jako wspólny kontrakt kolorów oraz pierwszy etap NyotaUI `WIN`; dalsze kontrolki i wspólny model zdarzeń pozostają kolejnym etapem.
 
 Ustalono 32 rodziny kolorów z wariantami DARK / podstawowym / LIGHT,
 osobne BLACK i WHITE bez sztucznych wariantów oraz dwa tryby specjalne:
@@ -2070,7 +2070,26 @@ Parser `src/nyota_color.h` przyjmuje również `0xRRGGBB` i
 `0xRRGGBBAA`. Wartości nazwanych kolorów są stałe dla wszystkich hostów
 zgodnie z Nyota Platform Invariance Rule.
 
-Pełna tabela i semantyka: `docs/colors.md`.
+Pełna tabela i semantyka kolorów: `docs/colors.md`. Kontrakt `WIN`, `ROOT`, geometrii, `CONFIG`, `IMG(...)` i `GRAD(...)`: `docs/nyotaui.md`.
+
+### 6.18a. NyotaUI WIN
+
+**Status wdrożenia:** RDZEŃ + POSIX wykonane 2026-09-18; AyoOS wymaga adaptera Nexa/Sayari.
+
+Kanoniczna postać:
+
+```nyota
+WIN glowne, ROOT, [800, 600], CENTER, TRUE
+WIN dialog, glowne, [400, 300], CENTER, FALSE
+
+WIN dialog.CONFIG:
+    TITLE = "Ustawienia"
+    BG = GRAD(SHAPE, EGG, CENTER, 25, 3, [WHITE, GOLD, DARKRED])
+    ICO = "settings.png"
+```
+
+Każdy `WIN` ma rodzica; `ROOT` jest pseudo-rodzicem najwyższego poziomu. Rozmiar i jawna pozycja są LIST z dokładnie dwoma INTEGER i mogą pochodzić ze zmiennych. Potomne `WIN` jest osobnym oknem hosta, a parent określa hierarchię i punkt odniesienia początkowego pozycjonowania.
+
 
 ---
 
