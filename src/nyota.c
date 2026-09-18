@@ -3929,6 +3929,120 @@ static void ScanProcedures(void) {
         ParseParamList(p, NTrim(np + nlen));
     }
 }
+static int StaticExprType(const char *expr) {
+    const char *p = NTrim(expr);
+    uint32_t used = 0;
+    NyotaVal v;
+    int32_t y, m, d;
+    if (!*p) return TYPE_NONE;
+    if (*p == '"') return TYPE_STR;
+    if (NStrEq(p, "TRUE") || NStrEq(p, "FALSE")) return TYPE_BOOL;
+    if (*p == '[') return TYPE_LIST;
+    if (*p == '{') return TYPE_MARK;
+    if (*p == '(' && ParenLooksLikeTuple(p)) return TYPE_TUPLE;
+    if (ParseDateLit(p, &y, &m, &d, &used)) return TYPE_DATE;
+    if (NIsDigit(*p) || (*p == '-' && NIsDigit(p[1]))) {
+        ValClear(&v);
+        if (ParseNumber(p, &v, &used)) return v.type;
+    }
+    if (NStrEqN(p, "INT(", 4)) return TYPE_INT;
+    if (NStrEqN(p, "FLT(", 4)) return TYPE_FLOAT;
+    if (NStrEqN(p, "STR(", 4) || NStrEqN(p, "STRING(", 7)) return TYPE_STR;
+    if (NStrEqN(p, "BOOL(", 5)) return TYPE_BOOL;
+    if (NStrEqN(p, "LIST(", 5)) return TYPE_LIST;
+    if (NStrEqN(p, "TUPLE(", 6)) return TYPE_TUPLE;
+    if (NStrEqN(p, "TIME(", 5)) return TYPE_TIME;
+    if (NStrEqN(p, "TODAY(", 6)) return TYPE_DATE;
+    if (NIsAlpha(*p)) {
+        char name[64];
+        uint32_t n = ParseIdent(p, name, sizeof(name));
+        const char *after = NTrim(p + n);
+        if (*after == '(') {
+            uint32_t i;
+            for (i = 0; i < g_proc_count; i++) {
+                if (g_procs[i].is_function && NStrEq(g_procs[i].name, name) &&
+                    g_procs[i].return_type_known)
+                    return g_procs[i].return_type;
+            }
+        }
+    }
+    return TYPE_NONE;
+}
+
+static int ValidateProcedureContracts(void) {
+    uint32_t pass, pi;
+    int ok = 1;
+
+    /* Kilka przejść propaguje prosty typ z FUNCTION wywołującej inną FUNCTION.
+     * Nie próbujemy zgadywać typu dowolnego wyrażenia z parametrami. */
+    for (pass = 0; pass < 4; pass++) {
+        for (pi = 0; pi < g_proc_count; pi++) {
+            NyotaProc *p = &g_procs[pi];
+            uint32_t def_indent = NIndent(g_lines[p->start_line]);
+            uint32_t i = p->body_line;
+            uint8_t found_type = p->return_type_known ? p->return_type : TYPE_NONE;
+            int found_return = 0;
+
+            while (i < g_line_count) {
+                const char *raw = g_lines[i];
+                const char *line = NTrim(raw);
+                uint32_t ind;
+                if (!*line || *line == '#') { i++; continue; }
+                ind = NIndent(raw);
+                if (ind <= def_indent) break;
+
+                if (PeekWord(line, "RETURN")) {
+                    const char *expr = NTrim(line + 6);
+                    int t;
+                    found_return = 1;
+                    if (!p->is_function) {
+                        if (pass == 0) {
+                            g_cur_line = i;
+                            OutError("RETURN w PROCEDURE jest zabroniony");
+                            ok = 0;
+                        }
+                        i++;
+                        continue;
+                    }
+                    if (!*expr) {
+                        if (pass == 0) {
+                            g_cur_line = i;
+                            OutError("FUNCTION wymaga RETURN z wartoscia");
+                            ok = 0;
+                        }
+                        i++;
+                        continue;
+                    }
+                    t = StaticExprType(expr);
+                    if (t != TYPE_NONE) {
+                        if (found_type != TYPE_NONE && found_type != (uint8_t)t) {
+                            if (pass == 0) {
+                                g_cur_line = i;
+                                OutError("FUNCTION ma sciezki RETURN zwracajace rozne typy");
+                                ok = 0;
+                            }
+                        } else {
+                            found_type = (uint8_t)t;
+                        }
+                    }
+                }
+                i++;
+            }
+
+            if (p->is_function && !found_return && pass == 0) {
+                g_cur_line = p->start_line;
+                OutError("FUNCTION bez RETURN");
+                ok = 0;
+            }
+            if (found_type != TYPE_NONE) {
+                p->return_type = found_type;
+                p->return_type_known = 1;
+            }
+        }
+    }
+    return ok;
+}
+
 
 // ============================================================
 // POMOCNICZE: PARSOWANIE ARGUMENTÓW PO PRZECINKU
@@ -6785,6 +6899,10 @@ void NyotaEmbedRun(const char *src, void (*emit)(char c)) {
     ScanProcedures();
     NyotaEmbedReset();
     ScanProcedures();
+    if (!ValidateProcedureContracts()) {
+        g_ny_emit = 0;
+        return;
+    }
     g_ny_running = 1;
     RunProgram();
     g_ny_emit = 0;
@@ -6879,6 +6997,11 @@ void _start(AyoAPI *api) {
     for (int i = 0; i < MAX_STATES; i++) g_states_active[i] = 0;
 
     ScanProcedures();  // po raz drugi żeby procedury były w g_procs
+    if (!ValidateProcedureContracts()) {
+        HostWaitKey();
+        g_api->Exit();
+        return;
+    }
     g_ny_running = 1;
 
     // Wykonaj program
