@@ -9,6 +9,12 @@ const {
 
 const COLOR_TOKEN_RE = /0[xX][0-9A-Fa-f]{8}(?![0-9A-Za-z_])|0[xX][0-9A-Fa-f]{6}(?![0-9A-Za-z_])|\b[A-Z][A-Z0-9]*\b/g;
 
+const AUTO_UPPERCASE_COMMANDS = new Map([
+    ['eqbox', 'EQBOX']
+]);
+
+let applyingAutoUppercase = false;
+
 function maskStringsAndComments(line) {
     const chars = Array.from(line);
     let inString = false;
@@ -113,6 +119,59 @@ const nyotaColorProvider = {
     }
 };
 
+
+function collectAutoUppercaseEdits(document, event) {
+    if (document.languageId !== 'nyota') {
+        return [];
+    }
+
+    // Normalizujemy dopiero po zakonczeniu tokenu. Dzieki temu wpisywanie
+    // identyfikatora zaczynajacego sie od "eqbox" nie jest przerywane.
+    const completesToken = event.contentChanges.some(
+        (change) => change.text && /[^A-Za-z0-9_]/.test(change.text)
+    );
+    if (!completesToken) {
+        return [];
+    }
+
+    const touched = new Set();
+    for (const change of event.contentChanges) {
+        const addedLines = (change.text.match(/\n/g) || []).length;
+        const first = change.range.start.line;
+        const last = Math.min(document.lineCount - 1, first + addedLines);
+        for (let line = first; line <= last; line++) {
+            touched.add(line);
+        }
+    }
+
+    const edits = [];
+    for (const lineNumber of touched) {
+        const original = document.lineAt(lineNumber).text;
+        const code = maskStringsAndComments(original);
+        const match = /^(\s*)([A-Za-z_][A-Za-z0-9_]*)(?=\s|,|\.|$)/.exec(code);
+
+        if (!match) {
+            continue;
+        }
+
+        const typed = match[2];
+        const canonical = AUTO_UPPERCASE_COMMANDS.get(typed.toLowerCase());
+        if (!canonical || typed === canonical) {
+            continue;
+        }
+
+        const start = match[1].length;
+        edits.push(
+            vscode.TextEdit.replace(
+                new vscode.Range(lineNumber, start, lineNumber, start + typed.length),
+                canonical
+            )
+        );
+    }
+
+    return edits;
+}
+
 function activate(context) {
     const runCurrentFile = vscode.commands.registerCommand(
         'nyota.runCurrentFile',
@@ -197,7 +256,35 @@ function activate(context) {
         nyotaColorProvider
     );
 
-    context.subscriptions.push(runCurrentFile, colorProvider);
+    const autoUppercaseCommands = vscode.workspace.onDidChangeTextDocument(
+        async (event) => {
+            if (applyingAutoUppercase || event.document.languageId !== 'nyota') {
+                return;
+            }
+
+            const config = vscode.workspace.getConfiguration('nyota', event.document.uri);
+            if (!config.get('autoUppercaseCommands', true)) {
+                return;
+            }
+
+            const edits = collectAutoUppercaseEdits(event.document, event);
+            if (edits.length === 0) {
+                return;
+            }
+
+            const workspaceEdit = new vscode.WorkspaceEdit();
+            workspaceEdit.set(event.document.uri, edits);
+
+            applyingAutoUppercase = true;
+            try {
+                await vscode.workspace.applyEdit(workspaceEdit);
+            } finally {
+                applyingAutoUppercase = false;
+            }
+        }
+    );
+
+    context.subscriptions.push(runCurrentFile, colorProvider, autoUppercaseCommands);
 }
 
 function deactivate() {}
