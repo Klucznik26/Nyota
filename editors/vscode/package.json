@@ -1,8 +1,8 @@
 {
   "name": "nyota-language-support",
   "displayName": "Nyota Language Support",
-  "description": "Nyota language support for Visual Studio Code: v0.5 syntax, NyotaUI WIN, running .nyo files and color swatches/picker.",
-  "version": "0.4.2",
+  "description": "Nyota language support for Visual Studio Code: Nyota v0.5 syntax, expanded NyotaUI controls, running .nyo files and color swatches/picker.",
+  "version": "0.5.0",
   "publisher": "klucznik26",
   "engines": {
     "vscode": "^1.80.0"
