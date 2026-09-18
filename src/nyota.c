@@ -5231,33 +5231,113 @@ static void UiBackgroundTransparent(NyotaUiBackground *bg) {
 
 static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
     memset(s, 0, sizeof(*s));
-    s->kind = kind; s->position_mode = NYOTA_UI_POS_XY;
-    NStrCopy(s->font, "SYSTEM", sizeof(s->font)); s->font_size = 16;
-    UiColorSolid(&s->text_color, 0, 0, 0, 255);
-    s->halign = NYOTA_UI_ALIGN_LEFT; s->valign = NYOTA_UI_VALIGN_MIDDLE;
-    UiBackgroundTransparent(&s->background); UiBackgroundTransparent(&s->background_over);
-    s->border = 0; UiColorSolid(&s->border_color, 128,128,128,255); s->border_width=1;
-    UiColorSolid(&s->border_color_over,160,190,255,255); s->border_width_over=1;
-    s->clip=1; s->shape=NYOTA_UI_DAREA_RECT; s->accept=NYOTA_UI_ACCEPT_ALL; s->multi=1;
-    s->radius=0; s->logical_size=1; s->checked=0;
-    UiColorSolid(&s->check_color,0,0,0,255); NStrCopy(s->check_symbol,"X",sizeof(s->check_symbol));
-    s->selected=0; s->max_visible=8; s->hover_enabled=1;
-    UiBackgroundBlack(&s->drop_background); UiColorSolid(&s->drop_text_color,220,220,220,255);
-    UiBackgroundBlack(&s->selected_background); UiColorSolid(&s->selected_background.colors[0],40,80,150,255);
-    UiColorSolid(&s->selected_text_color,255,255,255,255);
-    UiBackgroundBlack(&s->hover_background); UiColorSolid(&s->hover_background.colors[0],50,70,110,255);
-    UiColorSolid(&s->hover_text_color,255,255,255,255); UiColorSolid(&s->arrow_color,255,255,255,255);
-    s->orientation=NYOTA_UI_SEP_HORIZONTAL; s->sep_effect=NYOTA_UI_SEP_NORMAL;
-    UiColorSolid(&s->sep_color,128,128,128,255); s->sep_thickness=1;
-    UiBackgroundTransparent(&s->tab_background); NStrCopy(s->tab_font,"SYSTEM",sizeof(s->tab_font));
-    s->tab_font_size=14; UiColorSolid(&s->tab_text_color,0,0,0,255);
-    s->tab_border=1; UiColorSolid(&s->tab_border_color,128,128,128,255); s->tab_border_width=1; s->tab_radius=4;
-    s->shadow=NYOTA_UI_SHADOW_OFF; UiColorSolid(&s->shadow_color,0,0,0,160); s->shadow_depth=2;
-    if(kind==NYOTA_UI_CTRL_BUTTON){UiColorSolid(&s->text_color,255,255,255,255);UiBackgroundBlack(&s->background);UiColorSolid(&s->background.colors[0],64,96,160,255);s->halign=NYOTA_UI_ALIGN_CENTER;s->border=1;}
-    else if(kind==NYOTA_UI_CTRL_PANEL||kind==NYOTA_UI_CTRL_TAB){UiBackgroundTransparent(&s->background);}
-    else if(kind==NYOTA_UI_CTRL_DAREA){UiColorSolid(&s->text_color,160,160,160,255);UiBackgroundTransparent(&s->background);}
-    else if(kind==NYOTA_UI_CTRL_CBOX||kind==NYOTA_UI_CTRL_RADIO){UiBackgroundBlack(&s->background);UiColorSolid(&s->background.colors[0],255,255,255,255);s->border=1;}
-    else if(kind==NYOTA_UI_CTRL_COMBO){UiBackgroundBlack(&s->background);UiColorSolid(&s->background.colors[0],64,64,64,255);UiColorSolid(&s->text_color,255,255,255,255);s->border=1;}
+    s->kind = kind;
+    s->position_mode = NYOTA_UI_POS_XY;
+
+    /* NyotaUI default theme: neutral dark desktop look. */
+    NStrCopy(s->font, "SYSTEM", sizeof(s->font));
+    s->font_size = 14;
+    UiColorSolid(&s->text_color, 232, 236, 242, 255);
+    s->halign = NYOTA_UI_ALIGN_LEFT;
+    s->valign = NYOTA_UI_VALIGN_MIDDLE;
+
+    UiBackgroundBlack(&s->background);
+    UiColorSolid(&s->background.colors[0], 36, 41, 50, 255);
+    UiBackgroundBlack(&s->background_over);
+    UiColorSolid(&s->background_over.colors[0], 48, 56, 69, 255);
+
+    s->border = 0;
+    UiColorSolid(&s->border_color, 76, 86, 102, 255);
+    s->border_width = 1;
+    UiColorSolid(&s->border_color_over, 108, 132, 170, 255);
+    s->border_width_over = 1;
+
+    s->clip = 1;
+    s->shape = NYOTA_UI_DAREA_RECT;
+    s->accept = NYOTA_UI_ACCEPT_ALL;
+    s->multi = 1;
+    s->radius = 0;
+    s->logical_size = 1;
+    s->checked = 0;
+
+    UiColorSolid(&s->check_color, 86, 156, 232, 255);
+    NStrCopy(s->check_symbol, "X", sizeof(s->check_symbol));
+
+    s->selected = 0;
+    s->max_visible = 8;
+    s->hover_enabled = 1;
+
+    UiBackgroundBlack(&s->drop_background);
+    UiColorSolid(&s->drop_background.colors[0], 31, 36, 44, 255);
+    UiColorSolid(&s->drop_text_color, 228, 232, 238, 255);
+
+    UiBackgroundBlack(&s->selected_background);
+    UiColorSolid(&s->selected_background.colors[0], 49, 91, 145, 255);
+    UiColorSolid(&s->selected_text_color, 255, 255, 255, 255);
+
+    UiBackgroundBlack(&s->hover_background);
+    UiColorSolid(&s->hover_background.colors[0], 49, 59, 73, 255);
+    UiColorSolid(&s->hover_text_color, 255, 255, 255, 255);
+    UiColorSolid(&s->arrow_color, 205, 212, 222, 255);
+
+    s->orientation = NYOTA_UI_SEP_HORIZONTAL;
+    s->sep_effect = NYOTA_UI_SEP_NORMAL;
+    UiColorSolid(&s->sep_color, 74, 82, 94, 255);
+    s->sep_thickness = 1;
+
+    UiBackgroundBlack(&s->tab_background);
+    UiColorSolid(&s->tab_background.colors[0], 43, 49, 59, 255);
+    NStrCopy(s->tab_font, "SYSTEM", sizeof(s->tab_font));
+    s->tab_font_size = 14;
+    UiColorSolid(&s->tab_text_color, 225, 230, 237, 255);
+    s->tab_border = 1;
+    UiColorSolid(&s->tab_border_color, 76, 86, 102, 255);
+    s->tab_border_width = 1;
+    s->tab_radius = 6;
+
+    s->shadow = NYOTA_UI_SHADOW_OFF;
+    UiColorSolid(&s->shadow_color, 0, 0, 0, 120);
+    s->shadow_depth = 2;
+
+    if (kind == NYOTA_UI_CTRL_BUTTON) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 52, 63, 78, 255);
+        s->halign = NYOTA_UI_ALIGN_CENTER;
+        s->border = 1;
+        s->radius = 6;
+        s->bold = 0;
+    } else if (kind == NYOTA_UI_CTRL_LABEL) {
+        UiBackgroundTransparent(&s->background);
+        s->border = 0;
+    } else if (kind == NYOTA_UI_CTRL_PANEL) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 31, 35, 43, 255);
+        s->border = 1;
+        s->radius = 8;
+    } else if (kind == NYOTA_UI_CTRL_TAB) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 31, 35, 43, 255);
+        s->border = 1;
+        s->radius = 8;
+    } else if (kind == NYOTA_UI_CTRL_DAREA) {
+        UiColorSolid(&s->text_color, 184, 193, 205, 255);
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 27, 31, 38, 255);
+        UiBackgroundBlack(&s->background_over);
+        UiColorSolid(&s->background_over.colors[0], 37, 47, 61, 255);
+        s->border = 1;
+        s->radius = 6;
+    } else if (kind == NYOTA_UI_CTRL_CBOX || kind == NYOTA_UI_CTRL_RADIO) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 238, 241, 245, 255);
+        s->border = 1;
+        s->radius = (kind == NYOTA_UI_CTRL_CBOX) ? 4 : 0;
+    } else if (kind == NYOTA_UI_CTRL_COMBO) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 42, 48, 58, 255);
+        s->border = 1;
+        s->radius = 6;
+    }
 }
 
 static int UiParseColorProperty(const char *rhs, NyotaColor *out, const char *label) {
