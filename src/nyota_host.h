@@ -96,7 +96,14 @@ enum {
     NYOTA_UI_CTRL_EQBOX = 14,
     NYOTA_UI_CTRL_SLIDER = 15,
     NYOTA_UI_CTRL_STATBAR = 16,
-    NYOTA_UI_CTRL_TOOLBAR = 17
+    NYOTA_UI_CTRL_TOOLBAR = 17,
+    NYOTA_UI_CTRL_TBOX = 18,
+    NYOTA_UI_CTRL_SPINBOX = 19,
+    NYOTA_UI_CTRL_LISTVIEW = 20,
+    NYOTA_UI_CTRL_TREEVIEW = 21,
+    NYOTA_UI_CTRL_SPLITTER = 22,
+    NYOTA_UI_CTRL_SCALE = 23,
+    NYOTA_UI_CTRL_CLOCK = 24
 };
 
 enum {
@@ -193,7 +200,66 @@ enum {
     NYOTA_UI_EQ_LABEL_TOP = 2
 };
 
+enum {
+    NYOTA_UI_SCALE_LINE = 0,
+    NYOTA_UI_SCALE_ARC = 1,
+    NYOTA_UI_SCALE_CIRCLE = 2
+};
+
+enum {
+    NYOTA_UI_TRACK_SOLID = 0,
+    NYOTA_UI_TRACK_DASH = 1,
+    NYOTA_UI_TRACK_DOT = 2,
+    NYOTA_UI_TRACK_SEGMENT = 3
+};
+
+enum {
+    NYOTA_UI_SCALE_THUMB_RECT = 0,
+    NYOTA_UI_SCALE_THUMB_ROUND = 1,
+    NYOTA_UI_SCALE_THUMB_CIRCLE = 2,
+    NYOTA_UI_SCALE_THUMB_DIAMOND = 3,
+    NYOTA_UI_SCALE_THUMB_TRIANGLE = 4,
+    NYOTA_UI_SCALE_THUMB_PARALLELOGRAM = 5,
+    NYOTA_UI_SCALE_THUMB_LINE = 6,
+    NYOTA_UI_SCALE_THUMB_NEEDLE = 7,
+    NYOTA_UI_SCALE_THUMB_DOT = 8
+};
+
+enum {
+    NYOTA_UI_THUMB_ALIGN_FIXED = 0,
+    NYOTA_UI_THUMB_ALIGN_RADIAL = 1,
+    NYOTA_UI_THUMB_ALIGN_TANGENT = 2
+};
+
+enum {
+    NYOTA_UI_TICK_LINE = 0,
+    NYOTA_UI_TICK_DOT = 1,
+    NYOTA_UI_TICK_RECT = 2,
+    NYOTA_UI_TICK_ROUND = 3,
+    NYOTA_UI_TICK_TRIANGLE = 4,
+    NYOTA_UI_TICK_DIAMOND = 5
+};
+
+enum {
+    NYOTA_UI_CLOCK_ARC = 0,
+    NYOTA_UI_CLOCK_CIRCLE = 1
+};
+
+enum {
+    NYOTA_UI_NEEDLE_LINE = 0,
+    NYOTA_UI_NEEDLE_TRIANGLE = 1,
+    NYOTA_UI_NEEDLE_ARROW = 2,
+    NYOTA_UI_NEEDLE_DIAMOND = 3,
+    NYOTA_UI_NEEDLE_PARALLELOGRAM = 4,
+    NYOTA_UI_NEEDLE_BAR = 5,
+    NYOTA_UI_NEEDLE_DOUBLE = 6
+};
+
 #define NYOTA_UI_EQ_MAX_BARS 64u
+#define NYOTA_UI_CLOCK_MAX_NEEDLES 8u
+#define NYOTA_UI_CLOCK_MAX_ZONES 8u
+#define NYOTA_UI_UNIT_MAX 32u
+#define NYOTA_UI_PLACEHOLDER_MAX 256u
 #define NYOTA_UI_EQ_LABEL_MAX 32u
 #define NYOTA_UI_TEXT_MAX 512u
 #define NYOTA_UI_FONT_MAX 128u
@@ -298,6 +364,97 @@ typedef struct {
 
     /* SLIDER. Uzywa wspolnego range_* oraz geometrii/kolorow thumb z SBAR. */
     uint32_t slider_thumb_size;
+
+    /* TBOX — jednowierszowy edytor tekstu. */
+    char placeholder[NYOTA_UI_PLACEHOLDER_MAX];
+    uint32_t max_length;
+    uint8_t password;
+
+    /* SPINBOX — podpisana wartosc signed + przyciski +/- po prawej. */
+    int32_t signed_min;
+    int32_t signed_max;
+    int32_t signed_value;
+    int32_t signed_step;
+
+    /* LISTVIEW/TREEVIEW. items zachowuje wspolny format wierszy rozdzielonych \n.
+       TREEVIEW interpretuje element jako sciezke z segmentami rozdzielonymi '/'. */
+    uint32_t row_height;
+    uint32_t tree_indent;
+    uint8_t show_lines;
+
+    /* SPLITTER — interaktywny separator z wartoscia pozycji. */
+    uint32_t splitter_thickness;
+
+    /* SCALE — signed, liniowa/lukowa/kolowa skala z opcjonalnym WRAP. */
+    uint8_t scale_shape;
+    uint8_t scale_wrap;
+    uint8_t scale_interactive;
+    uint8_t track_style;
+    uint32_t scale_radius;
+    int32_t start_angle;
+    int32_t end_angle;
+    uint32_t track_width;
+    uint32_t track_gap;
+    NyotaUiBackground track_fill;
+    NyotaUiBackground track_glow;
+    uint32_t track_blur;
+    uint8_t scale_thumb_shape;
+    uint8_t thumb_rotate;
+    uint8_t thumb_align;
+    uint32_t scale_thumb_size;
+    uint32_t scale_thumb_width;
+    NyotaUiBackground scale_thumb_fill;
+    uint8_t scale_thumb_border;
+    NyotaColor scale_thumb_border_color;
+    uint32_t scale_thumb_border_width;
+    NyotaUiBackground scale_thumb_glow;
+    uint32_t scale_thumb_blur;
+
+    /* Wspolna podzialka SCALE/CLOCK. */
+    int32_t major_step;
+    int32_t minor_step;
+    uint8_t tick_style;
+    NyotaColor tick_color;
+    NyotaColor minor_tick_color;
+    uint32_t tick_len;
+    uint32_t minor_tick_len;
+    uint32_t tick_width;
+    uint32_t tick_blur;
+    uint8_t show_labels;
+    int32_t label_step;
+    int32_t label_offset;
+
+    /* CLOCK — analogowy wskaznik, od jednej do wielu wskazowek. */
+    uint8_t clock_shape;
+    uint32_t clock_radius;
+    uint32_t clock_needles;
+    uint32_t clock_value_count;
+    int32_t clock_values[NYOTA_UI_CLOCK_MAX_NEEDLES];
+    int32_t clock_needle_min[NYOTA_UI_CLOCK_MAX_NEEDLES];
+    int32_t clock_needle_max[NYOTA_UI_CLOCK_MAX_NEEDLES];
+    uint8_t clock_needle_shape[NYOTA_UI_CLOCK_MAX_NEEDLES];
+    NyotaColor clock_needle_color[NYOTA_UI_CLOCK_MAX_NEEDLES];
+    uint32_t clock_needle_width[NYOTA_UI_CLOCK_MAX_NEEDLES];
+    uint32_t clock_needle_len[NYOTA_UI_CLOCK_MAX_NEEDLES];
+    uint32_t clock_needle_blur[NYOTA_UI_CLOCK_MAX_NEEDLES];
+    uint32_t clock_color_count;
+    uint32_t clock_shape_count;
+    uint32_t clock_width_count;
+    uint32_t clock_len_count;
+    uint32_t clock_blur_count;
+    uint32_t clock_min_count;
+    uint32_t clock_max_count;
+    uint32_t dial_blur;
+    uint8_t center_dot;
+    NyotaColor center_color;
+    uint32_t center_size;
+    uint32_t center_blur;
+    uint8_t show_value;
+    char unit[NYOTA_UI_UNIT_MAX];
+    uint32_t zone_count;
+    int32_t zone_min[NYOTA_UI_CLOCK_MAX_ZONES];
+    int32_t zone_max[NYOTA_UI_CLOCK_MAX_ZONES];
+    NyotaColor zone_color[NYOTA_UI_CLOCK_MAX_ZONES];
 
     /* EQBOX — szybki wieloslupek. Warstwy moga byc kolorem, gradientem lub IMG(). */
     uint32_t eq_bars;
@@ -431,6 +588,20 @@ typedef struct NyotaHost {
     /* EQBOX ma osobna szybka sciezke aktualizacji bez przebudowy CONFIG. */
     int32_t (*ui_eqbox_set_values)(int32_t handle, const uint32_t *values, uint32_t count);
     int32_t (*ui_eqbox_set_bar)(int32_t handle, uint32_t index, uint32_t value);
+
+    /* Signed controls: SPINBOX, SCALE. */
+    int32_t (*ui_signed_value)(int32_t handle, int32_t *value);
+    int32_t (*ui_signed_set_value)(int32_t handle, int32_t value);
+    int32_t (*ui_control_changed)(int32_t handle);
+
+    /* LISTVIEW/TREEVIEW selection. */
+    int32_t (*ui_select_index)(int32_t handle);
+    int32_t (*ui_select_set_index)(int32_t handle, uint32_t index);
+
+    /* CLOCK — szybkie aktualizacje wielu wskazowek. */
+    int32_t (*ui_clock_set_values)(int32_t handle, const int32_t *values, uint32_t count);
+    int32_t (*ui_clock_set_needle)(int32_t handle, uint32_t index, int32_t value);
+    int32_t (*ui_clock_value)(int32_t handle, uint32_t index, int32_t *value);
 } NyotaHost;
 
 void NyotaSetHost(NyotaHost *h);
