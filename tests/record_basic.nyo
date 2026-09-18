@@ -1,0 +1,14 @@
+# Oczekiwane: zawiera RECORD_OK
+RECORD Postac:
+    x := 0
+    hp := 100
+    imie := "Nieznany"
+
+BEGIN
+VAR boss := Postac()
+boss.x := 25
+boss.hp := 500
+boss.imie := "Smok"
+IF boss.x = 25 AND boss.hp = 500 AND boss.imie = "Smok":
+    PRINT "RECORD_OK"
+END
