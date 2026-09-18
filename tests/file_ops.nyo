@@ -1,0 +1,34 @@
+# Oczekiwane: zawiera FILE_OK
+BEGIN
+IF FILE_EXISTS("/tmp/nyota_file_a.txt"):
+    FILE_DELETE "/tmp/nyota_file_a.txt"
+IF FILE_EXISTS("/tmp/nyota_file_b.txt"):
+    FILE_DELETE "/tmp/nyota_file_b.txt"
+IF FILE_EXISTS("/tmp/nyota_file_c.txt"):
+    FILE_DELETE "/tmp/nyota_file_c.txt"
+
+FILE_WRITE "/tmp/nyota_file_a.txt", "Ayo"
+FILE_APPEND "/tmp/nyota_file_a.txt", "OS"
+
+VAR ok := FILE_EXISTS("/tmp/nyota_file_a.txt")
+IF FILE_READ("/tmp/nyota_file_a.txt") <> "AyoOS":
+    ok := FALSE
+IF FILE_SIZE("/tmp/nyota_file_a.txt") <> 5:
+    ok := FALSE
+
+FILE_COPY "/tmp/nyota_file_a.txt", "/tmp/nyota_file_b.txt"
+FILE_MOVE "/tmp/nyota_file_b.txt", "/tmp/nyota_file_c.txt"
+
+IF FILE_EXISTS("/tmp/nyota_file_b.txt"):
+    ok := FALSE
+IF NOT FILE_EXISTS("/tmp/nyota_file_c.txt"):
+    ok := FALSE
+IF FILE_READ("/tmp/nyota_file_c.txt") <> "AyoOS":
+    ok := FALSE
+
+FILE_DELETE "/tmp/nyota_file_a.txt"
+FILE_DELETE "/tmp/nyota_file_c.txt"
+
+IF ok:
+    PRINT "FILE_OK"
+END
