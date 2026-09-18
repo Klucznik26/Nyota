@@ -20,6 +20,8 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
+#include <fontconfig/fontconfig.h>
 #include <math.h>
 #include "font8x8.h"
 
@@ -40,6 +42,7 @@ static int g_input_pos;
 #define HOST_MAX_SCREENS 16
 #define HOST_MAX_UI_WINDOWS 32
 #define HOST_MAX_UI_CONTROLS 128
+#define HOST_MAX_UI_FONTS 32
 static SDL_Texture *g_sprite_tex[HOST_MAX_SPRITES];
 static SDL_Texture *g_screen_tex[HOST_MAX_SCREENS];
 static uint32_t g_active_screen;
@@ -73,6 +76,16 @@ typedef struct {
 
 static HostUiControl g_host_ui_controls[HOST_MAX_UI_CONTROLS];
 
+typedef struct {
+    int used;
+    char family[NYOTA_UI_FONT_MAX];
+    int size;
+    int style;
+    TTF_Font *font;
+} HostUiFont;
+
+static HostUiFont g_host_ui_fonts[HOST_MAX_UI_FONTS];
+
 static void host_ui_render_background_index(int idx);
 static void host_ui_destroy_index(int idx);
 static void host_ui_redraw_controls(int window_index);
@@ -83,6 +96,79 @@ static void posix_emit(char c) {
 }
 
 static uint64_t host_ticks(void);
+
+static int host_ui_resolve_font_path(const char *family, char *out, size_t cap) {
+    FcPattern *pat = NULL, *match = NULL;
+    FcResult result;
+    FcChar8 *file = NULL;
+    const char *requested = family && family[0] && strcmp(family, "SYSTEM") ? family : "sans-serif";
+    if (!out || cap == 0) return 0;
+    out[0] = '\0';
+    pat = FcPatternCreate();
+    if (!pat) return 0;
+    FcPatternAddString(pat, FC_FAMILY, (const FcChar8 *)requested);
+    FcConfigSubstitute(NULL, pat, FcMatchPattern);
+    FcDefaultSubstitute(pat);
+    match = FcFontMatch(NULL, pat, &result);
+    FcPatternDestroy(pat);
+    if (!match) return 0;
+    if (FcPatternGetString(match, FC_FILE, 0, &file) == FcResultMatch && file) {
+        strncpy(out, (const char *)file, cap - 1);
+        out[cap - 1] = '\0';
+    }
+    FcPatternDestroy(match);
+    return out[0] != '\0';
+}
+
+static TTF_Font *host_ui_get_font(const char *family, uint32_t size, uint8_t bold, uint8_t italic, uint8_t underline) {
+    int i, style = TTF_STYLE_NORMAL;
+    char path[1024];
+    TTF_Font *font;
+    if (!size) size = 14;
+    if (size < 8) size = 8;
+    if (size > 128) size = 128;
+    if (bold) style |= TTF_STYLE_BOLD;
+    if (italic) style |= TTF_STYLE_ITALIC;
+    if (underline) style |= TTF_STYLE_UNDERLINE;
+    for (i = 0; i < HOST_MAX_UI_FONTS; i++) {
+        if (g_host_ui_fonts[i].used &&
+            g_host_ui_fonts[i].size == (int)size &&
+            g_host_ui_fonts[i].style == style &&
+            !strcmp(g_host_ui_fonts[i].family, family && family[0] ? family : "SYSTEM"))
+            return g_host_ui_fonts[i].font;
+    }
+    if (!host_ui_resolve_font_path(family, path, sizeof(path))) return NULL;
+    font = TTF_OpenFont(path, (int)size);
+    if (!font) return NULL;
+    TTF_SetFontStyle(font, style);
+    TTF_SetFontHinting(font, TTF_HINTING_LIGHT);
+    for (i = 0; i < HOST_MAX_UI_FONTS; i++) {
+        if (!g_host_ui_fonts[i].used) {
+            g_host_ui_fonts[i].used = 1;
+            g_host_ui_fonts[i].size = (int)size;
+            g_host_ui_fonts[i].style = style;
+            strncpy(g_host_ui_fonts[i].family, family && family[0] ? family : "SYSTEM",
+                    sizeof(g_host_ui_fonts[i].family) - 1);
+            g_host_ui_fonts[i].family[sizeof(g_host_ui_fonts[i].family) - 1] = '\0';
+            g_host_ui_fonts[i].font = font;
+            return font;
+        }
+    }
+    TTF_CloseFont(font);
+    return NULL;
+}
+
+static int host_ui_measure_text(const char *family, const char *text, uint32_t size,
+                                uint8_t bold, uint8_t italic, uint8_t underline,
+                                int *w, int *h) {
+    TTF_Font *font;
+    if (w) *w = 0;
+    if (h) *h = 0;
+    if (!text || !text[0]) return 0;
+    font = host_ui_get_font(family, size, bold, italic, underline);
+    if (!font) return 0;
+    return TTF_SizeUTF8(font, text, w, h) == 0;
+}
 
 static int host_ui_index_by_window_id(uint32_t id) {
     int i;
@@ -165,21 +251,27 @@ static int host_ui_control_visible_index(int idx) {
 }
 
 static int host_ui_tab_header_rect(int idx, SDL_Rect *out) {
-    HostUiControl *tab; int ti, pi, j, x, hh=30, scale, w; SDL_Rect pr;
+    HostUiControl *tab; int ti, pi, j, x, hh=30, w, tw=0, th=0; SDL_Rect pr;
     if(!out||idx<0||idx>=HOST_MAX_UI_CONTROLS)return 0;
     tab=&g_host_ui_controls[idx]; if(!tab->used||tab->spec.kind!=NYOTA_UI_CTRL_TAB)return 0;
     pi=host_ui_control_index_by_handle(tab->parent_control_handle);
     if(pi<0||g_host_ui_controls[pi].spec.kind!=NYOTA_UI_CTRL_TABS||!host_ui_control_rect_index(pi,&pr))return 0;
-    if((int)tab->spec.tab_font_size+12>hh)hh=(int)tab->spec.tab_font_size+12;
+    if(host_ui_measure_text(tab->spec.tab_font, tab->spec.text, tab->spec.tab_font_size,
+                            tab->spec.tab_bold, tab->spec.tab_italic, tab->spec.tab_underline, &tw, &th)) {
+        if(th+12>hh) hh=th+12;
+    } else if((int)tab->spec.tab_font_size+12>hh) hh=(int)tab->spec.tab_font_size+12;
     x=pr.x;
     for(j=0;j<HOST_MAX_UI_CONTROLS;j++){
         HostUiControl *q=&g_host_ui_controls[j];
+        int qw=0,qh=0;
         if(!q->used||q->spec.kind!=NYOTA_UI_CTRL_TAB||q->parent_control_handle!=tab->parent_control_handle||q->spec.tab_index>=tab->spec.tab_index)continue;
-        scale=(int)((q->spec.tab_font_size+7u)/8u);if(scale<1)scale=1;
-        x+=(int)strlen(q->spec.text)*8*scale+20;
+        if(!host_ui_measure_text(q->spec.tab_font, q->spec.text, q->spec.tab_font_size,
+                                 q->spec.tab_bold, q->spec.tab_italic, q->spec.tab_underline, &qw, &qh))
+            qw=(int)strlen(q->spec.text)*(int)q->spec.tab_font_size;
+        x+=qw+24;
     }
-    scale=(int)((tab->spec.tab_font_size+7u)/8u);if(scale<1)scale=1;
-    w=(int)strlen(tab->spec.text)*8*scale+20;if(w<48)w=48;
+    w=tw>0?tw+24:(int)strlen(tab->spec.text)*(int)tab->spec.tab_font_size+24;
+    if(w<52)w=52;
     out->x=x;out->y=pr.y;out->w=w;out->h=hh;
     ti=pr.x+pr.w; if(out->x+out->w>ti) out->w=ti-out->x;
     return out->w>0;
@@ -557,6 +649,9 @@ static int video_ensure(void) {
         return 0;
     }
     (void)IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
+    if (TTF_Init() != 0)
+        fprintf(stderr, "NyotaUI: SDL_ttf fallback: %s\n", TTF_GetError());
+    (void)FcInit();
     g_video = 1;
     return 1;
 }
@@ -898,7 +993,7 @@ static SDL_Surface *host_ui_control_background_surface(const NyotaUiControlSpec 
     return dst;
 }
 
-static void host_ui_draw_text(SDL_Renderer *ren, const NyotaUiControlSpec *s, SDL_Rect r) {
+static void host_ui_draw_text_fallback(SDL_Renderer *ren, const NyotaUiControlSpec *s, SDL_Rect r) {
     const char *text;
     int scale, charw, charh, len, tx, ty, i, row, col;
     NyotaColor color;
@@ -906,11 +1001,12 @@ static void host_ui_draw_text(SDL_Renderer *ren, const NyotaUiControlSpec *s, SD
     color = s->text_color;
     if (color.mode == NYOTA_COLOR_TRANSPARENT) return;
     scale = (int)((s->font_size + 7u) / 8u);
-    if (scale < 1) scale = 1; if (scale > 16) scale = 16;
+    if (scale < 1) scale = 1;
+    if (scale > 16) scale = 16;
     charw = 8 * scale; charh = 8 * scale; len = (int)strlen(text);
-    tx = r.x + 4;
+    tx = r.x + 6;
     if (s->halign == NYOTA_UI_ALIGN_CENTER) tx = r.x + (r.w - len * charw) / 2;
-    else if (s->halign == NYOTA_UI_ALIGN_RIGHT) tx = r.x + r.w - len * charw - 4;
+    else if (s->halign == NYOTA_UI_ALIGN_RIGHT) tx = r.x + r.w - len * charw - 6;
     ty = r.y + 4;
     if (s->valign == NYOTA_UI_VALIGN_MIDDLE) ty = r.y + (r.h - charh) / 2;
     else if (s->valign == NYOTA_UI_VALIGN_BOTTOM) ty = r.y + r.h - charh - 4;
@@ -932,10 +1028,49 @@ static void host_ui_draw_text(SDL_Renderer *ren, const NyotaUiControlSpec *s, SD
             }
         }
     }
-    if (s->underline) {
+    if (s->underline)
         SDL_RenderDrawLine(ren, tx, ty + charh - 1, tx + len * charw - 1, ty + charh - 1);
-    }
 }
+
+static void host_ui_draw_text(SDL_Renderer *ren, const NyotaUiControlSpec *s, SDL_Rect r) {
+    TTF_Font *font;
+    SDL_Surface *surface;
+    SDL_Texture *texture;
+    SDL_Color color;
+    SDL_Rect dst;
+    int maxw;
+    if (!ren || !s || !s->text[0] || s->kind == NYOTA_UI_CTRL_PANEL) return;
+    if (s->text_color.mode == NYOTA_COLOR_TRANSPARENT) return;
+    font = host_ui_get_font(s->font, s->font_size, s->bold, s->italic, s->underline);
+    if (!font) {
+        host_ui_draw_text_fallback(ren, s, r);
+        return;
+    }
+    color.r=s->text_color.r; color.g=s->text_color.g; color.b=s->text_color.b; color.a=s->text_color.a;
+    maxw = r.w > 12 ? r.w - 12 : r.w;
+    if (s->wrap && maxw > 0)
+        surface = TTF_RenderUTF8_Blended_Wrapped(font, s->text, color, (Uint32)maxw);
+    else
+        surface = TTF_RenderUTF8_Blended(font, s->text, color);
+    if (!surface) {
+        host_ui_draw_text_fallback(ren, s, r);
+        return;
+    }
+    texture = SDL_CreateTextureFromSurface(ren, surface);
+    if (!texture) { SDL_FreeSurface(surface); host_ui_draw_text_fallback(ren,s,r); return; }
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    dst.w=surface->w; dst.h=surface->h;
+    dst.x=r.x+6;
+    if(s->halign==NYOTA_UI_ALIGN_CENTER) dst.x=r.x+(r.w-dst.w)/2;
+    else if(s->halign==NYOTA_UI_ALIGN_RIGHT) dst.x=r.x+r.w-dst.w-6;
+    dst.y=r.y+4;
+    if(s->valign==NYOTA_UI_VALIGN_MIDDLE) dst.y=r.y+(r.h-dst.h)/2;
+    else if(s->valign==NYOTA_UI_VALIGN_BOTTOM) dst.y=r.y+r.h-dst.h-4;
+    SDL_RenderCopy(ren,texture,NULL,&dst);
+    SDL_DestroyTexture(texture);
+    SDL_FreeSurface(surface);
+}
+
 
 static void host_ui_draw_rounded_rect(SDL_Renderer *ren, SDL_Rect q, int radius) {
     const double pi = 3.14159265358979323846;
@@ -1630,6 +1765,15 @@ static void host_exit(void) {
         g_ren = 0; g_win = 0; g_gfx = 0;
     }
     if (g_video) {
+        for (i = 0; i < HOST_MAX_UI_FONTS; i++) {
+            if (g_host_ui_fonts[i].used && g_host_ui_fonts[i].font) {
+                TTF_CloseFont(g_host_ui_fonts[i].font);
+                g_host_ui_fonts[i].font = NULL;
+                g_host_ui_fonts[i].used = 0;
+            }
+        }
+        if (TTF_WasInit()) TTF_Quit();
+        FcFini();
         IMG_Quit();
         SDL_Quit();
         g_video = 0;
