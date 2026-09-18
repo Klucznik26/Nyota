@@ -601,13 +601,13 @@ ICONBUTTON save.CONFIG:
 
 API: `ICONBUTTON_CLICKED(name)`, `ICONBUTTON_VALUE(name)`, `ICONBUTTON_SET(name, bool)`. Dwa ostatnie wymagają `TOGGLE=TRUE`.
 
-## SWITCH
+## TOGGLE
 
-`SWITCH` jest dwustanowym przełącznikiem logicznym. Tor, uchwyt i poświata są niezależnymi warstwami wizualnymi.
+`TOGGLE` jest dwustanowym przełącznikiem logicznym. Tor, uchwyt i poświata są niezależnymi warstwami wizualnymi.
 
 ```nyota
-SWITCH wifi, panel, [96, 34], [20, 20], VALUE=TRUE
-SWITCH wifi.CONFIG:
+TOGGLE wifi, panel, [96, 34], [20, 20], VALUE=TRUE
+TOGGLE wifi.CONFIG:
     TRACKON = EMERALD
     TRACKOFF = DARKGRAY
     THUMBFILL = WHITE
@@ -618,7 +618,7 @@ SWITCH wifi.CONFIG:
     OFFTEXT = "OFF"
 ```
 
-API: `SWITCH_VALUE(name)`, `SWITCH_SET(name, bool)`, `SWITCH_CHANGED(name)`. Przełącznik działa myszą oraz klawiaturą `Space/Enter`.
+API: `TOGGLE_VALUE(name)`, `TOGGLE_SET(name, bool)`, `TOGGLE_CHANGED(name)`. Przełącznik działa myszą oraz klawiaturą `Space/Enter`.
 
 ## FRAME
 
@@ -640,7 +640,7 @@ FRAME network.CONFIG:
     LPADY = 28
 
 LABEL ethLabel, network, [180, 28], AUTO, TEXT="Ethernet"
-SWITCH eth, network, [96, 34], AUTO, VALUE=TRUE
+TOGGLE eth, network, [96, 34], AUTO, VALUE=TRUE
 ```
 
 `TITLEPOS`: `TOPLEFT`, `TOPCENTER`, `TOPRIGHT`. `FRAME` obsługuje również `CLIP` i zaokrąglone przycinanie dzieci.
