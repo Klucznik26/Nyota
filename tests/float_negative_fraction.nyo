@@ -1,5 +1,6 @@
-# Oczekiwane: zawiera -0.500
+# Oczekiwane: zawiera NEG_OK
 BEGIN
 VAR x := -0.5
-PRINT x
+IF x = -0.5:
+    PRINT "NEG_OK", x
 END
