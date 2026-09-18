@@ -22,7 +22,7 @@ Tunga     — edytor (osobny projekt; potrafi uruchomić Nyotę)
 AyoOS     — pierwszy system-host
 ```
 
-Nyota nie jest modułem Tungi. VS Code będzie kolejnym edytorem, analogicznie.
+Nyota nie jest modułem Tungi. VS Code jest drugim obsługiwanym edytorem, analogicznie do Tungi.
 
 `PRINT`, `GRAPH`, `INPUT` i `DELAY` **należą do języka** i muszą działać
 na każdym hoście, w tym na Linuksie. Host nie wycina tych poleceń.
@@ -55,7 +55,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">NYASM: bezpieczna VM R0-R3 z INPUT/OUTPUT i MOV/ADD/SUB/MUL/DIV/MOD/STORE wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
-- <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>
+- Tunga pozostaje osobnym edytorem wywołującym interpreter Nyoty; integracja Tungi nie jest częścią tego repozytorium.
 - <span style="color: #006A4E;">Linux: pełny host POSIX/SDL2; PRINT/GRAPH/INPUT/DELAY, FILE/DIR, SCREEN, BUTTON i SPRITE wykonane 2026-09-18</span>
 - Pomoc Tunga/AyoEdit znajduje się poza dostępnym repozytorium Nyoty; źródłem prawdy pozostaje reguła 4 spacji.
 
