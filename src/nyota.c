@@ -130,6 +130,21 @@ static int32_t HostUiComboSetIndex(int32_t handle, uint32_t index) {
     return -1;
 }
 
+static int32_t HostUiTareaGetText(int32_t handle, char *out, uint32_t cap, uint32_t *out_size) {
+    if (g_host && g_host->ui_tarea_get_text) return g_host->ui_tarea_get_text(handle, out, cap, out_size);
+    return -1;
+}
+
+static int32_t HostUiTareaSetText(int32_t handle, const char *text) {
+    if (g_host && g_host->ui_tarea_set_text) return g_host->ui_tarea_set_text(handle, text);
+    return -1;
+}
+
+static int32_t HostUiTareaChanged(int32_t handle) {
+    if (g_host && g_host->ui_tarea_changed) return g_host->ui_tarea_changed(handle);
+    return -1;
+}
+
 static int32_t HostSpriteLoad(const char *path) {
     if (g_host && g_host->gfx_sprite_load) return g_host->gfx_sprite_load(path);
     return -1;
@@ -3103,6 +3118,28 @@ static NyotaVal ParsePrimary(const char **pp) {
         char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+10,args,3);NyotaUiControl*uc;NyotaVal iv;
         if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("COMBO_SET wymaga (nazwa, indeks)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}iv=Eval(args[1]);if(iv.type!=TYPE_INT||iv.i<0){OutError("COMBO_SET: indeks wymaga nieujemnego INTEGER");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_COMBO||(uint32_t)iv.i>=UiItemsCount(uc->spec.items)||HostUiComboSetIndex(uc->host_handle,(uint32_t)iv.i)!=0){OutError("COMBO_SET: indeks poza zakresem albo host odrzucil");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}uc->spec.selected=(uint32_t)iv.i;ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
     }
+    if (NStrEqN(expr, "TAREA_TEXT(", 11)) {
+        char args[2][MAX_STR_LEN],name[64],buf[NYOTA_UI_TEXT_MAX];uint32_t got=0;
+        int n=SplitFunctionArgs(expr+11,args,2);NyotaUiControl*uc;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("TAREA_TEXT() wymaga nazwy TAREA");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_TAREA){OutError("TAREA_TEXT: nieznana TAREA");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        if(HostUiTareaGetText(uc->host_handle,buf,sizeof(buf),&got)!=0){OutError("TAREA_TEXT: host nie zwrocil tekstu");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValClear(&result);result.type=TYPE_STR;NStrCopy(result.s,buf,sizeof(result.s));NStrCopy(uc->spec.text,buf,sizeof(uc->spec.text));*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "TAREA_SET(", 10)) {
+        char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+10,args,3);NyotaUiControl*uc;NyotaVal tv;
+        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("TAREA_SET wymaga (nazwa, STRING)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        tv=Eval(args[1]);if(tv.type!=TYPE_STR){OutError("TAREA_SET: drugi argument wymaga STRING");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_TAREA||HostUiTareaSetText(uc->host_handle,tv.s)!=0){OutError("TAREA_SET: host odrzucil tekst");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        NStrCopy(uc->spec.text,tv.s,sizeof(uc->spec.text));ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "TAREA_CHANGED(", 14)) {
+        char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+14,args,2);NyotaUiControl*uc;int32_t ch;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("TAREA_CHANGED() wymaga nazwy TAREA");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_TAREA){OutError("TAREA_CHANGED: nieznana TAREA");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ch=HostUiTareaChanged(uc->host_handle);if(ch<0){OutError("TAREA_CHANGED: host nie obsluguje zdarzenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValFromBool(&result,ch!=0);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
     if (NStrEqN(expr, "DAREA_DROPPED(", 14)) {
         char args[2][MAX_STR_LEN], name[64];
         int n = SplitFunctionArgs(expr + 14, args, 2);
@@ -5260,6 +5297,12 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
     s->accept = NYOTA_UI_ACCEPT_ALL;
     s->multi = 1;
     s->radius = 0;
+    s->layout = NYOTA_UI_LAYOUT_FREE;
+    s->gap = 8;
+    s->layout_pad_x = 8;
+    s->layout_pad_y = 8;
+    s->readonly = 0;
+    UiColorSolid(&s->caret_color, 235, 240, 248, 255);
     s->logical_size = 1;
     s->checked = 0;
 
@@ -5342,6 +5385,13 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
         UiColorSolid(&s->background.colors[0], 42, 48, 58, 255);
         s->border = 1;
         s->radius = 6;
+    } else if (kind == NYOTA_UI_CTRL_TAREA) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 26, 30, 37, 255);
+        s->border = 1;
+        s->radius = 6;
+        s->wrap = 1;
+        s->valign = NYOTA_UI_VALIGN_TOP;
     }
 }
 
@@ -5372,14 +5422,15 @@ static int UiControlPropertyAllowed(uint8_t k,const char *p){
         return NStrEq(p,"TEXT")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"UNDERLINE")||NStrEq(p,"HALIGN")||NStrEq(p,"VALIGN")||NStrEq(p,"WRAP")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"PADX")||NStrEq(p,"PADY");
     }
     if(k==NYOTA_UI_CTRL_LABEL) return NStrEq(p,"TEXT")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"UNDERLINE")||NStrEq(p,"HALIGN")||NStrEq(p,"VALIGN")||NStrEq(p,"WRAP")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"PADX")||NStrEq(p,"PADY");
-    if(k==NYOTA_UI_CTRL_PANEL) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CLIP")||NStrEq(p,"RADIUS");
+    if(k==NYOTA_UI_CTRL_PANEL) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CLIP")||NStrEq(p,"RADIUS")||NStrEq(p,"LAYOUT")||NStrEq(p,"GAP")||NStrEq(p,"LPADX")||NStrEq(p,"LPADY");
     if(k==NYOTA_UI_CTRL_DAREA) return UiControlPropertyAllowed(NYOTA_UI_CTRL_LABEL,p)||NStrEq(p,"SHAPE")||NStrEq(p,"ACCEPT")||NStrEq(p,"MULTI")||NStrEq(p,"BGOVER")||NStrEq(p,"CBORDEROVER")||NStrEq(p,"BWIDTHOVER")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"PADX")||NStrEq(p,"PADY");
     if(k==NYOTA_UI_CTRL_CBOX) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CCHECK")||NStrEq(p,"CHECKED")||NStrEq(p,"CSYMBOL")||NStrEq(p,"ENABLED");
     if(k==NYOTA_UI_CTRL_RADIO) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CCHECK")||NStrEq(p,"CHECKED")||NStrEq(p,"RGROUP")||NStrEq(p,"ENABLED");
     if(k==NYOTA_UI_CTRL_COMBO) return NStrEq(p,"ITEMS")||NStrEq(p,"SELECTED")||NStrEq(p,"BG")||NStrEq(p,"CTEXT")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CARROW")||NStrEq(p,"BGDROP")||NStrEq(p,"CDROP")||NStrEq(p,"BGSELECT")||NStrEq(p,"CSELECT")||NStrEq(p,"HOVER")||NStrEq(p,"BGHOVER")||NStrEq(p,"CHOVER")||NStrEq(p,"MAXVISIBLE")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"PADX")||NStrEq(p,"PADY");
     if(k==NYOTA_UI_CTRL_SEP) return NStrEq(p,"CSEP")||NStrEq(p,"THICK")||NStrEq(p,"EFFECT")||NStrEq(p,"BG");
     if(k==NYOTA_UI_CTRL_TABS) return NStrEq(p,"SELECTED");
-    if(k==NYOTA_UI_CTRL_TAB) return NStrEq(p,"TABBG")||NStrEq(p,"TABFONT")||NStrEq(p,"TABFSIZE")||NStrEq(p,"TABCTEXT")||NStrEq(p,"TABBOLD")||NStrEq(p,"TABITALIC")||NStrEq(p,"TABUNDERLINE")||NStrEq(p,"TABBORDER")||NStrEq(p,"TABCBORDER")||NStrEq(p,"TABBWIDTH")||NStrEq(p,"TABRADIUS")||NStrEq(p,"TABPADX")||NStrEq(p,"TABPADY")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CLIP")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED");
+    if(k==NYOTA_UI_CTRL_TAB) return NStrEq(p,"TABBG")||NStrEq(p,"TABFONT")||NStrEq(p,"TABFSIZE")||NStrEq(p,"TABCTEXT")||NStrEq(p,"TABBOLD")||NStrEq(p,"TABITALIC")||NStrEq(p,"TABUNDERLINE")||NStrEq(p,"TABBORDER")||NStrEq(p,"TABCBORDER")||NStrEq(p,"TABBWIDTH")||NStrEq(p,"TABRADIUS")||NStrEq(p,"TABPADX")||NStrEq(p,"TABPADY")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CLIP")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"LAYOUT")||NStrEq(p,"GAP")||NStrEq(p,"LPADX")||NStrEq(p,"LPADY");
+    if(k==NYOTA_UI_CTRL_TAREA) return NStrEq(p,"TEXT")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"UNDERLINE")||NStrEq(p,"WRAP")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"PADX")||NStrEq(p,"PADY")||NStrEq(p,"READONLY")||NStrEq(p,"CCARET");
     return 0;
 }
 
@@ -5405,6 +5456,12 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"BWIDTH")){if(!UiParseUIntProperty(rhs,&s->border_width,1,64,"BWIDTH"))return 0;}
     else if(NStrEq(prop,"CLIP")){if(!UiParseBoolProperty(rhs,&s->clip,"CLIP"))return 0;}
     else if(NStrEq(prop,"RADIUS")){if(!UiParseUIntProperty(rhs,&s->radius,0,1024,"RADIUS"))return 0;if(s->kind==NYOTA_UI_CTRL_DAREA&&s->shape!=NYOTA_UI_DAREA_RECT&&s->radius){OutError("DAREA RADIUS wymaga SHAPE=RECT");return 0;}}
+    else if(NStrEq(prop,"LAYOUT")){const char*v=NTrim(rhs);if(NStrEq(v,"FREE"))s->layout=NYOTA_UI_LAYOUT_FREE;else if(NStrEq(v,"ROW"))s->layout=NYOTA_UI_LAYOUT_ROW;else if(NStrEq(v,"COL"))s->layout=NYOTA_UI_LAYOUT_COL;else{OutError("LAYOUT wymaga FREE/ROW/COL");return 0;}}
+    else if(NStrEq(prop,"GAP")){if(!UiParseUIntProperty(rhs,&s->gap,0,1024,"GAP"))return 0;}
+    else if(NStrEq(prop,"LPADX")){if(!UiParseUIntProperty(rhs,&s->layout_pad_x,0,1024,"LPADX"))return 0;}
+    else if(NStrEq(prop,"LPADY")){if(!UiParseUIntProperty(rhs,&s->layout_pad_y,0,1024,"LPADY"))return 0;}
+    else if(NStrEq(prop,"READONLY")){if(!UiParseBoolProperty(rhs,&s->readonly,"READONLY"))return 0;}
+    else if(NStrEq(prop,"CCARET")){if(!UiParseColorProperty(rhs,&s->caret_color,"CCARET"))return 0;}
     else if(NStrEq(prop,"SHAPE")){const char*v=NTrim(rhs);if(NStrEq(v,"RECT"))s->shape=NYOTA_UI_DAREA_RECT;else if(NStrEq(v,"CIRCLE"))s->shape=NYOTA_UI_DAREA_CIRCLE;else if(NStrEq(v,"ELLIPSE"))s->shape=NYOTA_UI_DAREA_ELLIPSE;else{OutError("DAREA SHAPE wymaga RECT/CIRCLE/ELLIPSE");return 0;}if(s->shape!=NYOTA_UI_DAREA_RECT&&s->radius){OutError("DAREA RADIUS wymaga SHAPE=RECT");return 0;}}
     else if(NStrEq(prop,"ACCEPT")){const char*v=NTrim(rhs);if(NStrEq(v,"FILES"))s->accept=NYOTA_UI_ACCEPT_FILES;else if(NStrEq(v,"DIRS"))s->accept=NYOTA_UI_ACCEPT_DIRS;else if(NStrEq(v,"ALL"))s->accept=NYOTA_UI_ACCEPT_ALL;else{OutError("DAREA ACCEPT wymaga FILES/DIRS/ALL");return 0;}}
     else if(NStrEq(prop,"MULTI")){if(!UiParseBoolProperty(rhs,&s->multi,"MULTI"))return 0;}
@@ -5446,6 +5503,7 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
 }
 
 static int UiValidateControlSpec(const NyotaUiControlSpec *s){
+    if(s->position_mode==NYOTA_UI_POS_AUTO && s->kind==NYOTA_UI_CTRL_TAB){OutError("TAB nie przyjmuje pozycji AUTO");return 0;}
     if(s->kind==NYOTA_UI_CTRL_SEP&&(s->sep_effect==NYOTA_UI_SEP_INSET||s->sep_effect==NYOTA_UI_SEP_RAISED)&&s->sep_thickness<2){OutError("SEP INSET/RAISED wymaga THICK >= 2");return 0;}
     if(s->kind==NYOTA_UI_CTRL_DAREA&&s->shape!=NYOTA_UI_DAREA_RECT&&s->radius){OutError("DAREA RADIUS wymaga SHAPE=RECT");return 0;}
     if(s->kind==NYOTA_UI_CTRL_COMBO&&UiItemsCount(s->items)&&s->selected>=UiItemsCount(s->items)){OutError("COMBO SELECTED poza ITEMS");return 0;}
@@ -5460,7 +5518,8 @@ static int UiControlKindFromLine(const char *l,uint8_t*k,uint32_t*n){
     if(PeekWord(l,"PANEL")){*k=NYOTA_UI_CTRL_PANEL;*n=5;return 1;} if(PeekWord(l,"DAREA")){*k=NYOTA_UI_CTRL_DAREA;*n=5;return 1;}
     if(PeekWord(l,"CBOX")){*k=NYOTA_UI_CTRL_CBOX;*n=4;return 1;} if(PeekWord(l,"COMBO")){*k=NYOTA_UI_CTRL_COMBO;*n=5;return 1;}
     if(PeekWord(l,"SEP")){*k=NYOTA_UI_CTRL_SEP;*n=3;return 1;} if(PeekWord(l,"RADIO")){*k=NYOTA_UI_CTRL_RADIO;*n=5;return 1;}
-    if(PeekWord(l,"TABS")){*k=NYOTA_UI_CTRL_TABS;*n=4;return 1;} if(PeekWord(l,"TAB")){*k=NYOTA_UI_CTRL_TAB;*n=3;return 1;} return 0;
+    if(PeekWord(l,"TABS")){*k=NYOTA_UI_CTRL_TABS;*n=4;return 1;} if(PeekWord(l,"TAB")){*k=NYOTA_UI_CTRL_TAB;*n=3;return 1;}
+    if(PeekWord(l,"TAREA")){*k=NYOTA_UI_CTRL_TAREA;*n=5;return 1;} return 0;
 }
 static int UiResolveParent(const char *arg,uint8_t kind,NyotaWindow **pw,NyotaUiControl **pc,char *name,uint32_t cap){
     uint32_t pn=ParseIdent(NTrim(arg),name,cap);*pw=0;*pc=0;
@@ -5500,17 +5559,17 @@ static int UiExecControl(uint32_t ln,const char *raw,const char *line){
             temp.spec.tab_index=idx;first_prop=2;
         } else if(kind==NYOTA_UI_CTRL_CBOX||kind==NYOTA_UI_CTRL_RADIO){
             int32_t size=1;
-            if(!UiEvalPair(args[1],&x,&y,0,"CBOX/RADIO: pozycja"))return 1;first_prop=2;
+            if(NStrEq(NTrim(args[1]),"AUTO"))pos=NYOTA_UI_POS_AUTO;else if(!UiEvalPair(args[1],&x,&y,0,"CBOX/RADIO: pozycja"))return 1;first_prop=2;
             if(n>2){NyotaVal sv=Eval(args[2]);if(sv.type==TYPE_INT){if(sv.i<1||sv.i>64){OutError("CBOX/RADIO: size wymaga INTEGER 1..64");return 1;}size=sv.i;first_prop=3;}}
-            temp.spec.logical_size=(uint32_t)size;temp.spec.w=temp.spec.h=NYOTA_UI_CHECK_BASE*(uint32_t)size;temp.spec.x=x;temp.spec.y=y;
+            temp.spec.logical_size=(uint32_t)size;temp.spec.w=temp.spec.h=NYOTA_UI_CHECK_BASE*(uint32_t)size;temp.spec.x=x;temp.spec.y=y;temp.spec.position_mode=pos;
         } else if(kind==NYOTA_UI_CTRL_SEP){
             NyotaVal lv;int32_t len;
-            if(n<3){OutError("SEP nazwa, rodzic, [x,y], dlugosc [, HORIZONTAL/VERTICAL]");return 1;}if(!UiEvalPair(args[1],&x,&y,0,"SEP: pozycja"))return 1;lv=Eval(args[2]);if(lv.type!=TYPE_INT||lv.i<=0){OutError("SEP: dlugosc wymaga dodatniego INTEGER");return 1;}len=lv.i;first_prop=3;
+            if(n<3){OutError("SEP nazwa, rodzic, [x,y]/AUTO, dlugosc [, HORIZONTAL/VERTICAL]");return 1;}if(NStrEq(NTrim(args[1]),"AUTO"))pos=NYOTA_UI_POS_AUTO;else if(!UiEvalPair(args[1],&x,&y,0,"SEP: pozycja"))return 1;lv=Eval(args[2]);if(lv.type!=TYPE_INT||lv.i<=0){OutError("SEP: dlugosc wymaga dodatniego INTEGER");return 1;}len=lv.i;first_prop=3;
             if(n>3&&(NStrEq(NTrim(args[3]),"HORIZONTAL")||NStrEq(NTrim(args[3]),"VERTICAL"))){temp.spec.orientation=NStrEq(NTrim(args[3]),"VERTICAL")?NYOTA_UI_SEP_VERTICAL:NYOTA_UI_SEP_HORIZONTAL;first_prop=4;}
-            temp.spec.x=x;temp.spec.y=y;if(temp.spec.orientation==NYOTA_UI_SEP_VERTICAL){temp.spec.w=1;temp.spec.h=(uint32_t)len;}else{temp.spec.w=(uint32_t)len;temp.spec.h=1;}
+            temp.spec.x=x;temp.spec.y=y;temp.spec.position_mode=pos;if(temp.spec.orientation==NYOTA_UI_SEP_VERTICAL){temp.spec.w=1;temp.spec.h=(uint32_t)len;}else{temp.spec.w=(uint32_t)len;temp.spec.h=1;}
         } else {
-            if(n<3){OutError("NyotaUI: wymagane rodzic, [w,h], [x,y]/CENTER");return 1;}if(!UiEvalPair(args[1],&wi,&hi,1,"NyotaUI: rozmiar"))return 1;
-            if(NStrEq(NTrim(args[2]),"CENTER"))pos=NYOTA_UI_POS_CENTER;else{if(!UiEvalPair(args[2],&x,&y,0,"NyotaUI: pozycja"))return 1;}
+            if(n<3){OutError("NyotaUI: wymagane rodzic, [w,h], [x,y]/CENTER/AUTO");return 1;}if(!UiEvalPair(args[1],&wi,&hi,1,"NyotaUI: rozmiar"))return 1;
+            if(NStrEq(NTrim(args[2]),"CENTER"))pos=NYOTA_UI_POS_CENTER;else if(NStrEq(NTrim(args[2]),"AUTO"))pos=NYOTA_UI_POS_AUTO;else{if(!UiEvalPair(args[2],&x,&y,0,"NyotaUI: pozycja"))return 1;}
             temp.spec.w=(uint32_t)wi;temp.spec.h=(uint32_t)hi;temp.spec.x=x;temp.spec.y=y;temp.spec.position_mode=pos;first_prop=3;
         }
         UiInheritWindowStyle(&temp);
