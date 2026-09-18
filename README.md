@@ -81,7 +81,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `MARK` | ✅ | klucze+kolumny, algebra, iteracja, sortowanie, przebudowa kolumn i statystyki |
 | `TABLE` | ✅ | nazwana kontrolka prezentacji LIST/TUPLE/MARK w trybie graficznym |
 | `BUTTON` | ✅ | nazwana kontrolka GUI; wygląd + wykrywanie kliknięcia na hoście POSIX |
-| `WIN / NyotaUI` | 🚧 | WIN, BUTTON, LABEL, PANEL, DAREA, CBOX, RADIO, COMBO, SEP, TABS/TAB, TAREA, SBAR i PBAR wdrożone na backendzie POSIX; kod `.nyo` pozostaje wspólny dla Linux/Windows/AyoOS |
+| `WIN / NyotaUI` | 🚧 | WIN, BUTTON, LABEL, PANEL, DAREA, CBOX, RADIO, COMBO, SEP, TABS/TAB, TAREA, SBAR, PBAR, EQBOX, SLIDER, STATBAR i TOOLBAR wdrożone na backendzie POSIX; kod `.nyo` pozostaje wspólny dla Linux/Windows/AyoOS |
 | `SPRITE` | ✅ | nazwany obiekt graficzny; ruch, widoczność, animacja klatkowa, jawne rysowanie i kolizja AABB |
 | `FILE / DIR / LS` | ✅ | wysokopoziomowy kontrakt hosta; pełny backend POSIX |
 | `RECORD / WITH` | ✅ | rekordy z blokadą typów i kontekstem pól |
@@ -175,7 +175,7 @@ zbudowania potrzebne są narzędzia RPM i nagłówki zgodności SDL2:
 ```bash
 sudo dnf install rpm-build gcc make pkgconf-pkg-config sdl2-compat-devel SDL2_image-devel tar gzip
 make rpm
-sudo dnf install packaging/nyota-0.5.0-18.fc44.x86_64.rpm
+sudo dnf install packaging/nyota-0.5.0-19.fc44.x86_64.rpm
 nyota /usr/share/nyota/tests/add_int.nyo
 ```
 
@@ -249,7 +249,7 @@ Najważniejsze dokumenty projektu:
 
 - [`docs/nyota.md`](docs/nyota.md) — bieżące zasady języka i faktyczny stan interpretera,
 - [`docs/nyota_v05.md`](docs/nyota_v05.md) — plan stabilizacji oraz zatwierdzone kierunki rozwoju,
-- [`docs/nyotaui.md`](docs/nyotaui.md) — kontrakt `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS/TAB`, `TAREA`, `SBAR`, `PBAR`, rodziców, `CONFIG`, obrazów i gradientów,
+- [`docs/nyotaui.md`](docs/nyotaui.md) — kontrakt `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS/TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, rodziców, `CONFIG`, obrazów i gradientów,
 - [`docs/do_wdrożenia.md`](docs/do_wdrożenia.md) — elementy oczekujące na implementację,
 - [`docs/zasadymd.md`](docs/zasadymd.md) — sposób oznaczania stanu prac w dokumentacji.
 
@@ -259,7 +259,7 @@ Najważniejsze dokumenty projektu:
 
 Po ustabilizowaniu rdzenia Nyota ma rozwijać się także w stronę bogatszych struktur danych, `DATETIME`, relacyjnego `MARK`, dalszego rozwoju `TABLE`, standardowego GUI, dalszego rozwoju sprite'ów, audio oraz dalszej pracy nad hostem Linuksa.
 
-Poza AyoOS działa rozszerzenie **Nyota Language Support 0.5.0** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Wersja 0.5.0 zna pełną składnię v0.5 oraz składnię NyotaUI `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `IMG` i `GRAD`, w tym FILE/DIR, SCREEN, RECORD/WITH, IMPORT, EVERY, obsługę błędów, jawne algorytmy SORT i NYASM. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
+Poza AyoOS działa rozszerzenie **Nyota Language Support 0.5.0** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię, automatycznie normalizuje wpisane polecenie `eqbox` do `EQBOX` i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Wersja 0.5.0 zna pełną składnię v0.5 oraz składnię NyotaUI `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `IMG` i `GRAD`, w tym FILE/DIR, SCREEN, RECORD/WITH, IMPORT, EVERY, obsługę błędów, jawne algorytmy SORT i NYASM. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
 
 Nyota nie ma zastępować C lub Zig w najniższych warstwach systemu. Jej celem jest wygodne tworzenie aplikacji, narzędzi, automatyzacji, grafiki i prostych gier przy zachowaniu własnej, spójnej semantyki.
 
