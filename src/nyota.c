@@ -5892,6 +5892,41 @@ static int UiParseBoolProperty(const char *rhs,uint8_t *out,const char *label){N
 static int UiParseUIntProperty(const char *rhs,uint32_t *out,uint32_t minv,uint32_t maxv,const char *label){NyotaVal v=Eval(rhs);if(v.type!=TYPE_INT||v.i<(int32_t)minv||v.i>(int32_t)maxv){char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," ma nieprawidlowa wartosc",sizeof(e));OutError(e);return 0;}*out=(uint32_t)v.i;return 1;}
 static int UiParseIntProperty(const char *rhs,int32_t *out,int32_t minv,int32_t maxv,const char *label){NyotaVal v=Eval(rhs);if(v.type!=TYPE_INT||v.i<minv||v.i>maxv){char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," ma nieprawidlowa wartosc",sizeof(e));OutError(e);return 0;}*out=v.i;return 1;}
 static int UiParseStringProperty(const char *rhs,char *out,uint32_t cap,const char *label){NyotaVal v=Eval(rhs);if(v.type!=TYPE_STR){char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," wymaga STRING",sizeof(e));OutError(e);return 0;}NStrCopy(out,v.s,cap);return 1;}
+static int UiParseImagePathProperty(const char *rhs,char *out,uint32_t cap,const char *label){
+    const char *s=NTrim(rhs);
+    if(NStrEqN(s,"IMG(",4)){
+        NyotaUiBackground bg;
+        if(!UiParseBackground(s,&bg)||bg.kind!=NYOTA_UI_BG_IMAGE||!bg.image_path[0]){
+            char e[180];NStrCopy(e,label,sizeof(e));NStrAppend(e," wymaga IMG(\"plik\") albo STRING",sizeof(e));OutError(e);return 0;
+        }
+        NStrCopy(out,bg.image_path,cap);return 1;
+    }
+    return UiParseStringProperty(rhs,out,cap,label);
+}
+static int UiParseExpandedMask(const char *rhs,uint64_t *out){
+    NyotaVal v=Eval(rhs);uint32_t i;uint64_t m=0;
+    if(v.type!=TYPE_LIST){OutError("EXPANDED wymaga LIST indeksow INTEGER");return 0;}
+    for(i=0;i<v.list_len;i++){
+        if(v.list_items[i].type!=TYPE_INT||v.list_items[i].i<0||v.list_items[i].i>=64){OutError("EXPANDED: indeksy musza byc INTEGER 0..63");return 0;}
+        m|=(1ULL<<(uint32_t)v.list_items[i].i);
+    }
+    *out=m;return 1;
+}
+static int UiInputTextValid(uint8_t type,const char *s){
+    const char *p;if(!s)return 0;
+    if(type==NYOTA_UI_INPUT_TEXT||type==NYOTA_UI_INPUT_SEARCH)return 1;
+    if(type==NYOTA_UI_INPUT_NUMBER){
+        p=s;if(*p=='-'||*p=='+')p++;if(!*p)return 0;
+        while(*p){if(*p<'0'||*p>'9')return 0;p++;}return 1;
+    }
+    if(type==NYOTA_UI_INPUT_EMAIL){
+        const char *at=strchr(s,'@'),*dot;
+        if(!at||at==s||strchr(at+1,'@')||!at[1])return 0;
+        dot=strrchr(at+1,'.');return dot&&dot>at+1&&dot[1];
+    }
+    if(type==NYOTA_UI_INPUT_PASSWORD)return s[0]!=0;
+    return 1;
+}
 
 static int UiListToItems(const NyotaVal *v,char *out,uint32_t cap){
     uint32_t i,used=0;
