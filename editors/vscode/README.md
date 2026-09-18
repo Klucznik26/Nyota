@@ -2,7 +2,7 @@
 
 Rozszerzenie VS Code dla języka Nyota.
 
-## Wersja 0.4.0
+## Wersja 0.4.1
 
 Rozszerzenie obsługuje:
 
@@ -15,7 +15,9 @@ Rozszerzenie obsługuje:
 - automatyczny zapis zmienionego pliku przed uruchomieniem,
 - uruchamianie programu w zintegrowanym terminalu VS Code,
 - katalog roboczy ustawiany na katalog uruchamianego pliku,
-- konfigurowalną ścieżkę interpretera przez `nyota.interpreterPath`.
+- konfigurowalną ścieżkę interpretera przez `nyota.interpreterPath`,
+- próbki kolorów (swatches) i standardowy picker VS Code dla 98 nazwanych kolorów Nyoty, `TRANSPARENT`, `0xRRGGBB` i `0xRRGGBBAA`,
+- zachowanie `BACKDROP` bez próbki koloru, ponieważ jego wynik zależy od sceny pod obiektem.
 
 Domyślna wartość interpretera to:
 
@@ -56,14 +58,23 @@ npx @vscode/vsce package
 Dla tej wersji powstanie plik:
 
 ```text
-nyota-language-support-0.4.0.vsix
+nyota-language-support-0.4.1.vsix
 ```
 
 Instalacja:
 
 ```bash
-code --install-extension ./nyota-language-support-0.2.1.vsix --force
+code --install-extension ./nyota-language-support-0.4.1.vsix --force
 ```
+
+## Zmiany w 0.4.1
+
+- kolorowe próbki obok nazwanych kolorów NyotaUI i zapisów szesnastkowych,
+- kliknięcie próbki otwiera standardowy selektor koloru VS Code,
+- picker potrafi zapisać dokładnie dopasowany kolor jako nazwę Nyoty albo jako `0xRRGGBB` / `0xRRGGBBAA`,
+- `TRANSPARENT` jest obsługiwany z alfą 0,
+- `BACKDROP` celowo nie otrzymuje próbki, bo nie reprezentuje pojedynczego RGB,
+- paleta rozszerzenia jest testowana na zgodność z `src/nyota_color.h`.
 
 ## Zmiany w 0.4.0
 
