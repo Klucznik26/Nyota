@@ -1,0 +1,12 @@
+# Oczekiwane: zawiera EVERY_OK
+PROCEDURE Tick():
+    count := count + 1
+
+BEGIN
+VAR count := 0
+EVERY 10 CALL Tick
+DELAY 60
+CANCEL EVERY Tick
+IF count >= 1:
+    PRINT "EVERY_OK"
+END
