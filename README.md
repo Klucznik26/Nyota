@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo/NyotaLogo_03.png" alt="Nyota logo" width="220">
+</p>
+
 <h1 align="center">Nyota</h1>
 
 <p align="center">
