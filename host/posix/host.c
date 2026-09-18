@@ -69,6 +69,7 @@ typedef struct {
     uint8_t prev_down;
     uint8_t hover;
     uint8_t pressed;
+    uint8_t focused;
     uint8_t dropped;
     uint8_t combo_open;
     int32_t combo_hover;
@@ -90,6 +91,7 @@ static HostUiFont g_host_ui_fonts[HOST_MAX_UI_FONTS];
 static void host_ui_render_background_index(int idx);
 static void host_ui_destroy_index(int idx);
 static void host_ui_redraw_controls(int window_index);
+static NyotaColor host_ui_tint_color(NyotaColor c,int delta);
 
 static void posix_emit(char c) {
     fputc(c, stdout);
@@ -278,6 +280,59 @@ static int host_ui_tab_header_rect(int idx, SDL_Rect *out) {
     return out->w>0;
 }
 
+static int host_ui_control_focusable(const HostUiControl *ctl) {
+    if (!ctl || !ctl->used || !ctl->spec.enabled) return 0;
+    return ctl->spec.kind == NYOTA_UI_CTRL_BUTTON ||
+           ctl->spec.kind == NYOTA_UI_CTRL_CBOX ||
+           ctl->spec.kind == NYOTA_UI_CTRL_RADIO ||
+           ctl->spec.kind == NYOTA_UI_CTRL_COMBO ||
+           ctl->spec.kind == NYOTA_UI_CTRL_DAREA ||
+           ctl->spec.kind == NYOTA_UI_CTRL_TAB;
+}
+
+static void host_ui_set_focus(int window_index, int wanted) {
+    int i;
+    if (window_index < 0 || window_index >= HOST_MAX_UI_WINDOWS || !g_ui_windows[window_index].used) return;
+    for (i = 0; i < HOST_MAX_UI_CONTROLS; i++) {
+        HostUiControl *ctl = &g_host_ui_controls[i];
+        if (!ctl->used || ctl->window_handle != g_ui_windows[window_index].handle) continue;
+        ctl->focused = (i == wanted && host_ui_control_focusable(ctl)) ? 1 : 0;
+    }
+}
+
+static void host_ui_focus_next(int window_index, int reverse) {
+    int i, current = -1, first = -1, last = -1, next = -1;
+    int32_t wh;
+    if (window_index < 0 || window_index >= HOST_MAX_UI_WINDOWS || !g_ui_windows[window_index].used) return;
+    wh = g_ui_windows[window_index].handle;
+    for (i = 0; i < HOST_MAX_UI_CONTROLS; i++) {
+        HostUiControl *ctl = &g_host_ui_controls[i];
+        if (!ctl->used || ctl->window_handle != wh || !host_ui_control_visible_index(i) ||
+            !host_ui_control_focusable(ctl)) continue;
+        if (first < 0) first = i;
+        last = i;
+        if (ctl->focused) current = i;
+    }
+    if (first < 0) return;
+    if (current < 0) next = reverse ? last : first;
+    else if (reverse) {
+        for (i = current - 1; i >= 0; i--) {
+            HostUiControl *ctl = &g_host_ui_controls[i];
+            if (ctl->used && ctl->window_handle == wh && host_ui_control_visible_index(i) &&
+                host_ui_control_focusable(ctl)) { next = i; break; }
+        }
+        if (next < 0) next = last;
+    } else {
+        for (i = current + 1; i < HOST_MAX_UI_CONTROLS; i++) {
+            HostUiControl *ctl = &g_host_ui_controls[i];
+            if (ctl->used && ctl->window_handle == wh && host_ui_control_visible_index(i) &&
+                host_ui_control_focusable(ctl)) { next = i; break; }
+        }
+        if (next < 0) next = first;
+    }
+    host_ui_set_focus(window_index, next);
+}
+
 static int host_ui_point_in_control(int idx, int x, int y) {
     HostUiControl *c;
     SDL_Rect r;
@@ -353,6 +408,10 @@ static void host_pump(void) {
                     HostUiControl *ctl = &g_host_ui_controls[i];
                     uint8_t over = 0;
                     if (!ctl->used || ctl->window_handle != g_ui_windows[ui].handle) continue;
+                    if (!ctl->spec.enabled) {
+                        if (ctl->hover) { ctl->hover = 0; changed = 1; }
+                        continue;
+                    }
 
                     if (ctl->spec.kind == NYOTA_UI_CTRL_TAB) {
                         SDL_Rect hr;
@@ -396,11 +455,13 @@ static void host_pump(void) {
                     HostUiControl *ctl=&g_host_ui_controls[i];
                     int hit=0;
                     if(!ctl->used||ctl->window_handle!=g_ui_windows[ui].handle)continue;
+                    if(!ctl->spec.enabled)continue;
                     if(ctl->spec.kind==NYOTA_UI_CTRL_TAB){
                         SDL_Rect hr;
                         hit=host_ui_tab_header_rect(i,&hr)&&e.button.x>=hr.x&&e.button.x<hr.x+hr.w&&e.button.y>=hr.y&&e.button.y<hr.y+hr.h;
                         if(hit){
                             int pi=host_ui_control_index_by_handle(ctl->parent_control_handle);
+                            host_ui_set_focus(ui,i);
                             ctl->pressed=1;
                             if(pi>=0)g_host_ui_controls[pi].spec.selected=ctl->spec.tab_index;
                             changed=1;break;
@@ -416,10 +477,12 @@ static void host_pump(void) {
                             ctl->combo_open=0;ctl->combo_hover=-1;changed=1;break;
                         }
                         if(host_ui_point_in_control(i,e.button.x,e.button.y)){
+                            host_ui_set_focus(ui,i);
                             ctl->pressed=1;ctl->combo_open=(uint8_t)!ctl->combo_open;ctl->combo_hover=-1;changed=1;break;
                         }
                     }
                     if((ctl->spec.kind==NYOTA_UI_CTRL_CBOX||ctl->spec.kind==NYOTA_UI_CTRL_RADIO)&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                        host_ui_set_focus(ui,i);
                         ctl->pressed=1;
                         if(ctl->spec.kind==NYOTA_UI_CTRL_CBOX)ctl->spec.checked=(uint8_t)!ctl->spec.checked;
                         else{
@@ -429,6 +492,7 @@ static void host_pump(void) {
                         changed=1;break;
                     }
                     if(ctl->spec.kind==NYOTA_UI_CTRL_BUTTON&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                        host_ui_set_focus(ui,i);
                         ctl->pressed=1;changed=1;break;
                     }
                 }
@@ -460,6 +524,7 @@ static void host_pump(void) {
                     int is_dir, accepted;
                     if (!ctl->used || ctl->window_handle != g_ui_windows[ui].handle ||
                         ctl->spec.kind != NYOTA_UI_CTRL_DAREA ||
+                        !ctl->spec.enabled ||
                         !host_ui_point_in_control(i, mx, my)) continue;
                     if (stat(e.drop.file, &st) != 0) break;
                     is_dir = S_ISDIR(st.st_mode) ? 1 : 0;
@@ -482,7 +547,14 @@ static void host_pump(void) {
         }
         if (e.type == SDL_KEYDOWN) {
             SDL_Keycode k = e.key.keysym.sym;
+            int ui = host_ui_index_by_window_id(e.key.windowID);
             if (k == SDLK_LSHIFT || k == SDLK_RSHIFT) g_shift = 1;
+            if (ui >= 0 && k == SDLK_TAB) {
+                host_ui_focus_next(ui, (e.key.keysym.mod & KMOD_SHIFT) ? 1 : 0);
+                if (g_ui_windows[ui].has_background) host_ui_render_background_index(ui);
+                host_ui_redraw_controls(ui);
+                continue;
+            }
             if (k == SDLK_ESCAPE && g_win &&
                 e.key.windowID == SDL_GetWindowID(g_win)) g_graph_closed = 1;
         }
@@ -1179,10 +1251,11 @@ static void host_ui_draw_border(SDL_Renderer *ren, const HostUiControl *ctl, SDL
     uint32_t k, width;
     NyotaColor color;
     if (!ren || !ctl || !ctl->spec.border) return;
-    color = (ctl->spec.kind == NYOTA_UI_CTRL_DAREA && ctl->hover) ?
+    color = (ctl->spec.kind == NYOTA_UI_CTRL_DAREA && ctl->hover && ctl->spec.enabled) ?
             ctl->spec.border_color_over : ctl->spec.border_color;
-    width = (ctl->spec.kind == NYOTA_UI_CTRL_DAREA && ctl->hover) ?
+    width = (ctl->spec.kind == NYOTA_UI_CTRL_DAREA && ctl->hover && ctl->spec.enabled) ?
             ctl->spec.border_width_over : ctl->spec.border_width;
+    if(!ctl->spec.enabled) color = host_ui_tint_color(color,-36);
     if (color.mode == NYOTA_COLOR_TRANSPARENT || !width) return;
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(ren, color.r, color.g, color.b, color.a);
@@ -1280,8 +1353,8 @@ static void host_ui_draw_tab_header(int idx,SDL_Renderer *ren){
     int active;
     if(!host_ui_tab_header_rect(idx,&r))return;
     active=host_ui_tab_is_active(idx);
-    host_ui_tint_background(&c->spec.tab_background,&bg,active?8:(c->hover?3:-8));
-    if(c->pressed)host_ui_tint_background(&c->spec.tab_background,&bg,-14);
+    host_ui_tint_background(&c->spec.tab_background,&bg,!c->spec.enabled?-28:(active?8:(c->hover?3:-8)));
+    if(c->spec.enabled&&c->pressed)host_ui_tint_background(&c->spec.tab_background,&bg,-14);
 
     memset(&tmp,0,sizeof(tmp));
     tmp.kind=NYOTA_UI_CTRL_TABS;
@@ -1289,7 +1362,7 @@ static void host_ui_draw_tab_header(int idx,SDL_Renderer *ren){
     sf=host_ui_control_background_surface(&tmp,&tmp.background);
     if(sf){tx=SDL_CreateTextureFromSurface(ren,sf);SDL_FreeSurface(sf);if(tx){SDL_SetTextureBlendMode(tx,SDL_BLENDMODE_BLEND);SDL_RenderCopy(ren,tx,NULL,&r);SDL_DestroyTexture(tx);}}
 
-    bc=host_ui_tint_color(c->spec.tab_border_color,active?18:(c->hover?8:0));
+    bc=host_ui_tint_color(c->spec.tab_border_color,!c->spec.enabled?-32:(active?18:(c->hover?8:0)));
     if(c->spec.tab_border&&bc.mode!=NYOTA_COLOR_TRANSPARENT){
         int k;SDL_SetRenderDrawColor(ren,bc.r,bc.g,bc.b,bc.a);
         for(k=0;k<(int)c->spec.tab_border_width;k++){
@@ -1302,11 +1375,29 @@ static void host_ui_draw_tab_header(int idx,SDL_Renderer *ren){
     memset(&tmp,0,sizeof(tmp));
     strncpy(tmp.font,c->spec.tab_font,sizeof(tmp.font)-1);
     tmp.font_size=c->spec.tab_font_size;
-    tc=host_ui_tint_color(c->spec.tab_text_color,active?16:0);
+    tc=host_ui_tint_color(c->spec.tab_text_color,!c->spec.enabled?-62:(active?16:0));
     tmp.text_color=tc;tmp.bold=c->spec.tab_bold;tmp.italic=c->spec.tab_italic;tmp.underline=c->spec.tab_underline;
     tmp.halign=NYOTA_UI_ALIGN_CENTER;tmp.valign=NYOTA_UI_VALIGN_MIDDLE;
     strncpy(tmp.text,c->spec.text,sizeof(tmp.text)-1);
     host_ui_draw_text(ren,&tmp,r);
+}
+
+static void host_ui_draw_focus_ring(SDL_Renderer *ren,const HostUiControl *ctl,SDL_Rect r){
+    SDL_Rect q=r;
+    NyotaColor c;
+    if(!ren||!ctl||!ctl->focused||!ctl->spec.enabled)return;
+    if(ctl->spec.kind==NYOTA_UI_CTRL_TAB)return;
+    c=host_ui_tint_color(ctl->spec.border_color,70);
+    if(c.mode==NYOTA_COLOR_TRANSPARENT){c.r=110;c.g=165;c.b=235;c.a=255;c.mode=NYOTA_COLOR_SOLID;}
+    SDL_SetRenderDrawBlendMode(ren,SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren,c.r,c.g,c.b,190);
+    q.x-=2;q.y-=2;q.w+=4;q.h+=4;
+    if(ctl->spec.kind==NYOTA_UI_CTRL_RADIO){
+        int seg,nseg=72,px=0,py=0;double pi=3.14159265358979323846;
+        double rr=(double)(q.w<q.h?q.w:q.h)/2.0,cx=q.x+q.w/2.0,cy=q.y+q.h/2.0;
+        for(seg=0;seg<=nseg;seg++){double a=2.0*pi*seg/nseg;int nx=(int)lrint(cx+cos(a)*rr),ny=(int)lrint(cy+sin(a)*rr);if(seg)SDL_RenderDrawLine(ren,px,py,nx,ny);px=nx;py=ny;}
+    }else if(ctl->spec.radius) host_ui_draw_rounded_rect(ren,q,(int)ctl->spec.radius+2);
+    else SDL_RenderDrawRect(ren,&q);
 }
 
 static void host_ui_draw_control_index(int idx) {
@@ -1339,7 +1430,10 @@ static void host_ui_draw_control_index(int idx) {
     {
         NyotaUiBackground state_bg;
         bg=&ctl->spec.background;
-        if(ctl->spec.kind==NYOTA_UI_CTRL_DAREA&&ctl->hover) bg=&ctl->spec.background_over;
+        if(!ctl->spec.enabled){
+            host_ui_tint_background(&ctl->spec.background,&state_bg,-28);
+            bg=&state_bg;
+        } else if(ctl->spec.kind==NYOTA_UI_CTRL_DAREA&&ctl->hover) bg=&ctl->spec.background_over;
         else if((ctl->spec.kind==NYOTA_UI_CTRL_BUTTON||ctl->spec.kind==NYOTA_UI_CTRL_CBOX||
                  ctl->spec.kind==NYOTA_UI_CTRL_RADIO||ctl->spec.kind==NYOTA_UI_CTRL_COMBO) &&
                 (ctl->hover||ctl->pressed)){
@@ -1352,24 +1446,32 @@ static void host_ui_draw_control_index(int idx) {
     if(ctl->spec.kind==NYOTA_UI_CTRL_CBOX&&ctl->spec.checked){
         if(!strcmp(ctl->spec.check_symbol,"X")){
             int pad=r.w/4;if(pad<3)pad=3;
-            SDL_SetRenderDrawColor(u->ren,ctl->spec.check_color.r,ctl->spec.check_color.g,ctl->spec.check_color.b,ctl->spec.check_color.a);
+            NyotaColor cc=ctl->spec.enabled?ctl->spec.check_color:host_ui_tint_color(ctl->spec.check_color,-70);
+            SDL_SetRenderDrawColor(u->ren,cc.r,cc.g,cc.b,cc.a);
             SDL_RenderDrawLine(u->ren,r.x+pad,r.y+pad,r.x+r.w-1-pad,r.y+r.h-1-pad);
             SDL_RenderDrawLine(u->ren,r.x+r.w-1-pad,r.y+pad,r.x+pad,r.y+r.h-1-pad);
         } else {
-            SDL_Rect tr=r;host_ui_draw_simple_text(u->ren,ctl->spec.check_symbol,ctl->spec.check_color,tr,ctl->spec.w>8?ctl->spec.w-4:8);
+            SDL_Rect tr=r;NyotaColor cc=ctl->spec.enabled?ctl->spec.check_color:host_ui_tint_color(ctl->spec.check_color,-70);host_ui_draw_simple_text(u->ren,ctl->spec.check_symbol,cc,tr,ctl->spec.w>8?ctl->spec.w-4:8);
         }
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_RADIO&&ctl->spec.checked){
-        int rr=(r.w<r.h?r.w:r.h)/4;SDL_Rect dot={r.x+r.w/2-rr,r.y+r.h/2-rr,rr*2,rr*2};SDL_SetRenderDrawColor(u->ren,ctl->spec.check_color.r,ctl->spec.check_color.g,ctl->spec.check_color.b,ctl->spec.check_color.a);
+        int rr=(r.w<r.h?r.w:r.h)/4;SDL_Rect dot={r.x+r.w/2-rr,r.y+r.h/2-rr,rr*2,rr*2};NyotaColor cc=ctl->spec.enabled?ctl->spec.check_color:host_ui_tint_color(ctl->spec.check_color,-70);SDL_SetRenderDrawColor(u->ren,cc.r,cc.g,cc.b,cc.a);
         for(int yy=-rr;yy<=rr;yy++){int xx=(int)sqrt((double)(rr*rr-yy*yy));SDL_RenderDrawLine(u->ren,r.x+r.w/2-xx,r.y+r.h/2+yy,r.x+r.w/2+xx,r.y+r.h/2+yy);}
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_COMBO){
         char item[NYOTA_UI_TEXT_MAX];SDL_Rect txr=r;txr.w-=r.h;
-        if(host_ui_item_at(ctl->spec.items,ctl->spec.selected,item,sizeof(item)))host_ui_draw_simple_text(u->ren,item,ctl->spec.text_color,txr,ctl->spec.font_size);
-        SDL_SetRenderDrawColor(u->ren,ctl->spec.arrow_color.r,ctl->spec.arrow_color.g,ctl->spec.arrow_color.b,ctl->spec.arrow_color.a);int cx=r.x+r.w-r.h/2,cy=r.y+r.h/2;SDL_RenderDrawLine(u->ren,cx-5,cy-2,cx,cy+3);SDL_RenderDrawLine(u->ren,cx,cy+3,cx+5,cy-2);
+        {NyotaColor tc=ctl->spec.enabled?ctl->spec.text_color:host_ui_tint_color(ctl->spec.text_color,-72);
+        if(host_ui_item_at(ctl->spec.items,ctl->spec.selected,item,sizeof(item)))host_ui_draw_simple_text(u->ren,item,tc,txr,ctl->spec.font_size);}
+        {NyotaColor ac=ctl->spec.enabled?ctl->spec.arrow_color:host_ui_tint_color(ctl->spec.arrow_color,-72);
+        SDL_SetRenderDrawColor(u->ren,ac.r,ac.g,ac.b,ac.a);}int cx=r.x+r.w-r.h/2,cy=r.y+r.h/2;SDL_RenderDrawLine(u->ren,cx-5,cy-2,cx,cy+3);SDL_RenderDrawLine(u->ren,cx,cy+3,cx+5,cy-2);
         if(ctl->combo_open){
             uint32_t count=0,k,vis;for(k=0;ctl->spec.items[k];k++)if(ctl->spec.items[k]=='\n')count++;vis=count<ctl->spec.max_visible?count:ctl->spec.max_visible;
             for(k=0;k<vis;k++){SDL_Rect row={r.x,r.y+r.h+(int)k*r.h,r.w,r.h};const NyotaUiBackground *rb=&ctl->spec.drop_background;NyotaColor tc=ctl->spec.drop_text_color;if(k==ctl->spec.selected){rb=&ctl->spec.selected_background;tc=ctl->spec.selected_text_color;}if(ctl->spec.hover_enabled&&(int32_t)k==ctl->combo_hover){rb=&ctl->spec.hover_background;tc=ctl->spec.hover_text_color;}NyotaUiControlSpec rs=ctl->spec;rs.w=(uint32_t)row.w;rs.h=(uint32_t)row.h;surface=host_ui_control_background_surface(&rs,rb);if(surface){tex=SDL_CreateTextureFromSurface(u->ren,surface);SDL_FreeSurface(surface);if(tex){SDL_SetTextureBlendMode(tex,SDL_BLENDMODE_BLEND);SDL_RenderCopy(u->ren,tex,NULL,&row);SDL_DestroyTexture(tex);}}if(host_ui_item_at(ctl->spec.items,k,item,sizeof(item)))host_ui_draw_simple_text(u->ren,item,tc,row,ctl->spec.font_size);}
         }
-    } else host_ui_draw_text(u->ren,&ctl->spec,r);
+    } else {
+        NyotaUiControlSpec ts=ctl->spec;
+        if(!ts.enabled) ts.text_color=host_ui_tint_color(ts.text_color,-72);
+        host_ui_draw_text(u->ren,&ts,r);
+    }
+    host_ui_draw_focus_ring(u->ren,ctl,r);
     SDL_RenderSetClipRect(u->ren,NULL);
 }
 
@@ -1444,6 +1546,7 @@ static int32_t host_ui_button_clicked(int32_t handle) {
     int i=host_ui_control_index_by_handle(handle), wi, mx=0,my=0;
     Uint32 buttons; uint8_t down; int inside, clicked;
     if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_BUTTON)return -1;
+    if(!g_host_ui_controls[i].spec.enabled)return 0;
     host_pump();
     wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle); if(wi<0)return -1;
     if(SDL_GetMouseFocus()!=g_ui_windows[wi].win){g_host_ui_controls[i].prev_down=0;return 0;}
