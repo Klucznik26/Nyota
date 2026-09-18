@@ -2,7 +2,7 @@
 
 Rozszerzenie VS Code dla języka Nyota.
 
-## Wersja 0.3.0
+## Wersja 0.4.0
 
 Rozszerzenie obsługuje:
 
@@ -56,7 +56,7 @@ npx @vscode/vsce package
 Dla tej wersji powstanie plik:
 
 ```text
-nyota-language-support-0.3.0.vsix
+nyota-language-support-0.4.0.vsix
 ```
 
 Instalacja:
@@ -64,6 +64,13 @@ Instalacja:
 ```bash
 code --install-extension ./nyota-language-support-0.2.1.vsix --force
 ```
+
+## Zmiany w 0.4.0
+
+- pełna precedencja operatorów `!`, `SHL`, `SHR`, `BAND`, `BXOR`, `BOR`,
+- aktualna składnia `RECORD`, `WITH`, `IMPORT`, `EVERY`, `SCREEN`,
+- systemowy `ERR_CODE`,
+- komplet instrukcji bezpiecznej VM NYASM.
 
 ## Zmiany w 0.3.0
 
