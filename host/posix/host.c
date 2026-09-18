@@ -3637,8 +3637,10 @@ static void host_ui_draw_input(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_
     if(sz>r.h-6)sz=r.h-6;if(sz<4)sz=4;
     if(ctl->spec.icon_path[0]){
         it=host_ui_texture_from_path(ren,&ctl->icon_cache,ctl->spec.icon_path);
-        if(ctl->spec.icon_pos==NYOTA_UI_ICON_RIGHT)ir=(SDL_Rect){r.x+r.w-r.h+(r.h-sz)/2,r.y+(r.h-sz)/2,sz,sz};
-        else ir=(SDL_Rect){r.x+5,r.y+(r.h-sz)/2,sz,sz};
+        if(ctl->spec.icon_pos==NYOTA_UI_ICON_RIGHT){
+            int clearSpace=ctl->spec.clear_button?r.h:0;
+            ir=(SDL_Rect){r.x+r.w-clearSpace-sz-5,r.y+(r.h-sz)/2,sz,sz};
+        }else ir=(SDL_Rect){r.x+5,r.y+(r.h-sz)/2,sz,sz};
         if(it)host_ui_draw_texture_fit(ren,it,ir,ctl->spec.enabled?255:120);
     }
     if(ctl->spec.prefix[0]){
