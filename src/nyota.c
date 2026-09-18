@@ -179,6 +179,8 @@ static int32_t HostDirList(const char *path, char *out, uint32_t cap, uint32_t *
 #define MAX_TABLE_COLS  16      // max kolumn jednej TABLE
 #define MAX_BUTTONS     64      // max nazwanych kontrolek BUTTON
 #define MAX_SPRITES     64      // max nazwanych obiektow SPRITE
+#define MAX_RECORDS     32
+#define MAX_RECORD_FIELDS 16
 #define NYOTA_INDENT    4       // jeden poziom bloku = dokładnie 4 spacje
 
 // ============================================================
@@ -194,6 +196,7 @@ static int32_t HostDirList(const char *path, char *out, uint32_t cap, uint32_t *
 #define TYPE_MARK    7
 #define TYPE_TUPLE   8
 #define TYPE_TIME    9
+#define TYPE_RECORD  10
 
 // Wartość (może być dowolnego typu)
 typedef struct NyotaVal NyotaVal;
@@ -229,6 +232,13 @@ typedef struct {
     uint8_t  return_type;      // TYPE_*; blokowany po pierwszym znanym RETURN
     uint8_t  return_type_known;
 } NyotaProc;
+
+typedef struct {
+    char name[64];
+    uint32_t field_count;
+    char fields[MAX_RECORD_FIELDS][64];
+    char defaults[MAX_RECORD_FIELDS][256];
+} NyotaRecordDef;
 
 // TABLE widget support: TABLE jest kontrolką prezentacji, nie typem Nyota.
 typedef struct {
@@ -281,6 +291,10 @@ static uint32_t  g_var_count = 0;
 
 static NyotaProc g_procs[MAX_PROCS];
 static uint32_t  g_proc_count = 0;
+
+static NyotaRecordDef g_records[MAX_RECORDS];
+static uint32_t g_record_count = 0;
+static NyotaVar *g_with_var = 0;
 
 static NyotaTable g_tables[MAX_TABLES];
 static uint32_t   g_table_count = 0;
@@ -632,6 +646,10 @@ static void OutError(const char *msg) {
     OutNewLine();
 }
 
+static void ValClear(NyotaVal *v);
+static NyotaVal *PoolAlloc(uint32_t n);
+static NyotaVal Eval(const char *expr);
+
 // ============================================================
 // ZMIENNE
 // ============================================================
@@ -664,6 +682,62 @@ static NyotaVar *CreateVar(const char *name) {
 static NyotaVar *GetOrCreateVar(const char *name) {
     NyotaVar *v = FindVar(name);
     if (!v) v = CreateVar(name);
+    return v;
+}
+
+static NyotaRecordDef *FindRecordDef(const char *name) {
+    uint32_t i;
+    for (i = 0; i < g_record_count; i++)
+        if (NStrEq(g_records[i].name, name)) return &g_records[i];
+    return 0;
+}
+
+static int RecordFieldIndexByDef(const NyotaRecordDef *d, const char *field) {
+    uint32_t i;
+    if (!d) return -1;
+    for (i = 0; i < d->field_count; i++)
+        if (NStrEq(d->fields[i], field)) return (int)i;
+    return -1;
+}
+
+static int RecordFieldIndex(const NyotaVal *v, const char *field) {
+    NyotaRecordDef *d;
+    if (!v || v->type != TYPE_RECORD) return -1;
+    d = FindRecordDef(v->s);
+    return RecordFieldIndexByDef(d, field);
+}
+
+static NyotaVal *WithFieldPtr(const char *field) {
+    int idx;
+    if (!g_with_var || g_with_var->val.type != TYPE_RECORD) return 0;
+    idx = RecordFieldIndex(&g_with_var->val, field);
+    if (idx < 0 || (uint32_t)idx >= g_with_var->val.list_len) return 0;
+    return &g_with_var->val.list_items[idx];
+}
+
+static NyotaVal RecordCreateInstance(const NyotaRecordDef *d) {
+    NyotaVal v;
+    uint32_t i;
+    ValClear(&v);
+    if (!d) return v;
+    v.type = TYPE_RECORD;
+    NStrCopy(v.s, d->name, sizeof(v.s));
+    v.list_len = d->field_count;
+    v.list_cap = d->field_count;
+    v.list_items = PoolAlloc(d->field_count ? d->field_count : 1);
+    if (!v.list_items) {
+        OutError("RECORD: pula wartosci pelna");
+        ValClear(&v);
+        return v;
+    }
+    for (i = 0; i < d->field_count; i++) {
+        v.list_items[i] = Eval(d->defaults[i]);
+        if (v.list_items[i].type == TYPE_NONE) {
+            OutError("RECORD: nie mozna obliczyc wartosci domyslnej pola");
+            ValClear(&v);
+            return v;
+        }
+    }
     return v;
 }
 
@@ -719,6 +793,7 @@ static const char *ValTypeName(uint8_t t) {
     if (t == TYPE_MARK) return "MARK";
     if (t == TYPE_TUPLE) return "TUPLE";
     if (t == TYPE_TIME) return "TIME";
+    if (t == TYPE_RECORD) return "RECORD";
     return "NONE";
 }
 
@@ -814,6 +889,12 @@ static int ValEqual(const NyotaVal *a, const NyotaVal *b) {
         return a->i == b->i;
     if (a->type == TYPE_FLOAT) return FloatMilli(a) == FloatMilli(b);
     if (a->type == TYPE_STR) return NStrEq(a->s, b->s);
+    if (a->type == TYPE_RECORD) {
+        if (!NStrEq(a->s, b->s) || a->list_len != b->list_len) return 0;
+        for (uint32_t i = 0; i < a->list_len; i++)
+            if (!ValEqual(&a->list_items[i], &b->list_items[i])) return 0;
+        return 1;
+    }
     if (a->type == TYPE_MARK) {
         if (a->i != b->i || a->list_len != b->list_len) return 0;
         for (uint32_t i = 0; i < a->list_len; i++) {
@@ -887,6 +968,10 @@ static void ValToStr(const NyotaVal *v, char *out, uint32_t max) {
         buf[11] = '>';
         buf[12] = '\0';
         NStrCopy(out, buf, max);
+    } else if (v->type == TYPE_RECORD) {
+        NStrCopy(out, "{", max);
+        NStrAppend(out, v->s, max);
+        NStrAppend(out, "}", max);
     } else if (v->type == TYPE_MARK) {
         NStrCopy(out, "{MARK ", max);
         char nbuf[16];
@@ -3417,7 +3502,14 @@ static NyotaVal ParsePrimary(const char **pp) {
         }
 
         {
-            NyotaVar *vv = FindVar(name);
+            NyotaVal *with_field = WithFieldPtr(name);
+            NyotaVar *vv = 0;
+            if (with_field) {
+                result = *with_field;
+                *pp = after;
+                return result;
+            }
+            vv = FindVar(name);
             if (!vv) {
                 char err[128];
                 NStrCopy(err, "Zmienna niezadeklarowana: ", sizeof(err));
@@ -3428,6 +3520,28 @@ static NyotaVal ParsePrimary(const char **pp) {
                 return result;
             }
             result = vv->val;
+            while (*after == '.') {
+                char field[64];
+                uint32_t fn;
+                int idx;
+                after = NTrim(after + 1);
+                fn = ParseIdent(after, field, sizeof(field));
+                if (!field[0]) {
+                    OutError("RECORD: brak nazwy pola po .");
+                    ValClear(&result);
+                    *pp = after;
+                    return result;
+                }
+                idx = RecordFieldIndex(&result, field);
+                if (idx < 0) {
+                    OutError("RECORD: nieznane pole");
+                    ValClear(&result);
+                    *pp = after + fn;
+                    return result;
+                }
+                result = result.list_items[idx];
+                after = NTrim(after + fn);
+            }
             while (*after == '[') {
                 char idx_buf[128];
                 uint32_t si = 0;
@@ -3895,6 +4009,111 @@ static void ParseParamList(NyotaProc *p, const char *open_paren) {
     }
 }
 
+static int ScanRecords(void) {
+    uint32_t i;
+    g_record_count = 0;
+    for (i = 0; i < g_line_count; i++) {
+        const char *line = NTrim(g_lines[i]);
+        uint32_t def_indent, j;
+        char name[64];
+        uint32_t nlen;
+        NyotaRecordDef *d;
+        if (!NStartsWith(line, "RECORD")) continue;
+        if (NIndent(g_lines[i]) != 0) {
+            g_cur_line = i;
+            OutError("RECORD musi byc deklarowany na poziomie 0 przed BEGIN");
+            return 0;
+        }
+        if (g_record_count >= MAX_RECORDS) {
+            g_cur_line = i;
+            OutError("Za duzo definicji RECORD");
+            return 0;
+        }
+        nlen = ParseIdent(NTrim(line + 6), name, sizeof(name));
+        if (!name[0]) {
+            g_cur_line = i;
+            OutError("RECORD: brak nazwy");
+            return 0;
+        }
+        {
+            const char *tail = NTrim(NTrim(line + 6) + nlen);
+            if (*tail != ':' || *NTrim(tail + 1)) {
+                g_cur_line = i;
+                OutError("RECORD: oczekiwano RECORD Nazwa:");
+                return 0;
+            }
+        }
+        if (FindRecordDef(name)) {
+            g_cur_line = i;
+            OutError("Duplikat RECORD");
+            return 0;
+        }
+        d = &g_records[g_record_count++];
+        NStrCopy(d->name, name, sizeof(d->name));
+        d->field_count = 0;
+        def_indent = NIndent(g_lines[i]);
+        j = i + 1;
+        while (j < g_line_count) {
+            const char *raw = g_lines[j];
+            const char *fl = NTrim(raw);
+            uint32_t ind;
+            char fname[64];
+            uint32_t fn;
+            const char *p;
+            uint32_t k;
+            if (!*fl || *fl == '#') { j++; continue; }
+            ind = NIndent(raw);
+            if (ind <= def_indent) break;
+            if (ind != def_indent + NYOTA_INDENT) {
+                g_cur_line = j;
+                OutError("RECORD: pole musi miec dokladnie jedno wciecie +4");
+                return 0;
+            }
+            if (d->field_count >= MAX_RECORD_FIELDS) {
+                g_cur_line = j;
+                OutError("RECORD: za duzo pol");
+                return 0;
+            }
+            fn = ParseIdent(fl, fname, sizeof(fname));
+            p = NTrim(fl + fn);
+            if (!fname[0] || p[0] != ':' || p[1] != '=') {
+                g_cur_line = j;
+                OutError("RECORD: pole wymaga nazwa := wartosc");
+                return 0;
+            }
+            for (k = 0; k < d->field_count; k++) {
+                if (NStrEq(d->fields[k], fname)) {
+                    g_cur_line = j;
+                    OutError("RECORD: duplikat pola");
+                    return 0;
+                }
+            }
+            p = NTrim(p + 2);
+            if (!*p) {
+                g_cur_line = j;
+                OutError("RECORD: brak wartosci domyslnej");
+                return 0;
+            }
+            if (NStrLen(p) >= sizeof(d->defaults[0])) {
+                g_cur_line = j;
+                OutError("RECORD: wyrazenie domyslne pola jest za dlugie");
+                return 0;
+            }
+            NStrCopy(d->fields[d->field_count], fname, sizeof(d->fields[0]));
+            NStrCopy(d->defaults[d->field_count], p, sizeof(d->defaults[0]));
+            d->field_count++;
+            j++;
+        }
+        if (d->field_count == 0) {
+            g_cur_line = i;
+            OutError("RECORD wymaga co najmniej jednego pola");
+            return 0;
+        }
+        i = j ? j - 1 : j;
+    }
+    return 1;
+}
+
 static void ScanProcedures(void) {
     g_proc_count = 0;
     for (uint32_t i = 0; i < g_line_count; i++) {
@@ -3907,6 +4126,11 @@ static void ScanProcedures(void) {
         char name[64];
         uint32_t nlen = ParseIdent(np, name, sizeof(name));
         if (!name[0]) continue;
+        if (FindRecordDef(name)) {
+            g_cur_line = i;
+            OutError("Nazwa FUNCTION/PROCEDURE koliduje z RECORD");
+            continue;
+        }
 
         uint32_t k;
         int dup = 0;
@@ -5421,6 +5645,35 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         return;
     }
 
+    // --- WITH rekord: ---
+    if (NStartsWith(line, "WITH")) {
+        const char *p = NTrim(line + 4);
+        char name[64];
+        uint32_t n = ParseIdent(p, name, sizeof(name));
+        NyotaVar *v;
+        NyotaVar *saved;
+        uint32_t my_indent, body_start, body_end;
+        p = NTrim(p + n);
+        if (!name[0] || *p != ':' || *NTrim(p + 1)) {
+            OutError("WITH wymaga WITH nazwa_rekordu:");
+            return;
+        }
+        v = FindVar(name);
+        if (!v || v->val.type != TYPE_RECORD) {
+            OutError("WITH wymaga zmiennej RECORD");
+            return;
+        }
+        my_indent = NIndent(raw);
+        body_start = ln + 1;
+        body_end = SkipBlock(body_start, my_indent);
+        saved = g_with_var;
+        g_with_var = v;
+        ExecLines(body_start, body_end, my_indent + NYOTA_INDENT);
+        g_with_var = saved;
+        g_cur_line = body_end;
+        return;
+    }
+
     // --- FILE_WRITE / FILE_APPEND ---
     if (NStartsWith(line, "FILE_WRITE") || NStartsWith(line, "FILE_APPEND")) {
         char args[2][MAX_STR_LEN], path[MAX_STR_LEN];
@@ -5548,6 +5801,32 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         char name[64]; uint32_t nlen = ParseIdent(line, name, sizeof(name));
         const char *after = NTrim(line + nlen);
 
+        // Przypisanie pola RECORD: obiekt.pole := wartosc
+        if (*after == '.') {
+            char field[64];
+            uint32_t fn;
+            int idx;
+            NyotaVar *v = FindVar(name);
+            NyotaVal rhs;
+            after = NTrim(after + 1);
+            fn = ParseIdent(after, field, sizeof(field));
+            if (!v || v->val.type != TYPE_RECORD) { OutError("Dostep . wymaga RECORD"); return; }
+            if (v->is_const) { OutError("Nie mozna zmienic stalego RECORD"); return; }
+            if (!field[0]) { OutError("RECORD: brak nazwy pola"); return; }
+            idx = RecordFieldIndex(&v->val, field);
+            if (idx < 0) { OutError("RECORD: nieznane pole"); return; }
+            after = NTrim(after + fn);
+            if (after[0] != ':' || after[1] != '=') { OutError("RECORD: pole wymaga :="); return; }
+            rhs = Eval(NTrim(after + 2));
+            if (rhs.type == TYPE_NONE) return;
+            if (v->val.list_items[idx].type != rhs.type) {
+                OutError("RECORD: blokowanie typu pola");
+                return;
+            }
+            v->val.list_items[idx] = rhs;
+            return;
+        }
+
         // Indeksowane przypisanie: lista[i] :=  albo  mark[klucz] :=  albo  mark[k][c] :=
         if (*after == '[') {
             char idx1[128];
@@ -5650,6 +5929,16 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         }
 
         if (after[0] == ':' && after[1] == '=') {
+            NyotaVal *wf = WithFieldPtr(name);
+            if (wf) {
+                NyotaVal nv;
+                if (g_with_var && g_with_var->is_const) { OutError("Nie mozna zmienic stalego RECORD"); return; }
+                nv = Eval(NTrim(after + 2));
+                if (nv.type == TYPE_NONE) return;
+                if (wf->type != nv.type) { OutError("RECORD: blokowanie typu pola"); return; }
+                *wf = nv;
+                return;
+            }
             NyotaVar *v = FindVar(name);
             if (v) {
                 if (v->is_const) { OutError("Nie mozna zmienic stałej"); return; }
@@ -6582,10 +6871,27 @@ static NyotaVal CallNamed(const char *name, const char *paren, const char **afte
         if (NStrEq(g_procs[pi].name, name)) { p = &g_procs[pi]; break; }
     }
     if (!p) {
-        char err[128];
-        NStrCopy(err, "Nieznana procedura: ", sizeof(err));
-        NStrAppend(err, name, sizeof(err));
-        OutError(err);
+        NyotaRecordDef *rd = FindRecordDef(name);
+        if (rd) {
+            const char *q;
+            if (!paren || *paren != '(') {
+                OutError("Konstruktor RECORD wymaga nawiasow");
+                return none;
+            }
+            q = NTrim(paren + 1);
+            if (*q != ')') {
+                OutError("Konstruktor RECORD nie przyjmuje argumentow");
+                return none;
+            }
+            if (after_out) *after_out = q + 1;
+            return RecordCreateInstance(rd);
+        }
+        {
+            char err[128];
+            NStrCopy(err, "Nieznana procedura/funkcja/RECORD: ", sizeof(err));
+            NStrAppend(err, name, sizeof(err));
+            OutError(err);
+        }
         return none;
     }
     if (!paren || *paren != '(') {
@@ -6859,6 +7165,8 @@ static void NyotaEmbedReset(void) {
     g_sprite_count = 0;
     g_var_count = 0;
     g_proc_count = 0;
+    g_record_count = 0;
+    g_with_var = 0;
     g_call_depth = 0;
     g_in_function[0] = 0;
     g_exit_flag = 0;
@@ -6896,8 +7204,16 @@ void NyotaEmbedRun(const char *src, void (*emit)(char c)) {
         g_ny_emit = 0;
         return;
     }
+    if (!ScanRecords()) {
+        g_ny_emit = 0;
+        return;
+    }
     ScanProcedures();
     NyotaEmbedReset();
+    if (!ScanRecords()) {
+        g_ny_emit = 0;
+        return;
+    }
     ScanProcedures();
     if (!ValidateProcedureContracts()) {
         g_ny_emit = 0;
@@ -6977,12 +7293,19 @@ void _start(AyoAPI *api) {
         return;
     }
 
-    // Pre-scan procedur
+    // Pre-scan deklaracji
+    if (!ScanRecords()) {
+        HostWaitKey();
+        g_api->Exit();
+        return;
+    }
     ScanProcedures();
 
     // Inicjalizacja stanu
     g_var_count = 0;
     g_proc_count = 0;
+    g_record_count = 0;
+    g_with_var = 0;
     g_call_depth = 0;
     g_in_function[0] = 0;
     g_exit_flag = 0;
@@ -6996,6 +7319,11 @@ void _start(AyoAPI *api) {
     for (int i = 0; i < MAX_NN; i++) g_nn[i].active = 0;
     for (int i = 0; i < MAX_STATES; i++) g_states_active[i] = 0;
 
+    if (!ScanRecords()) {
+        HostWaitKey();
+        g_api->Exit();
+        return;
+    }
     ScanProcedures();  // po raz drugi żeby procedury były w g_procs
     if (!ValidateProcedureContracts()) {
         HostWaitKey();
