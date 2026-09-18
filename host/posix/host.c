@@ -857,7 +857,7 @@ static void host_pump(void) {
                                     if(host_ui_item_at(ctl->spec.items,ix,it,sizeof(it))){
                                         depth=host_ui_tree_depth_text(it);
                                         if(e.button.x<lr.x+18+(int)(depth*ctl->spec.tree_indent)){
-                                            if(ix<64)ctl->tree_expanded_mask^=(1ULL<<ix);
+                                            if(ix<64){ctl->tree_expanded_mask^=(1ULL<<ix);ctl->spec.tree_expanded_mask=ctl->tree_expanded_mask;}
                                             changed=1;break;
                                         }
                                     }
@@ -1050,6 +1050,7 @@ static void host_pump(void) {
                         if(ix<64&&host_ui_tree_has_child(lc,ix)){
                             uint64_t bit=1ULL<<ix;
                             if(k==SDLK_LEFT)lc->tree_expanded_mask&=~bit;else lc->tree_expanded_mask|=bit;
+                            lc->spec.tree_expanded_mask=lc->tree_expanded_mask;
                             changed=1;handled=1;
                         }
                     }else if(k==SDLK_HOME&&count){lc->spec.selected=0;lc->changed=1;changed=handled=1;}
