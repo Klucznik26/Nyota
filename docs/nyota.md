@@ -80,14 +80,14 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">FILE oraz DIR/LS przez kontrakt NyotaHost; pełny backend POSIX wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">SORT: jawny wybór AUTO/BUBBLE/INSERT/SELECT/MERGE/QUICK/HEAP/SHELL/COUNTING wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">NYASM: bezpieczna VM R0-R3 z INPUT/OUTPUT i MOV/ADD/SUB/MUL/DIV/MOD/STORE wykonane 2026-09-18</span>
-- <span style="color: #006A4E;">NyotaUI: kontrakt kolorów — 32 rodziny DARK/base/LIGHT, BLACK, WHITE, TRANSPARENT, BACKDROP oraz parser 0xRRGGBB/0xRRGGBBAA wykonane 2026-09-18; podpięcie do CONFIG kontrolek będzie wykonywane wraz z ich składnią</span>
+- <span style="color: #006A4E;">NyotaUI: kolory są wartościami języka; WIN z ROOT/rodzicem, LIST [w,h]/[x,y], CENTER i resize; opcjonalny WIN name.CONFIG z TITLE/BG/ICO; tła kolorowe, IMG oraz gradienty LINEAR/SHAPE/SPIRAL — rdzeń i backend POSIX wykonane 2026-09-18; AyoOS czeka na podpięcie Nexa/Sayari</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - Tunga pozostaje osobnym edytorem wywołującym interpreter Nyoty; integracja Tungi nie jest częścią tego repozytorium.
-- <span style="color: #006A4E;">Linux: pełny host POSIX/SDL2; PRINT/GRAPH/INPUT/DELAY, FILE/DIR, SCREEN, BUTTON i SPRITE wykonane 2026-09-18</span>
+- <span style="color: #006A4E;">Linux: host POSIX/SDL2; PRINT/GRAPH/INPUT/DELAY, FILE/DIR, SCREEN, BUTTON, SPRITE oraz NyotaUI WIN z SDL2_image i gradientami wykonane 2026-09-18</span>
 - Pomoc Tunga/AyoEdit znajduje się poza dostępnym repozytorium Nyoty; źródłem prawdy pozostaje reguła 4 spacji.
 
-Testy: `Programs/Tools/nyota/tests/` — w tym `date_arith.nyo`, `date_add.nyo`, `date_cmp.nyo`, `date_parts.nyo`, `date_leap_ok.nyo`, `date_leap_bad.nyo`, `date_gregorian.nyo`, `date_plus_date.nyo`.
+Pełny kontrakt `WIN`, `CONFIG`, obrazów i gradientów: `docs/nyotaui.md`.\n\nTesty: `Programs/Tools/nyota/tests/` — w tym `date_arith.nyo`, `date_add.nyo`, `date_cmp.nyo`, `date_parts.nyo`, `date_leap_ok.nyo`, `date_leap_bad.nyo`, `date_gregorian.nyo`, `date_plus_date.nyo`.
 
 ---
 
@@ -388,7 +388,7 @@ PRINT "A", 5, "B"
 DELAY 500
 GOTOXY 10, 5
 GRAPH 6
-WIND_OPEN 1, 100, 100, 400, 300
+WIN glowne, ROOT, [400, 300], [100, 100], TRUE
 ```
 
 ### Funkcje zwracające wartość
