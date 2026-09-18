@@ -77,6 +77,75 @@ typedef struct {
 } NyotaUiBackground;
 
 
+/* NyotaUI controls. Values are language-level and platform neutral. */
+enum {
+    NYOTA_UI_CTRL_BUTTON = 1,
+    NYOTA_UI_CTRL_LABEL = 2,
+    NYOTA_UI_CTRL_PANEL = 3,
+    NYOTA_UI_CTRL_DAREA = 4
+};
+
+enum {
+    NYOTA_UI_ALIGN_LEFT = 0,
+    NYOTA_UI_ALIGN_CENTER = 1,
+    NYOTA_UI_ALIGN_RIGHT = 2
+};
+
+enum {
+    NYOTA_UI_VALIGN_TOP = 0,
+    NYOTA_UI_VALIGN_MIDDLE = 1,
+    NYOTA_UI_VALIGN_BOTTOM = 2
+};
+
+enum {
+    NYOTA_UI_DAREA_RECT = 0,
+    NYOTA_UI_DAREA_CIRCLE = 1,
+    NYOTA_UI_DAREA_ELLIPSE = 2
+};
+
+enum {
+    NYOTA_UI_ACCEPT_FILES = 1,
+    NYOTA_UI_ACCEPT_DIRS = 2,
+    NYOTA_UI_ACCEPT_ALL = 3
+};
+
+#define NYOTA_UI_TEXT_MAX 512u
+#define NYOTA_UI_FONT_MAX 128u
+#define NYOTA_UI_DROP_MAX 4096u
+
+typedef struct {
+    uint8_t kind;
+    uint8_t position_mode;
+    int32_t x, y;
+    uint32_t w, h;
+
+    char text[NYOTA_UI_TEXT_MAX];
+    char font[NYOTA_UI_FONT_MAX];
+    uint32_t font_size;
+    NyotaColor text_color;
+    uint8_t bold;
+    uint8_t italic;
+    uint8_t underline;
+    uint8_t halign;
+    uint8_t valign;
+    uint8_t wrap;
+
+    NyotaUiBackground background;
+    NyotaUiBackground background_over;
+
+    uint8_t border;
+    NyotaColor border_color;
+    uint32_t border_width;
+    NyotaColor border_color_over;
+    uint32_t border_width_over;
+
+    uint8_t clip;
+    uint8_t shape;
+    uint8_t accept;
+    uint8_t multi;
+} NyotaUiControlSpec;
+
+
 typedef struct NyotaHost {
     void (*emit)(char c);
     void (*emit_str)(const char *s);
@@ -139,6 +208,16 @@ typedef struct NyotaHost {
     int32_t (*ui_win_set_icon)(int32_t handle, const char *path);
     int32_t (*ui_win_set_background)(int32_t handle, const NyotaUiBackground *background);
     void (*ui_win_destroy)(int32_t handle);
+
+    /* NyotaUI child controls. parent_control_handle=0 means direct child of WIN. */
+    int32_t (*ui_control_create)(const char *name, int32_t window_handle,
+                                 int32_t parent_control_handle,
+                                 const NyotaUiControlSpec *spec);
+    int32_t (*ui_control_update)(int32_t handle, const NyotaUiControlSpec *spec);
+    void (*ui_control_destroy)(int32_t handle);
+    int32_t (*ui_button_clicked)(int32_t handle);
+    int32_t (*ui_darea_dropped)(int32_t handle);
+    int32_t (*ui_darea_items)(int32_t handle, char *out, uint32_t cap, uint32_t *out_size);
 } NyotaHost;
 
 void NyotaSetHost(NyotaHost *h);
