@@ -162,6 +162,8 @@ typedef struct {
     uint8_t halign;
     uint8_t valign;
     uint8_t wrap;
+    /* 1 = interaktywna, 0 = wyszarzona i ignoruje input. */
+    uint8_t enabled;
 
     NyotaUiBackground background;
     NyotaUiBackground background_over;
