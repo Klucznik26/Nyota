@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        10%{?dist}
+Release:        11%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,10 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-11
+- Anti-alias rounded/circular borders and focus rings on POSIX.
+- Add a focused-tab accent that keeps the tab/content visual connection intact.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-10
 - Anti-alias rounded and shaped NyotaUI surfaces on POSIX.
 - Make directional shadows follow control geometry while keeping the no-blur contract.
