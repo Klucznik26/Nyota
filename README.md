@@ -32,8 +32,8 @@ Nyota stawia na:
 - proste funkcje i procedury,
 - struktury danych przydatne w codziennym programowaniu,
 - wbudowane możliwości systemowe i graficzne,
-- własny, host-neutralny model GUI **NyotaUI**,
-- ten sam kod języka i interfejsu na AyoOS oraz hostach desktopowych.
+- własny, działający na POSIX/Linux model GUI **NyotaUI**,
+- host-neutralny kontrakt interfejsu przygotowany do tego samego kodu `.nyo` na AyoOS i innych hostach.
 
 ---
 
@@ -69,67 +69,106 @@ BEGIN/END   rama kodu wykonywalnego
 
 ---
 
-## NyotaUI — GUI jest częścią języka
+## NyotaUI — GUI jest częścią Nyoty
 
-Nyota rozwija własną warstwę interfejsu **NyotaUI**. To nie jest już tylko plan ani pojedynczy `BUTTON`: na hoście POSIX/SDL2 działają `WIN`, `TABS/TAB` oraz rozbudowany zestaw kontrolek i kontenerów. Program `.nyo` nie wywołuje bezpośrednio SDL, WinAPI ani AyoAPI — używa kontrolek i właściwości Nyoty, a host realizuje ten sam kontrakt na danej platformie.
+**NyotaUI jest już działającą częścią projektu, a nie planowaną biblioteką GUI.** Na hoście POSIX/Linux Nyota potrafi tworzyć prawdziwe okna `WIN`, zakładki, kontenery, pola wejściowe, listy, drzewa, suwaki, wskaźniki i rozbudowane kontrolki wizualizacyjne.
 
-Dzięki temu składnia aplikacji pozostaje niezależna od backendu:
+NyotaUI nie jest osobnym językiem ani bezpośrednim wrapperem na SDL2. Kod programu opisuje interfejs w składni Nyoty, a warstwa `NyotaHost` realizuje ten sam kontrakt na konkretnej platformie. Obecny backend POSIX korzysta z SDL2, SDL2_image, SDL2_ttf i fontconfig; docelowy backend AyoOS ma realizować tę samą semantykę przez własny stos graficzny bez zmiany kodu `.nyo`.
+
+### Model
 
 ```text
 program .nyo
     │
-    ├── WIN / PANEL / FRAME / TABS
-    ├── INPUT / BUTTON / SWITCH / TREEVIEW
-    ├── SCALE / CLOCK / EQBOX / PBAR
-    └── wspólne kolory, gradienty, obrazy, layout i zdarzenia
+    ├── WIN
+    │    ├── PANEL / FRAME / TABS / TOOLBAR / STATBAR
+    │    │      └── kontrolki potomne
+    │    └── kontrolki bezpośrednie
+    │
+    ├── wspólne .CONFIG
+    ├── kolory / PNG / gradienty / radius / glow
+    ├── FREE / ROW / COL / AUTO / CENTER
+    └── zdarzenia i odczyt stanu
             │
             ▼
         NyotaHost
-      ┌─────┴─────────────┐
-      ▼                   ▼
+      ┌─────┴──────────────┐
+      ▼                    ▼
  POSIX / SDL2          AyoOS
+ działa dziś           docelowy backend
 ```
 
-Krótki fragment NyotaUI:
+Wspólny model kontrolek jest prosty: obiekt ma nazwę, rodzica, geometrię i właściwości. Rozbudowane ustawienia można przenieść do bloku `.CONFIG:`, dzięki czemu nawet większe interfejsy pozostają czytelne.
+
+### NyotaUI dzisiaj
+
+| Obszar | Dostępne elementy |
+|---|---|
+| **Okna i kontenery** | `WIN`, `PANEL`, `FRAME`, `TABS/TAB`, `TOOLBAR`, `STATBAR` |
+| **Tekst i wejście** | `LABEL`, `INPUT`, `TBOX`, `TAREA`, `SPINBOX` |
+| **Wybór i sterowanie** | `BUTTON`, `ICONBUTTON`, `CBOX`, `RADIO`, `COMBO`, `SWITCH`, `SLIDER`, `SBAR`, `SPLITTER` |
+| **Dane i struktury** | `TABLE`, `LISTVIEW`, `TREEVIEW`, `DAREA` |
+| **Postęp i wizualizacja** | `PBAR`, `EQBOX` |
+| **Skale i telemetria** | liniowa/obrotowa `SCALE`, wielowskazówkowy `CLOCK` |
+| **Layout** | `FREE`, `ROW`, `COL`, pozycje `AUTO` i `CENTER` |
+| **Warstwa wizualna** | kolory Nyoty, PNG, gradienty liniowe/kształtowe/spiralne, `RADIUS`, bordery, padding, shadow, glow |
+| **Interakcja** | focus klawiatury, `Tab/Shift+Tab`, hover, pressed, disabled, sterowanie myszą i klawiaturą |
+| **Renderowanie** | antyaliasowany tekst UTF-8, fonty systemowe, zaokrąglone clippingi, logiczne HiDPI |
+
+NyotaUI wykracza już poza klasyczne formularze. `EQBOX` może działać jako wielosłupkowy wizualizator danych z segmentami, gradientami, peak-hold i glow. `SCALE` obsługuje skale liniowe, łukowe i pełne obrotowe, a `CLOCK` jest wielowskazówkowym instrumentem telemetrycznym z niezależnymi zakresami, strefami i własnym wyglądem wskazówek.
+
+### Przykład
 
 ```nyota
-WIN glowne, ROOT, [1180, 720], CENTER, TRUE
+BEGIN
+WIN app, ROOT, [900, 620], CENTER, TRUE
 
-WIN glowne.CONFIG:
+WIN app.CONFIG:
     TITLE = "NyotaUI"
     BG = DARKSAPPHIRE
 
-FRAME telemetry, glowne, [520, 300], [30, 80], TEXT="Telemetria"
+FRAME settings, app, [380, 300], [20, 20], TEXT="System"
 
-FRAME telemetry.CONFIG:
-    LAYOUT = COL
-    GAP = 12
-    LPADX = 16
-    LPADY = 30
+FRAME settings.CONFIG:
+    BG = DARKGRAY
     BORDER = TRUE
     CBORDER = SAPPHIRE
     RADIUS = 10
+    LAYOUT = COL
+    GAP = 10
+    LPADX = 16
+    LPADY = 28
 
-INPUT search, telemetry, [320, 40], AUTO, TYPE=SEARCH, PLACEHOLDER="Szukaj...", CLEARBUTTON=TRUE
-SWITCH wifi, telemetry, [96, 34], AUTO, VALUE=TRUE
-SCALE volume, telemetry, [360, 44], AUTO, MIN=0, MAX=100, VALUE=65
+INPUT search, settings, [320, 38], AUTO, TYPE=SEARCH, PLACEHOLDER="Szukaj...", CLEARBUTTON=TRUE
+SWITCH wifi, settings, [92, 34], AUTO, VALUE=TRUE
+ICONBUTTON save, settings, [140, 38], AUTO, TEXT="Zapisz"
+
+TREEVIEW tree, app, [440, 540], [430, 20], ITEMS=["System", "System/CPU", "System/GPU", "Storage", "Storage/NVMe"], EXPANDED=[0, 3]
+
+END
 ```
 
-Aktualny zestaw NyotaUI obejmuje między innymi:
+Ten kod pozostaje kodem Nyoty. Program nie zawiera wywołań SDL2 ani typów hosta.
 
-- **okna i kontenery:** `WIN`, `PANEL`, `FRAME`, `TABS/TAB`, `TOOLBAR`, `STATBAR`;
-- **wejście i sterowanie:** `BUTTON`, `ICONBUTTON`, `INPUT`, `TBOX`, `TAREA`, `CBOX`, `RADIO`, `COMBO`, `SWITCH`, `SPINBOX`, `SLIDER`, `SBAR`, `SPLITTER`, `DAREA`;
-- **prezentację danych:** `LABEL`, `LISTVIEW`, `TREEVIEW`, `TABLE`, `PBAR`, `EQBOX`;
-- **wskaźniki i telemetrię:** liniową i obrotową `SCALE` oraz wielowskazówkowy `CLOCK`;
-- **warstwę wizualną:** kolory Nyoty, PNG, `GRAD(LINEAR/...)`, `GRAD(SHAPE/...)`, `GRAD(SPIRAL/...)`, promienie, ramki, padding, cienie, poświaty i stany interaktywne;
-- **layout:** ręczny `FREE`, automatyczny `ROW/COL`, pozycje `AUTO` i `CENTER`, zaokrąglone przycinanie dzieci oraz logiczne HiDPI.
+### Działające przykłady w repo
 
-Backend POSIX używa obecnie SDL2, SDL2_image, SDL2_ttf i fontconfig. Tekst jest renderowany antyaliasingowo w UTF-8, a `FONT="SYSTEM"` korzysta z fontu systemowego hosta. Kontrolki interaktywne obsługują focus klawiatury, `Tab/Shift+Tab`, stany hover/pressed/disabled oraz — tam gdzie ma to sens — sterowanie klawiaturą.
+Najbardziej reprezentatywne programy demonstracyjne są już częścią repozytorium:
 
-`EQBOX`, `SCALE` i `CLOCK` są projektowane nie tylko jako klasyczne kontrolki formularzy, ale również jako efektowne, szybko aktualizowane elementy telemetryczne i wizualizacyjne.
+- [`tests/win_modern_controls.nyo`](tests/win_modern_controls.nyo) — `FRAME`, `INPUT`, `SWITCH`, `ICONBUTTON`, `TREEVIEW`;
+- [`tests/win_advanced_controls.nyo`](tests/win_advanced_controls.nyo) — `TBOX`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, liniowe i obrotowe `SCALE`, wielowskazówkowy `CLOCK`;
+- [`tests/win_extra_controls.nyo`](tests/win_extra_controls.nyo) — `TOOLBAR`, `SLIDER`, `EQBOX`, `STATBAR`.
 
-Pełny kontrakt znajduje się w [`docs/nyotaui.md`](docs/nyotaui.md).
+Po zbudowaniu hosta można uruchomić je bezpośrednio:
 
+```bash
+./nyota tests/win_modern_controls.nyo
+./nyota tests/win_advanced_controls.nyo
+./nyota tests/win_extra_controls.nyo
+```
+
+`make test-graph` uruchamia również testy graficzne w trybie automatycznym.
+
+Pełny kontrakt, właściwości kontrolek i szczegóły backendu są opisane w [`docs/nyotaui.md`](docs/nyotaui.md).
 
 ---
 
@@ -148,9 +187,8 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `DATE` | ✅ | literał `<RRRR.MM.DD>`, walidacja gregoriańska i arytmetyka dni |
 | `LIST` | 🚧 | rozszerzane operacje i semantyka kolekcji |
 | `MARK` | ✅ | klucze+kolumny, algebra, iteracja, sortowanie, przebudowa kolumn i statystyki |
-| `TABLE` | ✅ | nazwana kontrolka prezentacji LIST/TUPLE/MARK w trybie graficznym |
-| `BUTTON` | ✅ | nazwana kontrolka GUI; wygląd + wykrywanie kliknięcia na hoście POSIX |
-| `WIN / NyotaUI` | 🚧 | rozbudowany host-neutralny toolkit: kontenery, wejście, listy/drzewa, layout, telemetria, gradienty, obrazy, UTF-8, focus i HiDPI; backend POSIX jest aktywnie rozwijany |
+| `NyotaUI / WIN` | ✅ / 🚧 | działające GUI na POSIX/Linux: okna, kontenery, formularze, `TABS/TAB`, listy/drzewa, layout, `EQBOX`, `SCALE`, `CLOCK`, obrazy, gradienty, UTF-8, focus i HiDPI; API nadal jest rozwijane |
+| `TABLE` | ✅ | jedna z kontrolek NyotaUI do prezentacji LIST/TUPLE/MARK |
 | `SPRITE` | ✅ | nazwany obiekt graficzny; ruch, widoczność, animacja klatkowa, jawne rysowanie i kolizja AABB |
 | `FILE / DIR / LS` | ✅ | wysokopoziomowy kontrakt hosta; pełny backend POSIX |
 | `RECORD / WITH` | ✅ | rekordy z blokadą typów i kontekstem pól |
