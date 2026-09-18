@@ -5574,6 +5574,34 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
     s->max_length = NYOTA_UI_TEXT_MAX - 1u;
     s->password = 0;
 
+    s->icon_path[0] = '\0';
+    s->icon_size = 20;
+    s->icon_pos = NYOTA_UI_ICON_LEFT;
+    s->icon_gap = 8;
+    UiBackgroundBlack(&s->pressed_background);
+    UiColorSolid(&s->pressed_background.colors[0], 35, 75, 118, 255);
+    s->toggle = 0;
+
+    s->input_type = NYOTA_UI_INPUT_TEXT;
+    s->clear_button = 0;
+    s->prefix[0] = '\0';
+    s->suffix[0] = '\0';
+
+    UiBackgroundBlack(&s->switch_track_on);
+    UiColorSolid(&s->switch_track_on.colors[0], 36, 188, 118, 255);
+    UiBackgroundBlack(&s->switch_track_off);
+    UiColorSolid(&s->switch_track_off.colors[0], 68, 76, 89, 255);
+    UiBackgroundBlack(&s->switch_thumb_fill);
+    UiColorSolid(&s->switch_thumb_fill.colors[0], 245, 248, 252, 255);
+    UiBackgroundTransparent(&s->switch_glow);
+    s->switch_thumb_size = 24;
+    s->switch_blur = 0;
+    NStrCopy(s->switch_on_text, "ON", sizeof(s->switch_on_text));
+    NStrCopy(s->switch_off_text, "OFF", sizeof(s->switch_off_text));
+
+    s->frame_title_pos = NYOTA_UI_FRAME_TITLE_TOPLEFT;
+    s->frame_title_pad = 10;
+
     s->signed_min = 0;
     s->signed_max = 100;
     s->signed_value = 0;
@@ -5582,6 +5610,13 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
     s->row_height = 28;
     s->tree_indent = 20;
     s->show_lines = 1;
+    s->tree_line_style = NYOTA_UI_TREE_LINE_SOLID;
+    s->tree_expander_style = NYOTA_UI_TREE_EXPANDER_CHEVRON;
+    s->tree_icon_spacing = 6;
+    s->tree_expanded_mask = UINT64_MAX;
+    s->tree_icon_leaf[0] = '\0';
+    s->tree_icon_closed[0] = '\0';
+    s->tree_icon_open[0] = '\0';
     s->splitter_thickness = 6;
 
     s->scale_shape = NYOTA_UI_SCALE_LINE;
@@ -5815,6 +5850,37 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
         s->border = 1;
         s->radius = 0;
         s->halign = NYOTA_UI_ALIGN_CENTER;
+    } else if (kind == NYOTA_UI_CTRL_ICONBUTTON) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 49, 57, 70, 255);
+        UiBackgroundBlack(&s->hover_background);
+        UiColorSolid(&s->hover_background.colors[0], 63, 76, 94, 255);
+        UiBackgroundBlack(&s->selected_background);
+        UiColorSolid(&s->selected_background.colors[0], 42, 93, 145, 255);
+        s->border = 1;
+        s->radius = 7;
+        s->halign = NYOTA_UI_ALIGN_CENTER;
+        s->valign = NYOTA_UI_VALIGN_MIDDLE;
+    } else if (kind == NYOTA_UI_CTRL_SWITCH) {
+        UiBackgroundTransparent(&s->background);
+        s->border = 0;
+        s->radius = 0;
+    } else if (kind == NYOTA_UI_CTRL_FRAME) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 27, 31, 39, 255);
+        s->border = 1;
+        s->radius = 8;
+        s->clip = 1;
+        s->layout = NYOTA_UI_LAYOUT_FREE;
+        s->layout_pad_x = 14;
+        s->layout_pad_y = 18;
+    } else if (kind == NYOTA_UI_CTRL_INPUT) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 26, 30, 37, 255);
+        s->border = 1;
+        s->radius = 7;
+        s->wrap = 0;
+        s->valign = NYOTA_UI_VALIGN_MIDDLE;
     }
 }
 
