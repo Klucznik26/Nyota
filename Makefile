@@ -7,13 +7,17 @@ SDL_CFLAGS       := $(shell pkg-config --cflags sdl2)
 SDL_LIBS         := $(shell pkg-config --libs sdl2)
 SDL_IMAGE_CFLAGS := $(shell pkg-config --cflags SDL2_image)
 SDL_IMAGE_LIBS   := $(shell pkg-config --libs SDL2_image)
+SDL_TTF_CFLAGS   := $(shell pkg-config --cflags SDL2_ttf)
+SDL_TTF_LIBS     := $(shell pkg-config --libs SDL2_ttf)
+FONTCONFIG_CFLAGS := $(shell pkg-config --cflags fontconfig)
+FONTCONFIG_LIBS   := $(shell pkg-config --libs fontconfig)
 
 .PHONY: all clean test test-color test-graph install uninstall rpm
 
 all: nyota
 
 nyota: host/posix/host.c src/nyota.c src/nyota_host.h src/nyota_color.h host/posix/font8x8.h
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(SDL_IMAGE_CFLAGS) -Isrc -Ihost/posix -o nyota host/posix/host.c $(SDL_LIBS) $(SDL_IMAGE_LIBS) -lm
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(SDL_IMAGE_CFLAGS) $(SDL_TTF_CFLAGS) $(FONTCONFIG_CFLAGS) -Isrc -Ihost/posix -o nyota host/posix/host.c $(SDL_LIBS) $(SDL_IMAGE_LIBS) $(SDL_TTF_LIBS) $(FONTCONFIG_LIBS) -lm
 
 test: nyota test-color
 	@bash scripts/run_tests.sh
