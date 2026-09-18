@@ -82,7 +82,37 @@ enum {
     NYOTA_UI_CTRL_BUTTON = 1,
     NYOTA_UI_CTRL_LABEL = 2,
     NYOTA_UI_CTRL_PANEL = 3,
-    NYOTA_UI_CTRL_DAREA = 4
+    NYOTA_UI_CTRL_DAREA = 4,
+    NYOTA_UI_CTRL_CBOX = 5,
+    NYOTA_UI_CTRL_COMBO = 6,
+    NYOTA_UI_CTRL_SEP = 7,
+    NYOTA_UI_CTRL_RADIO = 8,
+    NYOTA_UI_CTRL_TABS = 9,
+    NYOTA_UI_CTRL_TAB = 10
+};
+
+enum {
+    NYOTA_UI_SHADOW_OFF = 0,
+    NYOTA_UI_SHADOW_R = 1,
+    NYOTA_UI_SHADOW_L = 2,
+    NYOTA_UI_SHADOW_U = 3,
+    NYOTA_UI_SHADOW_D = 4,
+    NYOTA_UI_SHADOW_RU = 5,
+    NYOTA_UI_SHADOW_RD = 6,
+    NYOTA_UI_SHADOW_LU = 7,
+    NYOTA_UI_SHADOW_LD = 8
+};
+
+enum {
+    NYOTA_UI_SEP_HORIZONTAL = 0,
+    NYOTA_UI_SEP_VERTICAL = 1
+};
+
+enum {
+    NYOTA_UI_SEP_NORMAL = 0,
+    NYOTA_UI_SEP_INSET = 1,
+    NYOTA_UI_SEP_RAISED = 2,
+    NYOTA_UI_SEP_GRADIENT = 3
 };
 
 enum {
@@ -112,6 +142,9 @@ enum {
 #define NYOTA_UI_TEXT_MAX 512u
 #define NYOTA_UI_FONT_MAX 128u
 #define NYOTA_UI_DROP_MAX 4096u
+#define NYOTA_UI_ITEMS_MAX 4096u
+#define NYOTA_UI_GROUP_MAX 64u
+#define NYOTA_UI_SYMBOL_MAX 32u
 
 typedef struct {
     uint8_t kind;
@@ -143,6 +176,54 @@ typedef struct {
     uint8_t shape;
     uint8_t accept;
     uint8_t multi;
+
+    /* Wspolne dla prostokatnych kontrolek. 0 = ostre rogi. */
+    uint32_t radius;
+
+    /* CBOX / RADIO. */
+    uint8_t checked;
+    NyotaColor check_color;
+    char check_symbol[NYOTA_UI_SYMBOL_MAX];
+    char radio_group[NYOTA_UI_GROUP_MAX];
+    uint32_t logical_size;
+
+    /* COMBO / TABS. Elementy COMBO sa rozdzielone '\n'. */
+    char items[NYOTA_UI_ITEMS_MAX];
+    uint32_t selected;
+    uint32_t max_visible;
+    uint8_t hover_enabled;
+    NyotaUiBackground hover_background;
+    NyotaColor hover_text_color;
+    NyotaUiBackground drop_background;
+    NyotaColor drop_text_color;
+    NyotaUiBackground selected_background;
+    NyotaColor selected_text_color;
+    NyotaColor arrow_color;
+
+    /* SEP. */
+    uint8_t orientation;
+    uint8_t sep_effect;
+    NyotaColor sep_color;
+    uint32_t sep_thickness;
+
+    /* TAB: naglowek ma osobny wyglad; zawartosc uzywa pol PANEL. */
+    NyotaUiBackground tab_background;
+    char tab_font[NYOTA_UI_FONT_MAX];
+    uint32_t tab_font_size;
+    NyotaColor tab_text_color;
+    uint8_t tab_bold;
+    uint8_t tab_italic;
+    uint8_t tab_underline;
+    uint8_t tab_border;
+    NyotaColor tab_border_color;
+    uint32_t tab_border_width;
+    uint32_t tab_radius;
+    uint32_t tab_index;
+
+    /* Cien dziedziczony z WIN.CONFIG przez wszystkie kontrolki okna. */
+    uint8_t shadow;
+    NyotaColor shadow_color;
+    uint32_t shadow_depth;
 } NyotaUiControlSpec;
 
 
@@ -218,6 +299,10 @@ typedef struct NyotaHost {
     int32_t (*ui_button_clicked)(int32_t handle);
     int32_t (*ui_darea_dropped)(int32_t handle);
     int32_t (*ui_darea_items)(int32_t handle, char *out, uint32_t cap, uint32_t *out_size);
+    int32_t (*ui_control_checked)(int32_t handle);
+    int32_t (*ui_control_set_checked)(int32_t handle, uint8_t checked);
+    int32_t (*ui_combo_index)(int32_t handle);
+    int32_t (*ui_combo_set_index)(int32_t handle, uint32_t index);
 } NyotaHost;
 
 void NyotaSetHost(NyotaHost *h);
