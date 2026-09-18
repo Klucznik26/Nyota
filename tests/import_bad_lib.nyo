@@ -1,0 +1,2 @@
+# Fixture: plik importowany z niedozwolonym kodem wykonywalnym.
+PRINT "nie wolno"
