@@ -81,7 +81,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `MARK` | ✅ | klucze+kolumny, algebra, iteracja, sortowanie, przebudowa kolumn i statystyki |
 | `TABLE` | ✅ | nazwana kontrolka prezentacji LIST/TUPLE/MARK w trybie graficznym |
 | `BUTTON` | ✅ | nazwana kontrolka GUI; wygląd + wykrywanie kliknięcia na hoście POSIX |
-| `WIN / NyotaUI` | 🚧 | WIN, BUTTON, LABEL, PANEL, DAREA, CBOX, RADIO, COMBO, SEP, TABS/TAB, TAREA, SBAR, PBAR, EQBOX, SLIDER, STATBAR i TOOLBAR wdrożone na backendzie POSIX; kod `.nyo` pozostaje wspólny dla Linux/Windows/AyoOS |
+| `WIN / NyotaUI` | 🚧 | WIN, BUTTON, LABEL, PANEL, DAREA, CBOX, RADIO, COMBO, SEP, TABS/TAB, TAREA, SBAR, PBAR, EQBOX, SLIDER, STATBAR, TOOLBAR, TBOX, SPINBOX, LISTVIEW, TREEVIEW, SPLITTER, SCALE i CLOCK wdrożone na backendzie POSIX; kod `.nyo` pozostaje wspólny dla Linux/Windows/AyoOS |
 | `SPRITE` | ✅ | nazwany obiekt graficzny; ruch, widoczność, animacja klatkowa, jawne rysowanie i kolizja AABB |
 | `FILE / DIR / LS` | ✅ | wysokopoziomowy kontrakt hosta; pełny backend POSIX |
 | `RECORD / WITH` | ✅ | rekordy z blokadą typów i kontekstem pól |
@@ -175,7 +175,7 @@ zbudowania potrzebne są narzędzia RPM i nagłówki zgodności SDL2:
 ```bash
 sudo dnf install rpm-build gcc make pkgconf-pkg-config sdl2-compat-devel SDL2_image-devel tar gzip
 make rpm
-sudo dnf install packaging/nyota-0.5.0-19.fc44.x86_64.rpm
+sudo dnf install packaging/nyota-0.5.0-20.fc44.x86_64.rpm
 nyota /usr/share/nyota/tests/add_int.nyo
 ```
 
