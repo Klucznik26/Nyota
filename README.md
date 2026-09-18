@@ -159,11 +159,24 @@ Duży test demonstracyjny rdzenia:
 
 ## RPM (Fedora)
 
+Pakiet jest budowany i testowany natywnie w środowisku Fedora 44. Do lokalnego
+zbudowania potrzebne są narzędzia RPM i nagłówki zgodności SDL2:
+
 ```bash
+sudo dnf install rpm-build gcc make pkgconf-pkg-config sdl2-compat-devel tar gzip
 make rpm
-sudo dnf install packaging/nyota-0.5.0-1.fc44.x86_64.rpm
-nyota /usr/share/nyota/tests/hello.nyo
+sudo dnf install packaging/nyota-0.5.0-2.fc44.x86_64.rpm
+nyota /usr/share/nyota/tests/add_int.nyo
 ```
+
+`make rpm` tworzy zarówno RPM binarny, jak i SRPM w katalogu `packaging/`.
+Fedora 44 dostarcza `pkgconfig(sdl2)` przez `sdl2-compat-devel`; zależność
+runtime od biblioteki SDL2 jest wykrywana automatycznie przez RPM. Pakiet zawiera
+również programy testowe, zasób BMP do testów SPRITE oraz dokumentację projektu.
+
+Workflow `Fedora RPM` buduje pakiet na Fedorze 44, instaluje go w czystym
+kontenerze i wykonuje test uruchomieniowy. Gotowe RPM-y są zapisywane jako
+artefakt workflow `nyota-fedora-44-rpm`.
 
 ---
 
