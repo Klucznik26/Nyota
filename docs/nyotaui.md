@@ -405,3 +405,14 @@ TAB general.CONFIG:
 ```
 
 `TABBORDER` rysuje górną oraz boczne krawędzie główki, bez dolnej. `TABRADIUS` zaokrągla górne rogi. Dzieci `TAB` używają współrzędnych względem jej obszaru zawartości.
+
+
+## Warstwa wizualna POSIX — modernizacja
+
+Backend POSIX NyotaUI używa teraz SDL2_ttf i fontconfig do antyaliasowanego tekstu UTF-8. `FONT="SYSTEM"` wybiera normalny font systemowy hosta; nazwana rodzina w `FONT` jest rozwiązywana przez fontconfig. Bitmapowy font 8x8 pozostaje wyłącznie awaryjnym fallbackiem.
+
+Kontrolki interaktywne mają hostowe stany wizualne hover/pressed bez zmiany kodu programu Nyota. Dotyczy to obecnie `BUTTON`, `CBOX`, `RADIO`, `COMBO` i główek `TAB`. `DAREA` nadal respektuje jawne właściwości `BGOVER`, `CBORDEROVER` i `BWIDTHOVER`.
+
+Domyślny motyw NyotaUI jest neutralnym ciemnym motywem desktopowym. Jawne ustawienia w `.CONFIG` nadal mają pierwszeństwo.
+
+Dla `TAB` właściwość `RADIUS` dotyczy części zawartości i zaokrągla tylko dwa dolne rogi. Górna krawędź pozostaje prosta, aby wizualnie łączyć zawartość z główką zakładki. `TABRADIUS` dotyczy główki i zaokrągla jej górne rogi.
