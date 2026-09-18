@@ -1,0 +1,7 @@
+# Oczekiwane: BLAD
+BEGIN
+VAR sekret := 5
+NYASM OUTPUT wynik:
+    MOV R0, sekret
+    STORE wynik, R0
+END

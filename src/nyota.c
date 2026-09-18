@@ -95,6 +95,71 @@ static uint8_t HostPointerState(int32_t *x, int32_t *y) {
     return 0;
 }
 
+static int32_t HostFileRead(const char *path, char *out, uint32_t cap, uint32_t *out_size) {
+    if (g_host && g_host->file_read) return g_host->file_read(path, out, cap, out_size);
+    return -1;
+}
+
+static int32_t HostFileWrite(const char *path, const char *data, uint32_t size, uint8_t append) {
+    if (g_host && g_host->file_write) return g_host->file_write(path, data, size, append);
+    return -1;
+}
+
+static int32_t HostFileDelete(const char *path) {
+    if (g_host && g_host->file_delete) return g_host->file_delete(path);
+    return -1;
+}
+
+static int32_t HostFileCopy(const char *src, const char *dst) {
+    if (g_host && g_host->file_copy) return g_host->file_copy(src, dst);
+    return -1;
+}
+
+static int32_t HostFileMove(const char *src, const char *dst) {
+    if (g_host && g_host->file_move) return g_host->file_move(src, dst);
+    return -1;
+}
+
+static int32_t HostFileExists(const char *path) {
+    if (g_host && g_host->file_exists) return g_host->file_exists(path);
+    return 0;
+}
+
+static int64_t HostFileSize(const char *path) {
+    if (g_host && g_host->file_size) return g_host->file_size(path);
+    return -1;
+}
+
+static int32_t HostDirCreate(const char *path) {
+    if (g_host && g_host->dir_create) return g_host->dir_create(path);
+    return -1;
+}
+
+static int32_t HostDirDelete(const char *path) {
+    if (g_host && g_host->dir_delete) return g_host->dir_delete(path);
+    return -1;
+}
+
+static int32_t HostDirCopy(const char *src, const char *dst) {
+    if (g_host && g_host->dir_copy) return g_host->dir_copy(src, dst);
+    return -1;
+}
+
+static int32_t HostDirMove(const char *src, const char *dst) {
+    if (g_host && g_host->dir_move) return g_host->dir_move(src, dst);
+    return -1;
+}
+
+static int32_t HostDirExists(const char *path) {
+    if (g_host && g_host->dir_exists) return g_host->dir_exists(path);
+    return 0;
+}
+
+static int32_t HostDirList(const char *path, char *out, uint32_t cap, uint32_t *out_size) {
+    if (g_host && g_host->dir_list) return g_host->dir_list(path, out, cap, out_size);
+    return -1;
+}
+
 // ============================================================
 // KONFIGURACJA
 // ============================================================
@@ -265,6 +330,11 @@ static uint32_t  g_list_pool_used = 0;
 
 // Generator liczb pseudolosowych (LCG)
 static uint32_t g_rng = 0x12345678;
+
+#define MAX_DIR_LIST_BYTES 8192
+#define SORT_COUNTING_RANGE 4096
+static char g_dir_list_buf[MAX_DIR_LIST_BYTES];
+static uint16_t g_sort_counting[SORT_COUNTING_RANGE];
 
 // Bufor wyjścia na ekran
 static uint32_t  g_out_x = 0;
@@ -1051,21 +1121,194 @@ static int ValOrd(const NyotaVal *a, const NyotaVal *b) {
     return 0;
 }
 
-static void ListSort(NyotaVal *lst, int desc) {
+#define LIST_SORT_AUTO      0
+#define LIST_SORT_BUBBLE    1
+#define LIST_SORT_INSERT    2
+#define LIST_SORT_SELECT    3
+#define LIST_SORT_MERGE     4
+#define LIST_SORT_QUICK     5
+#define LIST_SORT_HEAP      6
+#define LIST_SORT_SHELL     7
+#define LIST_SORT_COUNTING  8
+
+static void ListSwap(NyotaVal *a, NyotaVal *b) {
+    NyotaVal t = *a; *a = *b; *b = t;
+}
+
+static void ListReverseItems(NyotaVal *lst) {
+    uint32_t i, n;
+    if (!lst) return;
+    n = lst->list_len;
+    for (i = 0; i < n / 2; i++)
+        ListSwap(&lst->list_items[i], &lst->list_items[n - 1 - i]);
+}
+
+static void ListSortBubble(NyotaVal *lst) {
+    uint32_t i, j, n = lst->list_len;
+    for (i = 0; i < n; i++) {
+        int changed = 0;
+        for (j = 1; j < n - i; j++) {
+            if (ValOrd(&lst->list_items[j - 1], &lst->list_items[j]) > 0) {
+                ListSwap(&lst->list_items[j - 1], &lst->list_items[j]);
+                changed = 1;
+            }
+        }
+        if (!changed) break;
+    }
+}
+
+static void ListSortInsert(NyotaVal *lst) {
     uint32_t i, j;
-    if (!lst || lst->type != TYPE_LIST || lst->list_len < 2) return;
     for (i = 1; i < lst->list_len; i++) {
         NyotaVal key = lst->list_items[i];
         j = i;
-        while (j > 0) {
-            int cmp = ValOrd(&lst->list_items[j - 1], &key);
-            if (desc) cmp = -cmp;
-            if (cmp <= 0) break;
+        while (j > 0 && ValOrd(&lst->list_items[j - 1], &key) > 0) {
             lst->list_items[j] = lst->list_items[j - 1];
             j--;
         }
         lst->list_items[j] = key;
     }
+}
+
+static void ListSortSelect(NyotaVal *lst) {
+    uint32_t i, j, best;
+    for (i = 0; i + 1 < lst->list_len; i++) {
+        best = i;
+        for (j = i + 1; j < lst->list_len; j++)
+            if (ValOrd(&lst->list_items[j], &lst->list_items[best]) < 0) best = j;
+        if (best != i) ListSwap(&lst->list_items[i], &lst->list_items[best]);
+    }
+}
+
+static void ListSortMerge(NyotaVal *lst) {
+    NyotaVal tmp[MAX_LIST_ITEMS];
+    uint32_t width, left, n = lst->list_len;
+    for (width = 1; width < n; width *= 2) {
+        for (left = 0; left < n; left += width * 2) {
+            uint32_t mid = left + width;
+            uint32_t right = left + width * 2;
+            uint32_t i = left, j, k = left;
+            if (mid > n) mid = n;
+            if (right > n) right = n;
+            j = mid;
+            while (i < mid && j < right) {
+                if (ValOrd(&lst->list_items[i], &lst->list_items[j]) <= 0)
+                    tmp[k++] = lst->list_items[i++];
+                else
+                    tmp[k++] = lst->list_items[j++];
+            }
+            while (i < mid) tmp[k++] = lst->list_items[i++];
+            while (j < right) tmp[k++] = lst->list_items[j++];
+            for (k = left; k < right; k++) lst->list_items[k] = tmp[k];
+        }
+    }
+}
+
+static void ListQuickRange(NyotaVal *lst, int32_t lo, int32_t hi) {
+    int32_t i = lo, j = hi;
+    NyotaVal pivot;
+    if (lo >= hi) return;
+    pivot = lst->list_items[(lo + hi) / 2];
+    while (i <= j) {
+        while (ValOrd(&lst->list_items[i], &pivot) < 0) i++;
+        while (ValOrd(&lst->list_items[j], &pivot) > 0) j--;
+        if (i <= j) {
+            ListSwap(&lst->list_items[i], &lst->list_items[j]);
+            i++; j--;
+        }
+    }
+    if (lo < j) ListQuickRange(lst, lo, j);
+    if (i < hi) ListQuickRange(lst, i, hi);
+}
+
+static void ListHeapify(NyotaVal *lst, uint32_t n, uint32_t i) {
+    for (;;) {
+        uint32_t largest = i;
+        uint32_t l = i * 2 + 1, r = l + 1;
+        if (l < n && ValOrd(&lst->list_items[l], &lst->list_items[largest]) > 0) largest = l;
+        if (r < n && ValOrd(&lst->list_items[r], &lst->list_items[largest]) > 0) largest = r;
+        if (largest == i) break;
+        ListSwap(&lst->list_items[i], &lst->list_items[largest]);
+        i = largest;
+    }
+}
+
+static void ListSortHeap(NyotaVal *lst) {
+    uint32_t n = lst->list_len, i;
+    if (n < 2) return;
+    for (i = n / 2; i > 0; i--) ListHeapify(lst, n, i - 1);
+    for (i = n; i > 1; i--) {
+        ListSwap(&lst->list_items[0], &lst->list_items[i - 1]);
+        ListHeapify(lst, i - 1, 0);
+    }
+}
+
+static void ListSortShell(NyotaVal *lst) {
+    uint32_t n = lst->list_len, gap;
+    for (gap = n / 2; gap > 0; gap /= 2) {
+        uint32_t i;
+        for (i = gap; i < n; i++) {
+            NyotaVal temp = lst->list_items[i];
+            uint32_t j = i;
+            while (j >= gap && ValOrd(&lst->list_items[j - gap], &temp) > 0) {
+                lst->list_items[j] = lst->list_items[j - gap];
+                j -= gap;
+            }
+            lst->list_items[j] = temp;
+        }
+    }
+}
+
+static int ListSortCounting(NyotaVal *lst) {
+    uint32_t i, pos = 0, range;
+    int32_t minv, maxv;
+    uint8_t t;
+    if (!lst->list_len) return 1;
+    t = lst->list_items[0].type;
+    if (t != TYPE_INT) {
+        OutError("SORT COUNTING wymaga LIST INTEGER");
+        return 0;
+    }
+    minv = maxv = lst->list_items[0].i;
+    for (i = 1; i < lst->list_len; i++) {
+        if (lst->list_items[i].i < minv) minv = lst->list_items[i].i;
+        if (lst->list_items[i].i > maxv) maxv = lst->list_items[i].i;
+    }
+    if ((int64_t)maxv - (int64_t)minv + 1LL > SORT_COUNTING_RANGE) {
+        OutError("SORT COUNTING: zakres wartosci przekracza 4096");
+        return 0;
+    }
+    range = (uint32_t)((int64_t)maxv - (int64_t)minv + 1LL);
+    for (i = 0; i < range; i++) g_sort_counting[i] = 0;
+    for (i = 0; i < lst->list_len; i++)
+        g_sort_counting[(uint32_t)(lst->list_items[i].i - minv)]++;
+    for (i = 0; i < range; i++) {
+        uint16_t c = g_sort_counting[i];
+        while (c--) {
+            ValFromInt(&lst->list_items[pos++], minv + (int32_t)i);
+        }
+    }
+    return 1;
+}
+
+static int ListSortAlgo(NyotaVal *lst, int desc, int algo) {
+    if (!lst || lst->type != TYPE_LIST || lst->list_len < 2) return 1;
+    if (algo == LIST_SORT_AUTO) algo = lst->list_len < 16 ? LIST_SORT_INSERT : LIST_SORT_QUICK;
+    if (algo == LIST_SORT_BUBBLE) ListSortBubble(lst);
+    else if (algo == LIST_SORT_INSERT) ListSortInsert(lst);
+    else if (algo == LIST_SORT_SELECT) ListSortSelect(lst);
+    else if (algo == LIST_SORT_MERGE) ListSortMerge(lst);
+    else if (algo == LIST_SORT_QUICK) ListQuickRange(lst, 0, (int32_t)lst->list_len - 1);
+    else if (algo == LIST_SORT_HEAP) ListSortHeap(lst);
+    else if (algo == LIST_SORT_SHELL) ListSortShell(lst);
+    else if (algo == LIST_SORT_COUNTING) {
+        if (!ListSortCounting(lst)) return 0;
+    } else {
+        OutError("SORT: nieznany algorytm");
+        return 0;
+    }
+    if (desc) ListReverseItems(lst);
+    return 1;
 }
 
 // ============================================================
@@ -1712,6 +1955,19 @@ static int SplitFunctionArgs(const char *p, char args[][MAX_STR_LEN], int max_ar
     return count;
 }
 
+static int EvalStringArg(const char *expr, char *out, uint32_t out_size, const char *label) {
+    NyotaVal v = Eval(expr);
+    if (v.type != TYPE_STR || !v.s[0]) {
+        char err[128];
+        NStrCopy(err, label, sizeof(err));
+        NStrAppend(err, " wymaga niepustego STRING", sizeof(err));
+        OutError(err);
+        return 0;
+    }
+    NStrCopy(out, v.s, out_size);
+    return 1;
+}
+
 static int ParenLooksLikeTuple(const char *expr) {
     const char *p;
     int depth = 0, in_str = 0;
@@ -2198,6 +2454,118 @@ static NyotaVal ParsePrimary(const char **pp) {
         *pp = call_open ? MatchParen(call_open) : expr;
         return result;
     }
+    if (NStrEqN(expr, "FILE_READ(", 10)) {
+        char args[1][MAX_STR_LEN], path[MAX_STR_LEN];
+        uint32_t got = 0;
+        int n = SplitFunctionArgs(expr + 10, args, 1);
+        int rc;
+        if (n != 1 || !EvalStringArg(args[0], path, sizeof(path), "FILE_READ()")) {
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        if (!g_host || !g_host->file_read) {
+            OutError("FILE_READ: host nie obsluguje plikow");
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        ValFromStr(&result, "");
+        rc = HostFileRead(path, result.s, MAX_STR_LEN, &got);
+        if (rc == -2) OutError("FILE_READ: plik jest za duzy dla STRING (max 511 bajtow)");
+        else if (rc == -3) OutError("FILE_READ: plik binarny z NUL nie jest obslugiwany");
+        else if (rc != 0) OutError("FILE_READ: nie mozna odczytac pliku");
+        if (rc != 0) ValClear(&result);
+        else result.type = TYPE_STR;
+        *pp = call_open ? MatchParen(call_open) : expr;
+        return result;
+    }
+    if (NStrEqN(expr, "FILE_EXISTS(", 12) || NStrEqN(expr, "DIR_EXISTS(", 11)) {
+        char args[1][MAX_STR_LEN], path[MAX_STR_LEN];
+        int is_dir = NStrEqN(expr, "DIR_EXISTS(", 11);
+        int off = is_dir ? 11 : 12;
+        int n = SplitFunctionArgs(expr + off, args, 1);
+        if (n != 1 || !EvalStringArg(args[0], path, sizeof(path), is_dir ? "DIR_EXISTS()" : "FILE_EXISTS()")) {
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        ValFromBool(&result, is_dir ? HostDirExists(path) : HostFileExists(path));
+        *pp = call_open ? MatchParen(call_open) : expr;
+        return result;
+    }
+    if (NStrEqN(expr, "FILE_SIZE(", 10)) {
+        char args[1][MAX_STR_LEN], path[MAX_STR_LEN];
+        int64_t size;
+        int n = SplitFunctionArgs(expr + 10, args, 1);
+        if (n != 1 || !EvalStringArg(args[0], path, sizeof(path), "FILE_SIZE()")) {
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        size = HostFileSize(path);
+        if (size < 0) {
+            OutError("FILE_SIZE: nie mozna pobrac rozmiaru");
+            ValClear(&result);
+        } else if (size > INT32_MAX) {
+            OutError("FILE_SIZE: rozmiar przekracza INTEGER Nyoty");
+            ValClear(&result);
+        } else ValFromInt(&result, (int32_t)size);
+        *pp = call_open ? MatchParen(call_open) : expr;
+        return result;
+    }
+    if (NStrEqN(expr, "DIR_LIST(", 9) || NStrEqN(expr, "LS(", 3)) {
+        char args[1][MAX_STR_LEN], path[MAX_STR_LEN];
+        int off = NStrEqN(expr, "DIR_LIST(", 9) ? 9 : 3;
+        uint32_t got = 0, pos = 0;
+        int n = SplitFunctionArgs(expr + off, args, 1);
+        int rc;
+        if (n != 1 || !EvalStringArg(args[0], path, sizeof(path), off == 9 ? "DIR_LIST()" : "LS()")) {
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        if (!g_host || !g_host->dir_list) {
+            OutError("DIR_LIST/LS: host nie obsluguje katalogow");
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        rc = HostDirList(path, g_dir_list_buf, sizeof(g_dir_list_buf), &got);
+        if (rc == -2) OutError("DIR_LIST: wynik przekracza bufor 8192 bajtow");
+        else if (rc != 0) OutError("DIR_LIST: nie mozna odczytac katalogu");
+        if (rc != 0) {
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        ValClear(&result);
+        result.type = TYPE_LIST;
+        while (pos < got) {
+            char name[MAX_STR_LEN];
+            uint32_t ni = 0;
+            while (pos < got && g_dir_list_buf[pos] != '\n') {
+                if (ni + 1 >= sizeof(name)) {
+                    OutError("DIR_LIST: nazwa wpisu jest za dluga");
+                    ValClear(&result);
+                    *pp = call_open ? MatchParen(call_open) : expr;
+                    return result;
+                }
+                name[ni++] = g_dir_list_buf[pos++];
+            }
+            if (pos < got && g_dir_list_buf[pos] == '\n') pos++;
+            name[ni] = '\0';
+            if (!ListEnsureCapacity(&result, result.list_len + 1)) {
+                ValClear(&result);
+                *pp = call_open ? MatchParen(call_open) : expr;
+                return result;
+            }
+            ValFromStr(&result.list_items[result.list_len++], name);
+        }
+        ListSortAlgo(&result, 0, LIST_SORT_AUTO);
+        *pp = call_open ? MatchParen(call_open) : expr;
+        return result;
+    }
+
     if (NStrEqN(expr, "SPRITE_X(", 9) || NStrEqN(expr, "SPRITE_Y(", 9) ||
         NStrEqN(expr, "SPRITE_W(", 9) || NStrEqN(expr, "SPRITE_H(", 9) ||
         NStrEqN(expr, "SPRITE_VISIBLE(", 15)) {
@@ -3799,6 +4167,226 @@ static uint32_t SkipBlock(uint32_t from, uint32_t block_indent) {
     return i;
 }
 
+#define NYASM_MAX_IO 8
+
+static int NyasmReg(const char *p) {
+    const char *t = NTrim(p);
+    if (t[0] == 'R' && t[1] >= '0' && t[1] <= '3' && !t[2]) return t[1] - '0';
+    return -1;
+}
+
+static int NyasmNameIn(char names[][64], uint32_t count, const char *name) {
+    uint32_t i;
+    for (i = 0; i < count; i++) if (NStrEq(names[i], name)) return (int)i;
+    return -1;
+}
+
+static int NyasmParseNames(const char *src, char names[][64], uint32_t *count) {
+    const char *p = NTrim(src);
+    *count = 0;
+    if (!*p) return 1;
+    while (*p) {
+        char name[64];
+        uint32_t n = ParseIdent(p, name, sizeof(name));
+        uint32_t i;
+        if (!name[0]) return 0;
+        p = NTrim(p + n);
+        for (i = 0; i < *count; i++) if (NStrEq(names[i], name)) return 0;
+        if (*count >= NYASM_MAX_IO) return 0;
+        NStrCopy(names[(*count)++], name, 64);
+        if (!*p) break;
+        if (*p != ',') return 0;
+        p = NTrim(p + 1);
+    }
+    return 1;
+}
+
+static int NyasmReadOperand(const char *src, char inputs[][64], uint32_t input_count,
+                            int32_t regs[4], int32_t *out) {
+    const char *p = NTrim(src);
+    int r = NyasmReg(p);
+    if (r >= 0) { *out = regs[r]; return 1; }
+    if (NStrEq(p, "TRUE")) { *out = 1; return 1; }
+    if (NStrEq(p, "FALSE")) { *out = 0; return 1; }
+    if (NIsDigit(*p) || (*p == '-' && NIsDigit(p[1]))) {
+        NyotaVal v; uint32_t used = 0;
+        if (!ParseNumber(p, &v, &used) || v.type != TYPE_INT || *NTrim(p + used)) {
+            OutError("NYASM: operand liczbowy musi byc INTEGER");
+            return 0;
+        }
+        *out = v.i;
+        return 1;
+    }
+    if (NIsAlpha(*p)) {
+        char name[64];
+        uint32_t n = ParseIdent(p, name, sizeof(name));
+        NyotaVar *v;
+        if (!name[0] || *NTrim(p + n)) { OutError("NYASM: zly operand"); return 0; }
+        if (NyasmNameIn(inputs, input_count, name) < 0) {
+            OutError("NYASM: odczyt zmiennej spoza INPUT");
+            return 0;
+        }
+        v = FindVar(name);
+        if (!v) { OutError("NYASM: INPUT wskazuje nieistniejaca zmienna"); return 0; }
+        if (v->val.type != TYPE_INT && v->val.type != TYPE_BOOL) {
+            OutError("NYASM: INPUT obsluguje INTEGER/BOOLEAN");
+            return 0;
+        }
+        *out = v->val.i;
+        return 1;
+    }
+    OutError("NYASM: niepoprawny operand");
+    return 0;
+}
+
+static int NyasmStore(const char *target, int32_t value,
+                      char outputs[][64], uint32_t output_count, uint8_t written[]) {
+    const char *p = NTrim(target);
+    char name[64];
+    uint32_t n = ParseIdent(p, name, sizeof(name));
+    int oi;
+    NyotaVar *v;
+    if (!name[0] || *NTrim(p + n)) { OutError("NYASM STORE: zla nazwa OUTPUT"); return 0; }
+    oi = NyasmNameIn(outputs, output_count, name);
+    if (oi < 0) { OutError("NYASM: zapis zmiennej spoza OUTPUT"); return 0; }
+    v = FindVar(name);
+    if (!v) {
+        v = CreateVar(name);
+        if (!v) { OutError("NYASM: za duzo zmiennych"); return 0; }
+        ValFromInt(&v->val, value);
+    } else {
+        if (v->is_const) { OutError("NYASM: OUTPUT nie moze byc CONST"); return 0; }
+        if (v->val.type == TYPE_NONE || v->val.type == TYPE_INT) ValFromInt(&v->val, value);
+        else if (v->val.type == TYPE_BOOL) ValFromBool(&v->val, value != 0);
+        else { OutError("NYASM: OUTPUT obsluguje INTEGER/BOOLEAN"); return 0; }
+    }
+    written[oi] = 1;
+    return 1;
+}
+
+static int NyasmCheckedResult(int64_t v, int32_t *out) {
+    if (v < INT32_MIN || v > INT32_MAX) {
+        OutError("NYASM: przepelnienie INTEGER");
+        return 0;
+    }
+    *out = (int32_t)v;
+    return 1;
+}
+
+static void ExecNyasmBlock(uint32_t ln, const char *raw, const char *line) {
+    char header[MAX_LINE_LEN];
+    char inputs[NYASM_MAX_IO][64], outputs[NYASM_MAX_IO][64];
+    uint32_t input_count = 0, output_count = 0;
+    uint8_t written[NYASM_MAX_IO] = {0};
+    int32_t regs[4] = {0,0,0,0};
+    uint32_t my_indent = NIndent(raw);
+    uint32_t body_start = ln + 1, body_end = SkipBlock(body_start, my_indent);
+    const char *p;
+    uint32_t len, i;
+    int is_long = NStartsWith(line, "NYASM");
+
+    NStrCopy(header, NTrim(line + (is_long ? 5 : 3)), sizeof(header));
+    len = NStrLen(header);
+    if (!len || header[len - 1] != ':') { OutError("NYASM: naglowek musi konczyc sie :"); g_cur_line = body_end; return; }
+    header[--len] = '\0'; NRTrim(header);
+    p = NTrim(header);
+
+    if (PeekWord(p, "INPUT")) {
+        const char *start, *outp = 0, *q;
+        char inbuf[256];
+        uint32_t n;
+        p = NTrim(p + 5);
+        start = p;
+        for (q = p; *q; q++) {
+            if ((q == p || NIsSpace(q[-1])) && PeekWord(q, "OUTPUT")) { outp = q; break; }
+        }
+        if (!outp) { OutError("NYASM: po INPUT wymagane OUTPUT"); g_cur_line = body_end; return; }
+        n = (uint32_t)(outp - start);
+        if (n >= sizeof(inbuf)) { OutError("NYASM: lista INPUT za dluga"); g_cur_line = body_end; return; }
+        for (i = 0; i < n; i++) inbuf[i] = start[i];
+        inbuf[n] = '\0'; NRTrim(inbuf);
+        if (!NyasmParseNames(inbuf, inputs, &input_count)) {
+            OutError("NYASM: niepoprawna lista INPUT");
+            g_cur_line = body_end; return;
+        }
+        p = outp;
+    }
+    if (!PeekWord(p, "OUTPUT")) {
+        OutError("NYASM: wymagane OUTPUT");
+        g_cur_line = body_end; return;
+    }
+    p = NTrim(p + 6);
+    if (!NyasmParseNames(p, outputs, &output_count) || output_count == 0) {
+        OutError("NYASM: niepoprawna lista OUTPUT");
+        g_cur_line = body_end; return;
+    }
+
+    for (i = body_start; i < body_end; i++) {
+        const char *il = NTrim(g_lines[i]);
+        char op[32];
+        uint32_t on;
+        char args[2][MAX_STR_LEN];
+        int n;
+        int r, rhs;
+        int32_t value;
+        g_cur_line = i;
+        if (!*il || *il == '#') continue;
+        if (NIndent(g_lines[i]) != my_indent + NYOTA_INDENT) {
+            OutError("NYASM: instrukcja musi miec dokladnie jeden poziom wciecia");
+            g_cur_line = body_end; return;
+        }
+        on = ParseIdent(il, op, sizeof(op));
+        if (!op[0]) { OutError("NYASM: brak instrukcji"); g_cur_line = body_end; return; }
+        il = NTrim(il + on);
+
+        if (NStrEq(op, "STORE")) {
+            n = SplitFunctionArgs(il, args, 2);
+            if (n != 2) { OutError("NYASM STORE output, Rn"); g_cur_line = body_end; return; }
+            r = NyasmReg(NTrim(args[1]));
+            if (r < 0) { OutError("NYASM STORE wymaga rejestru R0..R3"); g_cur_line = body_end; return; }
+            if (!NyasmStore(args[0], regs[r], outputs, output_count, written)) { g_cur_line = body_end; return; }
+            continue;
+        }
+
+        if (NStrEq(op, "MOV") || NStrEq(op, "ADD") || NStrEq(op, "SUB") ||
+            NStrEq(op, "MUL") || NStrEq(op, "DIV") || NStrEq(op, "MOD")) {
+            n = SplitFunctionArgs(il, args, 2);
+            if (n != 2) { OutError("NYASM: instrukcja wymaga Rn, operand"); g_cur_line = body_end; return; }
+            r = NyasmReg(NTrim(args[0]));
+            if (r < 0) { OutError("NYASM: wymagany rejestr R0..R3"); g_cur_line = body_end; return; }
+            if (!NyasmReadOperand(args[1], inputs, input_count, regs, &rhs)) { g_cur_line = body_end; return; }
+            if (NStrEq(op, "MOV")) regs[r] = rhs;
+            else if (NStrEq(op, "ADD")) {
+                if (!NyasmCheckedResult((int64_t)regs[r] + rhs, &value)) { g_cur_line = body_end; return; }
+                regs[r] = value;
+            } else if (NStrEq(op, "SUB")) {
+                if (!NyasmCheckedResult((int64_t)regs[r] - rhs, &value)) { g_cur_line = body_end; return; }
+                regs[r] = value;
+            } else if (NStrEq(op, "MUL")) {
+                if (!NyasmCheckedResult((int64_t)regs[r] * rhs, &value)) { g_cur_line = body_end; return; }
+                regs[r] = value;
+            } else {
+                if (rhs == 0) { OutError(NStrEq(op, "DIV") ? "NYASM DIV: dzielenie przez zero" : "NYASM MOD: dzielenie przez zero"); g_cur_line = body_end; return; }
+                if (regs[r] == INT32_MIN && rhs == -1) { OutError("NYASM: przepelnienie INTEGER"); g_cur_line = body_end; return; }
+                if (NStrEq(op, "DIV")) regs[r] /= rhs;
+                else regs[r] %= rhs;
+            }
+            continue;
+        }
+
+        OutError("NYASM: nieznana instrukcja");
+        g_cur_line = body_end; return;
+    }
+
+    for (i = 0; i < output_count; i++) {
+        if (!written[i]) {
+            OutError("NYASM: kazdy OUTPUT musi zostac zapisany przez STORE");
+            g_cur_line = body_end; return;
+        }
+    }
+    g_cur_line = body_end;
+}
+
 // Tabulacja jest błędem. Wcięcie linii z kodem musi być wielokrotnością 4.
 static int ValidateSourceLayout(void) {
     for (uint32_t i = 0; i < g_line_count; i++) {
@@ -4490,6 +5078,88 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         s->frame_ms = 100;
         s->playing = 0;
         s->last_frame_tick = 0;
+        return;
+    }
+
+    // --- FILE_WRITE / FILE_APPEND ---
+    if (NStartsWith(line, "FILE_WRITE") || NStartsWith(line, "FILE_APPEND")) {
+        char args[2][MAX_STR_LEN], path[MAX_STR_LEN];
+        NyotaVal data;
+        int append = NStartsWith(line, "FILE_APPEND");
+        int off = append ? 11 : 10;
+        int n = SplitFunctionArgs(NTrim(line + off), args, 2);
+        if (n != 2 || !EvalStringArg(args[0], path, sizeof(path), append ? "FILE_APPEND" : "FILE_WRITE")) return;
+        data = Eval(args[1]);
+        if (data.type != TYPE_STR) { OutError("FILE_WRITE/APPEND: dane wymagaja STRING"); return; }
+        if (!g_host || !g_host->file_write) { OutError("FILE_WRITE/APPEND: host nie obsluguje plikow"); return; }
+        if (HostFileWrite(path, data.s, NStrLen(data.s), append ? 1 : 0) != 0)
+            OutError("FILE_WRITE/APPEND: operacja nieudana");
+        return;
+    }
+
+    // --- FILE_DELETE path ---
+    if (NStartsWith(line, "FILE_DELETE")) {
+        char args[1][MAX_STR_LEN], path[MAX_STR_LEN];
+        int n = SplitFunctionArgs(NTrim(line + 11), args, 1);
+        if (n != 1 || !EvalStringArg(args[0], path, sizeof(path), "FILE_DELETE")) return;
+        if (!g_host || !g_host->file_delete) { OutError("FILE_DELETE: host nie obsluguje plikow"); return; }
+        if (HostFileDelete(path) != 0) OutError("FILE_DELETE: operacja nieudana");
+        return;
+    }
+
+    // --- FILE_COPY / FILE_MOVE src, dst ---
+    if (NStartsWith(line, "FILE_COPY") || NStartsWith(line, "FILE_MOVE")) {
+        char args[2][MAX_STR_LEN], src[MAX_STR_LEN], dst[MAX_STR_LEN];
+        int move = NStartsWith(line, "FILE_MOVE");
+        int n = SplitFunctionArgs(NTrim(line + 9), args, 2);
+        if (n != 2 || !EvalStringArg(args[0], src, sizeof(src), move ? "FILE_MOVE" : "FILE_COPY") ||
+            !EvalStringArg(args[1], dst, sizeof(dst), move ? "FILE_MOVE" : "FILE_COPY")) return;
+        if (move) {
+            if (!g_host || !g_host->file_move) { OutError("FILE_MOVE: host nie obsluguje plikow"); return; }
+            if (HostFileMove(src, dst) != 0) OutError("FILE_MOVE: operacja nieudana");
+        } else {
+            if (!g_host || !g_host->file_copy) { OutError("FILE_COPY: host nie obsluguje plikow"); return; }
+            if (HostFileCopy(src, dst) != 0) OutError("FILE_COPY: operacja nieudana");
+        }
+        return;
+    }
+
+    // --- DIR_CREATE / DIR_DELETE path ---
+    if (NStartsWith(line, "DIR_CREATE") || NStartsWith(line, "DIR_DELETE")) {
+        char args[1][MAX_STR_LEN], path[MAX_STR_LEN];
+        int del = NStartsWith(line, "DIR_DELETE");
+        int n = SplitFunctionArgs(NTrim(line + 10), args, 1);
+        if (n != 1 || !EvalStringArg(args[0], path, sizeof(path), del ? "DIR_DELETE" : "DIR_CREATE")) return;
+        if (del) {
+            if (!g_host || !g_host->dir_delete) { OutError("DIR_DELETE: host nie obsluguje katalogow"); return; }
+            if (HostDirDelete(path) != 0) OutError("DIR_DELETE: katalog musi byc pusty i istniec");
+        } else {
+            if (!g_host || !g_host->dir_create) { OutError("DIR_CREATE: host nie obsluguje katalogow"); return; }
+            if (HostDirCreate(path) != 0) OutError("DIR_CREATE: operacja nieudana");
+        }
+        return;
+    }
+
+    // --- DIR_COPY / DIR_MOVE src, dst ---
+    if (NStartsWith(line, "DIR_COPY") || NStartsWith(line, "DIR_MOVE")) {
+        char args[2][MAX_STR_LEN], src[MAX_STR_LEN], dst[MAX_STR_LEN];
+        int move = NStartsWith(line, "DIR_MOVE");
+        int n = SplitFunctionArgs(NTrim(line + 8), args, 2);
+        if (n != 2 || !EvalStringArg(args[0], src, sizeof(src), move ? "DIR_MOVE" : "DIR_COPY") ||
+            !EvalStringArg(args[1], dst, sizeof(dst), move ? "DIR_MOVE" : "DIR_COPY")) return;
+        if (move) {
+            if (!g_host || !g_host->dir_move) { OutError("DIR_MOVE: host nie obsluguje katalogow"); return; }
+            if (HostDirMove(src, dst) != 0) OutError("DIR_MOVE: operacja nieudana");
+        } else {
+            if (!g_host || !g_host->dir_copy) { OutError("DIR_COPY: host nie obsluguje katalogow"); return; }
+            if (HostDirCopy(src, dst) != 0) OutError("DIR_COPY: operacja nieudana");
+        }
+        return;
+    }
+
+    // --- NYASM / ASM: bezpieczna maszyna wirtualna R0..R3 ---
+    if (NStartsWith(line, "NYASM") || NStartsWith(line, "ASM")) {
+        ExecNyasmBlock(ln, raw, line);
         return;
     }
 
@@ -5354,18 +6024,45 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         }
 
         if (v->val.type == TYPE_LIST) {
-            int desc = 0;
+            int desc = 0, algo = LIST_SORT_AUTO;
+            int dir_seen = 0, algo_seen = 0;
             if (*p == ',') {
-                p = NTrim(p + 1);
-                if (PeekWord(p, "DESC")) { desc = 1; p = NTrim(p + 4); }
-                else if (PeekWord(p, "ASC")) { desc = 0; p = NTrim(p + 3); }
-                else { OutError("SORT: uzyj DESC albo ASC"); return; }
+                char mods[2][MAX_STR_LEN];
+                int n = SplitFunctionArgs(NTrim(p + 1), mods, 2);
+                int mi;
+                if (n < 1 || n > 2) { OutError("SORT: maksymalnie algorytm i kierunek"); return; }
+                for (mi = 0; mi < n; mi++) {
+                    const char *m = NTrim(mods[mi]);
+                    if (NStrEq(m, "ASC")) {
+                        if (dir_seen) { OutError("SORT: kierunek podany wiecej niz raz"); return; }
+                        desc = 0; dir_seen = 1;
+                    } else if (NStrEq(m, "DESC") || NStrEq(m, "REVERSE")) {
+                        if (dir_seen) { OutError("SORT: kierunek podany wiecej niz raz"); return; }
+                        desc = 1; dir_seen = 1;
+                    } else {
+                        int a = -1;
+                        if (NStrEq(m, "AUTO")) a = LIST_SORT_AUTO;
+                        else if (NStrEq(m, "BUBBLE")) a = LIST_SORT_BUBBLE;
+                        else if (NStrEq(m, "INSERT")) a = LIST_SORT_INSERT;
+                        else if (NStrEq(m, "SELECT")) a = LIST_SORT_SELECT;
+                        else if (NStrEq(m, "MERGE")) a = LIST_SORT_MERGE;
+                        else if (NStrEq(m, "QUICK")) a = LIST_SORT_QUICK;
+                        else if (NStrEq(m, "HEAP")) a = LIST_SORT_HEAP;
+                        else if (NStrEq(m, "SHELL")) a = LIST_SORT_SHELL;
+                        else if (NStrEq(m, "COUNTING")) a = LIST_SORT_COUNTING;
+                        else { OutError("SORT: nieznany algorytm/kierunek"); return; }
+                        if (algo_seen) { OutError("SORT: algorytm podany wiecej niz raz"); return; }
+                        algo = a; algo_seen = 1;
+                    }
+                }
+            } else if (*p) {
+                OutError("SORT: nadmiarowa skladnia"); return;
             }
-            if (*p) { OutError("SORT: nadmiarowa skladnia"); return; }
             if (v->val.list_len > 0) {
                 uint8_t t = v->val.list_items[0].type;
                 uint32_t i;
-                if (t != TYPE_INT && t != TYPE_FLOAT && t != TYPE_STR && t != TYPE_DATE && t != TYPE_TIME) {
+                if (t != TYPE_INT && t != TYPE_FLOAT && t != TYPE_STR &&
+                    t != TYPE_DATE && t != TYPE_TIME) {
                     OutError("SORT: obslugiwane typy to INTEGER, FLOAT, STRING, DATE, TIME");
                     return;
                 }
@@ -5376,7 +6073,7 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
                     }
                 }
             }
-            ListSort(&v->val, desc);
+            ListSortAlgo(&v->val, desc, algo);
             return;
         }
         OutError("SORT wymaga LIST albo MARK");

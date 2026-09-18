@@ -24,6 +24,24 @@ typedef struct NyotaHost {
     /* Zwraca maskę przycisków wskaźnika: bit 0 = lewy. */
     uint8_t (*pointer_state)(int32_t *x, int32_t *y);
 
+    /* High-level filesystem contract. Rdzeń Nyoty nie dotyka VFS/POSIX bezpośrednio.
+     * 0 = sukces dla operacji, exists zwraca 0/1, size < 0 oznacza błąd.
+     * dir_list zwraca nazwy rozdzielone '\n' (bez . i ..). */
+    int32_t (*file_read)(const char *path, char *out, uint32_t cap, uint32_t *out_size);
+    int32_t (*file_write)(const char *path, const char *data, uint32_t size, uint8_t append);
+    int32_t (*file_delete)(const char *path);
+    int32_t (*file_copy)(const char *src, const char *dst);
+    int32_t (*file_move)(const char *src, const char *dst);
+    int32_t (*file_exists)(const char *path);
+    int64_t (*file_size)(const char *path);
+
+    int32_t (*dir_create)(const char *path);
+    int32_t (*dir_delete)(const char *path);
+    int32_t (*dir_copy)(const char *src, const char *dst);
+    int32_t (*dir_move)(const char *src, const char *dst);
+    int32_t (*dir_exists)(const char *path);
+    int32_t (*dir_list)(const char *path, char *out, uint32_t cap, uint32_t *out_size);
+
     void (*gfx_clear)(uint8_t r, uint8_t g, uint8_t b);
     void (*gfx_rect)(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
                      uint8_t r, uint8_t g, uint8_t b);

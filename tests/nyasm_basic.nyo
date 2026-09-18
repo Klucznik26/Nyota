@@ -1,0 +1,19 @@
+# Oczekiwane: zawiera NYASM_OK
+BEGIN
+VAR a := 7
+VAR b := 5
+
+NYASM INPUT a, b OUTPUT wynik:
+    MOV R0, a
+    MUL R0, b
+    ADD R0, 3
+    STORE wynik, R0
+
+VAR flaga := FALSE
+ASM INPUT wynik OUTPUT flaga:
+    MOV R1, wynik
+    STORE flaga, R1
+
+IF wynik = 38 AND flaga = TRUE:
+    PRINT "NYASM_OK"
+END

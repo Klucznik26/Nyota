@@ -50,6 +50,9 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">TABLE: nazwana kontrolka prezentacji danych; kolumny i szerokości, czcionka/rozmiar, kolor tekstu, opcjonalne źródło LIST/TUPLE/MARK oraz TABLE_DATA wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">BUTTON: nazwana kontrolka GUI z geometrią, tekstem, czcionką/rozmiarem, kolorami tekstu/tła i BUTTON_CLICKED() wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">SPRITE: nazwany obiekt graficzny, pozycja/ruch/widoczność, animacja klatkowa, jawne rysowanie i kolizja prostokątna wykonane 2026-09-18</span>
+- <span style="color: #006A4E;">FILE oraz DIR/LS przez kontrakt NyotaHost; pełny backend POSIX wykonane 2026-09-18</span>
+- <span style="color: #006A4E;">SORT: jawny wybór AUTO/BUBBLE/INSERT/SELECT/MERGE/QUICK/HEAP/SHELL/COUNTING wykonane 2026-09-18</span>
+- <span style="color: #006A4E;">NYASM: bezpieczna VM R0-R3 z INPUT/OUTPUT i MOV/ADD/SUB/MUL/DIV/MOD/STORE wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>
@@ -1364,6 +1367,170 @@ LOAD "ikona.ayoprv" INTO BANK 1
 ```
 
 Banki służą do przechowywania grafik, dźwięków i danych w RAM.
+
+---
+
+## 46a. FILE — operacje plikowe
+
+FILE jest częścią języka, a wykonanie operacji należy do hosta przez \`NyotaHost\`.
+Rdzeń interpretera nie otwiera plików bezpośrednio przez POSIX ani nie dotyka
+struktur systemu plików AyoOS.
+
+Instrukcje:
+
+\`\`\`nyota
+FILE_WRITE "dane.txt", "Ayo"
+FILE_APPEND "dane.txt", "OS"
+FILE_COPY "dane.txt", "kopia.txt"
+FILE_MOVE "kopia.txt", "archiwum.txt"
+FILE_DELETE "archiwum.txt"
+\`\`\`
+
+Funkcje:
+
+\`\`\`nyota
+VAR tekst := FILE_READ("dane.txt")
+VAR jest := FILE_EXISTS("dane.txt")
+VAR bajty := FILE_SIZE("dane.txt")
+\`\`\`
+
+Zasady bieżącej implementacji:
+- ścieżki i dane tekstowe są \`STRING\`,
+- \`FILE_EXISTS()\` zwraca \`BOOLEAN\`,
+- \`FILE_SIZE()\` zwraca \`INTEGER\`,
+- \`FILE_READ()\` czyta tekst do STRING; obecny limit implementacji to 511 bajtów,
+- plik zawierający bajt NUL nie jest traktowany jako STRING,
+- błąd hosta jest jawnym błędem Nyoty.
+
+Host POSIX implementuje cały powyższy zestaw. Host AyoOS ma ten sam kontrakt,
+ale callbacki FILE/DIR muszą zostać podłączone do AyoAPI/VFS po stronie hosta.
+
+---
+
+## 46b. DIR / LS — katalogi
+
+Instrukcje:
+
+\`\`\`nyota
+DIR_CREATE "dane"
+DIR_COPY "dane", "kopia"
+DIR_MOVE "kopia", "archiwum"
+DIR_DELETE "archiwum"
+\`\`\`
+
+Funkcje:
+
+\`\`\`nyota
+VAR jest := DIR_EXISTS("dane")
+VAR nazwy := DIR_LIST("dane")
+VAR nazwy2 := LS("dane")
+\`\`\`
+
+\`DIR_LIST()\` oraz \`LS()\` mają tę samą semantykę: zwracają \`LIST\` nazw
+wpisów posortowaną rosnąco. Nie wypisują katalogu na ekran.
+
+W referencyjnym hoście POSIX:
+- \`DIR_DELETE\` usuwa tylko pusty katalog,
+- \`DIR_COPY\` kopiuje rekurencyjnie katalogi i zwykłe pliki,
+- kopiowanie nie podąża za symlinkami i odrzuca pliki specjalne,
+- wynik listowania ma bieżący limit bufora hosta 8192 bajtów i limit LIST Nyoty.
+
+---
+
+## 46c. SORT — jawny wybór algorytmu
+
+Podstawowe formy pozostają najprostsze:
+
+\`\`\`nyota
+SORT dane
+SORT dane, DESC
+\`\`\`
+
+Działa również dydaktyczny, jawny wybór algorytmu:
+
+\`\`\`nyota
+SORT dane, AUTO
+SORT dane, BUBBLE
+SORT dane, INSERT
+SORT dane, SELECT
+SORT dane, MERGE
+SORT dane, QUICK
+SORT dane, HEAP
+SORT dane, SHELL
+SORT dane, COUNTING
+
+SORT dane, QUICK, DESC
+SORT dane, QUICK, REVERSE
+\`\`\`
+
+Kierunki: \`ASC\` (domyślny), \`DESC\`, \`REVERSE\` = malejąco.
+\`AUTO\` pozwala interpreterowi wybrać algorytm.
+
+Typy sortowalne w LIST: \`INTEGER\`, \`BOOLEAN\`, \`FLOAT\`, \`STRING\`,
+\`DATE\`, \`TIME\`. Lista mieszanych typów jest błędem.
+
+\`COUNTING\` przyjmuje tylko \`INTEGER\` lub \`BOOLEAN\`; bieżący limit
+implementacji to zakres maksymalnie 4096 wartości. Pozostałe algorytmy nie
+mają tego ograniczenia.
+
+---
+
+## 46d. NYASM — bezpieczny wirtualny assembler
+
+NYASM nie jest natywnym assemblerem procesora. Jest kontrolowaną maszyną
+wirtualną Nyoty z czterema rejestrami:
+
+\`\`\`text
+R0 R1 R2 R3
+\`\`\`
+
+Przykład:
+
+\`\`\`nyota
+BEGIN
+VAR a := 7
+VAR b := 5
+
+NYASM INPUT a, b OUTPUT wynik:
+    MOV R0, a
+    MUL R0, b
+    ADD R0, 3
+    STORE wynik, R0
+
+PRINT wynik
+END
+\`\`\`
+
+\`ASM\` jest aliasem nagłówka \`NYASM\`.
+
+Instrukcje VM:
+
+\`\`\`text
+MOV Rn, operand
+ADD Rn, operand
+SUB Rn, operand
+MUL Rn, operand
+DIV Rn, operand
+MOD Rn, operand
+STORE output, Rn
+\`\`\`
+
+Operand może być rejestrem, literałem INTEGER, \`TRUE\`/\`FALSE\` albo
+zmienną wymienioną w \`INPUT\`.
+
+Reguły bezpieczeństwa:
+- rejestry startują od zera,
+- odczyt zmiennej spoza \`INPUT\` jest błędem,
+- zapis spoza \`OUTPUT\` jest błędem,
+- każdy zadeklarowany OUTPUT musi otrzymać \`STORE\`,
+- istniejący OUTPUT musi być INTEGER albo BOOLEAN i nie może być CONST,
+- nieistniejący OUTPUT jest tworzony jako INTEGER,
+- VM wykrywa przepełnienie INTEGER i dzielenie/MOD przez zero,
+- NYASM nie alokuje pamięci Nyoty, nie wykonuje syscalli, nie ma skoków do
+  linii Nyoty i nie wywołuje FUNCTION/PROCEDURE.
+
+Natywny x86-64 ASM/XASM nie ma jeszcze zatwierdzonego kontraktu i nie jest
+częścią tej implementacji.
 
 ---
 

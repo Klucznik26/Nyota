@@ -82,9 +82,12 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `TABLE` | ✅ | nazwana kontrolka prezentacji LIST/TUPLE/MARK w trybie graficznym |
 | `BUTTON` | ✅ | nazwana kontrolka GUI; wygląd + wykrywanie kliknięcia na hoście POSIX |
 | `SPRITE` | ✅ | nazwany obiekt graficzny; ruch, widoczność, animacja klatkowa, jawne rysowanie i kolizja AABB |
-| Host Linux | 🚧 | terminal + backend SDL2 dla grafiki |
+| `FILE / DIR / LS` | ✅ | wysokopoziomowy kontrakt hosta; pełny backend POSIX |
+| `SORT` | ✅ | AUTO + 8 jawnych algorytmów, ASC/DESC/REVERSE |
+| `NYASM` | ✅ | bezpieczna VM R0-R3 z jawnym INPUT/OUTPUT |
+| Host Linux | 🚧 | terminal + backend SDL2 dla grafiki i FILE/DIR |
 | Host AyoOS | 🚧 | docelowo wspólny `src/nyota.c` dla wszystkich hostów |
-| VS Code | ✅ | rozszerzenie `.nyo` z kolorowaniem oraz uruchamianiem przez `▶` / `Ctrl+F5` |
+| VS Code | ✅ | Nyota Language Support 0.3.0: kolorowanie + uruchamianie przez `▶` / `Ctrl+F5` |
 
 Szczegółowy stan interpretera znajduje się w [`docs/nyota.md`](docs/nyota.md), a droga do stabilizacji i rozwoju w [`docs/nyota_v05.md`](docs/nyota_v05.md).
 
@@ -166,7 +169,7 @@ zbudowania potrzebne są narzędzia RPM i nagłówki zgodności SDL2:
 ```bash
 sudo dnf install rpm-build gcc make pkgconf-pkg-config sdl2-compat-devel tar gzip
 make rpm
-sudo dnf install packaging/nyota-0.5.0-2.fc44.x86_64.rpm
+sudo dnf install packaging/nyota-0.5.0-3.fc44.x86_64.rpm
 nyota /usr/share/nyota/tests/add_int.nyo
 ```
 
@@ -250,7 +253,7 @@ Najważniejsze dokumenty projektu:
 
 Po ustabilizowaniu rdzenia Nyota ma rozwijać się także w stronę bogatszych struktur danych, `DATETIME`, relacyjnego `MARK`, dalszego rozwoju `TABLE`, standardowego GUI, dalszego rozwoju sprite'ów, audio oraz dalszej pracy nad hostem Linuksa.
 
-Poza AyoOS działa rozszerzenie **Nyota Language Support 0.2.1** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
+Poza AyoOS działa rozszerzenie **Nyota Language Support 0.3.0** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Wersja 0.3.0 zna także składnię FILE/DIR, jawnych algorytmów SORT i NYASM. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
 
 Nyota nie ma zastępować C lub Zig w najniższych warstwach systemu. Jej celem jest wygodne tworzenie aplikacji, narzędzi, automatyzacji, grafiki i prostych gier przy zachowaniu własnej, spójnej semantyki.
 

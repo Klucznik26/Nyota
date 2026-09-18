@@ -13,6 +13,10 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <SDL2/SDL.h>
 #include "font8x8.h"
@@ -76,6 +80,168 @@ static uint32_t host_local_time_seconds(void) {
     struct tm tmv;
     localtime_r(&now, &tmv);
     return (uint32_t)(tmv.tm_hour * 3600 + tmv.tm_min * 60 + tmv.tm_sec);
+}
+
+static int32_t host_file_read(const char *path, char *out, uint32_t cap, uint32_t *out_size) {
+    FILE *f;
+    long sz;
+    size_t got;
+    if (out_size) *out_size = 0;
+    if (!path || !out || cap == 0) return -1;
+    f = fopen(path, "rb");
+    if (!f) return -1;
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return -1; }
+    sz = ftell(f);
+    if (sz < 0 || (uint64_t)sz + 1ULL > cap) { fclose(f); return -2; }
+    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return -1; }
+    got = fread(out, 1, (size_t)sz, f);
+    fclose(f);
+    if (got != (size_t)sz) return -1;
+    if (memchr(out, '\0', got) != NULL) return -3;
+    out[got] = '\0';
+    if (out_size) *out_size = (uint32_t)got;
+    return 0;
+}
+
+static int32_t host_file_write(const char *path, const char *data, uint32_t size, uint8_t append) {
+    FILE *f;
+    size_t wrote;
+    if (!path || !data) return -1;
+    f = fopen(path, append ? "ab" : "wb");
+    if (!f) return -1;
+    wrote = fwrite(data, 1, size, f);
+    if (fclose(f) != 0) return -1;
+    return wrote == size ? 0 : -1;
+}
+
+static int32_t host_file_delete(const char *path) {
+    return path && unlink(path) == 0 ? 0 : -1;
+}
+
+static int32_t host_file_exists(const char *path) {
+    struct stat st;
+    if (!path || stat(path, &st) != 0) return 0;
+    return S_ISREG(st.st_mode) ? 1 : 0;
+}
+
+static int64_t host_file_size(const char *path) {
+    struct stat st;
+    if (!path || stat(path, &st) != 0 || !S_ISREG(st.st_mode)) return -1;
+    return (int64_t)st.st_size;
+}
+
+static int32_t host_copy_file(const char *src, const char *dst) {
+    FILE *in, *out;
+    unsigned char buf[16384];
+    size_t n;
+    int ok = 0;
+    if (!src || !dst) return -1;
+    in = fopen(src, "rb");
+    if (!in) return -1;
+    out = fopen(dst, "wb");
+    if (!out) { fclose(in); return -1; }
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (fwrite(buf, 1, n, out) != n) { ok = -1; break; }
+    }
+    if (ferror(in)) ok = -1;
+    if (fclose(out) != 0) ok = -1;
+    fclose(in);
+    if (ok != 0) unlink(dst);
+    return ok;
+}
+
+static int32_t host_file_copy(const char *src, const char *dst) {
+    struct stat st;
+    if (!src || stat(src, &st) != 0 || !S_ISREG(st.st_mode)) return -1;
+    return host_copy_file(src, dst);
+}
+
+static int32_t host_file_move(const char *src, const char *dst) {
+    return src && dst && rename(src, dst) == 0 ? 0 : -1;
+}
+
+static int32_t host_dir_exists(const char *path) {
+    struct stat st;
+    if (!path || stat(path, &st) != 0) return 0;
+    return S_ISDIR(st.st_mode) ? 1 : 0;
+}
+
+static int32_t host_dir_create(const char *path) {
+    if (!path) return -1;
+    if (mkdir(path, 0777) == 0) return 0;
+    if (errno == EEXIST && host_dir_exists(path)) return 0;
+    return -1;
+}
+
+static int32_t host_dir_delete(const char *path) {
+    return path && rmdir(path) == 0 ? 0 : -1;
+}
+
+static int32_t host_dir_move(const char *src, const char *dst) {
+    return src && dst && rename(src, dst) == 0 ? 0 : -1;
+}
+
+static int32_t host_dir_copy_recursive(const char *src, const char *dst) {
+    DIR *dir;
+    struct dirent *ent;
+    struct stat st;
+    char sp[2048], dp[2048];
+    if (!src || !dst || stat(src, &st) != 0 || !S_ISDIR(st.st_mode)) return -1;
+    if (host_dir_create(dst) != 0) return -1;
+    dir = opendir(src);
+    if (!dir) return -1;
+    while ((ent = readdir(dir)) != NULL) {
+        size_t sl, dl, nl;
+        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) continue;
+        sl = strlen(src); dl = strlen(dst); nl = strlen(ent->d_name);
+        if (sl + nl + 2 > sizeof(sp) || dl + nl + 2 > sizeof(dp)) {
+            closedir(dir);
+            return -1;
+        }
+        snprintf(sp, sizeof(sp), "%s/%s", src, ent->d_name);
+        snprintf(dp, sizeof(dp), "%s/%s", dst, ent->d_name);
+        if (lstat(sp, &st) != 0) { closedir(dir); return -1; }
+        if (S_ISDIR(st.st_mode)) {
+            if (host_dir_copy_recursive(sp, dp) != 0) { closedir(dir); return -1; }
+        } else if (S_ISREG(st.st_mode)) {
+            if (host_copy_file(sp, dp) != 0) { closedir(dir); return -1; }
+        } else {
+            /* Bezpieczny profil: nie podążamy za symlinkami ani plikami specjalnymi. */
+            closedir(dir);
+            return -1;
+        }
+    }
+    closedir(dir);
+    return 0;
+}
+
+static int32_t host_dir_copy(const char *src, const char *dst) {
+    return host_dir_copy_recursive(src, dst);
+}
+
+static int32_t host_dir_list(const char *path, char *out, uint32_t cap, uint32_t *out_size) {
+    DIR *dir;
+    struct dirent *ent;
+    uint32_t used = 0;
+    if (out_size) *out_size = 0;
+    if (!path || !out || cap == 0) return -1;
+    dir = opendir(path);
+    if (!dir) return -1;
+    while ((ent = readdir(dir)) != NULL) {
+        uint32_t n;
+        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) continue;
+        if (strchr(ent->d_name, '\n')) { closedir(dir); return -1; }
+        n = (uint32_t)strlen(ent->d_name);
+        if ((uint64_t)used + n + 2ULL > cap) { closedir(dir); return -2; }
+        memcpy(out + used, ent->d_name, n);
+        used += n;
+        out[used++] = '\n';
+    }
+    closedir(dir);
+    if (used) used--;
+    out[used] = '\0';
+    if (out_size) *out_size = used;
+    return 0;
 }
 
 static void gfx_ensure(void) {
@@ -394,6 +560,19 @@ int main(int argc, char **argv) {
     g_nyhost.wait_key = host_waitkey;
     g_nyhost.key_mods = host_mods;
     g_nyhost.pointer_state = host_pointer_state;
+    g_nyhost.file_read = host_file_read;
+    g_nyhost.file_write = host_file_write;
+    g_nyhost.file_delete = host_file_delete;
+    g_nyhost.file_copy = host_file_copy;
+    g_nyhost.file_move = host_file_move;
+    g_nyhost.file_exists = host_file_exists;
+    g_nyhost.file_size = host_file_size;
+    g_nyhost.dir_create = host_dir_create;
+    g_nyhost.dir_delete = host_dir_delete;
+    g_nyhost.dir_copy = host_dir_copy;
+    g_nyhost.dir_move = host_dir_move;
+    g_nyhost.dir_exists = host_dir_exists;
+    g_nyhost.dir_list = host_dir_list;
     g_nyhost.gfx_clear = host_clear;
     g_nyhost.gfx_rect = host_rect;
     g_nyhost.gfx_text = host_text;

@@ -1,0 +1,66 @@
+# Oczekiwane: zawiera DIR_OK
+BEGIN
+# Sprzatanie po ewentualnym przerwanym poprzednim tescie
+IF FILE_EXISTS("/tmp/nyota_dir_src/sub/b.txt"):
+    FILE_DELETE "/tmp/nyota_dir_src/sub/b.txt"
+IF FILE_EXISTS("/tmp/nyota_dir_src/a.txt"):
+    FILE_DELETE "/tmp/nyota_dir_src/a.txt"
+IF DIR_EXISTS("/tmp/nyota_dir_src/sub"):
+    DIR_DELETE "/tmp/nyota_dir_src/sub"
+IF DIR_EXISTS("/tmp/nyota_dir_src"):
+    DIR_DELETE "/tmp/nyota_dir_src"
+
+IF FILE_EXISTS("/tmp/nyota_dir_dst/sub/b.txt"):
+    FILE_DELETE "/tmp/nyota_dir_dst/sub/b.txt"
+IF FILE_EXISTS("/tmp/nyota_dir_dst/a.txt"):
+    FILE_DELETE "/tmp/nyota_dir_dst/a.txt"
+IF DIR_EXISTS("/tmp/nyota_dir_dst/sub"):
+    DIR_DELETE "/tmp/nyota_dir_dst/sub"
+IF DIR_EXISTS("/tmp/nyota_dir_dst"):
+    DIR_DELETE "/tmp/nyota_dir_dst"
+
+IF FILE_EXISTS("/tmp/nyota_dir_moved/sub/b.txt"):
+    FILE_DELETE "/tmp/nyota_dir_moved/sub/b.txt"
+IF FILE_EXISTS("/tmp/nyota_dir_moved/a.txt"):
+    FILE_DELETE "/tmp/nyota_dir_moved/a.txt"
+IF DIR_EXISTS("/tmp/nyota_dir_moved/sub"):
+    DIR_DELETE "/tmp/nyota_dir_moved/sub"
+IF DIR_EXISTS("/tmp/nyota_dir_moved"):
+    DIR_DELETE "/tmp/nyota_dir_moved"
+
+DIR_CREATE "/tmp/nyota_dir_src"
+DIR_CREATE "/tmp/nyota_dir_src/sub"
+FILE_WRITE "/tmp/nyota_dir_src/a.txt", "A"
+FILE_WRITE "/tmp/nyota_dir_src/sub/b.txt", "B"
+
+VAR lista := DIR_LIST("/tmp/nyota_dir_src")
+VAR lista2 := LS("/tmp/nyota_dir_src")
+VAR ok := TRUE
+IF NOT "a.txt" IN lista:
+    ok := FALSE
+IF NOT "sub" IN lista2:
+    ok := FALSE
+
+DIR_COPY "/tmp/nyota_dir_src", "/tmp/nyota_dir_dst"
+IF NOT FILE_EXISTS("/tmp/nyota_dir_dst/sub/b.txt"):
+    ok := FALSE
+
+DIR_MOVE "/tmp/nyota_dir_dst", "/tmp/nyota_dir_moved"
+IF DIR_EXISTS("/tmp/nyota_dir_dst"):
+    ok := FALSE
+IF NOT DIR_EXISTS("/tmp/nyota_dir_moved"):
+    ok := FALSE
+
+FILE_DELETE "/tmp/nyota_dir_moved/sub/b.txt"
+FILE_DELETE "/tmp/nyota_dir_moved/a.txt"
+DIR_DELETE "/tmp/nyota_dir_moved/sub"
+DIR_DELETE "/tmp/nyota_dir_moved"
+
+FILE_DELETE "/tmp/nyota_dir_src/sub/b.txt"
+FILE_DELETE "/tmp/nyota_dir_src/a.txt"
+DIR_DELETE "/tmp/nyota_dir_src/sub"
+DIR_DELETE "/tmp/nyota_dir_src"
+
+IF ok:
+    PRINT "DIR_OK"
+END
