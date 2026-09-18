@@ -91,7 +91,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `NYASM` | ✅ | bezpieczna VM R0-R3 z jawnym INPUT/OUTPUT |
 | Host Linux | 🚧 | terminal + backend SDL2 dla grafiki i FILE/DIR |
 | Host AyoOS | 🚧 | docelowo wspólny `src/nyota.c` dla wszystkich hostów |
-| VS Code | ✅ | Nyota Language Support 0.4.0: kolorowanie + uruchamianie przez `▶` / `Ctrl+F5` |
+| VS Code | ✅ | Nyota Language Support 0.4.1: kolorowanie + uruchamianie przez `▶` / `Ctrl+F5` + próbki/picker kolorów NyotaUI |
 
 Szczegółowy stan interpretera znajduje się w [`docs/nyota.md`](docs/nyota.md), a droga do stabilizacji i rozwoju w [`docs/nyota_v05.md`](docs/nyota_v05.md).
 
