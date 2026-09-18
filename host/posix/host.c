@@ -79,6 +79,11 @@ typedef struct {
     int32_t combo_hover;
     uint8_t range_dragging;
     int32_t range_drag_offset;
+    uint8_t scale_dragging;
+    uint8_t changed;
+    int32_t list_hover;
+    uint64_t list_selected_mask;
+    uint64_t tree_expanded_mask;
     uint32_t caret;
     uint8_t text_changed;
     SDL_Texture *eq_barbg_cache;
@@ -330,8 +335,14 @@ static int host_ui_control_focusable(const HostUiControl *ctl) {
            ctl->spec.kind == NYOTA_UI_CTRL_DAREA ||
            ctl->spec.kind == NYOTA_UI_CTRL_TAB ||
            ctl->spec.kind == NYOTA_UI_CTRL_TAREA ||
+           ctl->spec.kind == NYOTA_UI_CTRL_TBOX ||
            ctl->spec.kind == NYOTA_UI_CTRL_SBAR ||
-           ctl->spec.kind == NYOTA_UI_CTRL_SLIDER;
+           ctl->spec.kind == NYOTA_UI_CTRL_SLIDER ||
+           ctl->spec.kind == NYOTA_UI_CTRL_SPINBOX ||
+           ctl->spec.kind == NYOTA_UI_CTRL_LISTVIEW ||
+           ctl->spec.kind == NYOTA_UI_CTRL_TREEVIEW ||
+           ctl->spec.kind == NYOTA_UI_CTRL_SPLITTER ||
+           ctl->spec.kind == NYOTA_UI_CTRL_SCALE;
 }
 
 static void host_ui_set_focus(int window_index, int wanted) {
@@ -341,7 +352,7 @@ static void host_ui_set_focus(int window_index, int wanted) {
         HostUiControl *ctl = &g_host_ui_controls[i];
         if (!ctl->used || ctl->window_handle != g_ui_windows[window_index].handle) continue;
         ctl->focused = (i == wanted && host_ui_control_focusable(ctl)) ? 1 : 0;
-        if (ctl->focused && ctl->spec.kind == NYOTA_UI_CTRL_TAREA && ctl->spec.enabled && !ctl->spec.readonly)
+        if (ctl->focused && (ctl->spec.kind == NYOTA_UI_CTRL_TAREA || ctl->spec.kind == NYOTA_UI_CTRL_TBOX) && ctl->spec.enabled && !ctl->spec.readonly)
             text_focus = 1;
     }
     if (text_focus) SDL_StartTextInput(); else SDL_StopTextInput();
@@ -497,10 +508,11 @@ static uint32_t host_ui_utf8_next(const char *s,uint32_t pos){
     return pos;
 }
 static int host_ui_tarea_insert(HostUiControl *ctl,const char *text){
-    size_t len,add;
-    if(!ctl||!text||ctl->spec.kind!=NYOTA_UI_CTRL_TAREA||ctl->spec.readonly)return 0;
-    len=strlen(ctl->spec.text);add=strlen(text);
-    if(len+add>=sizeof(ctl->spec.text))return 0;
+    size_t len,add,limit;
+    if(!ctl||!text||(ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX)||ctl->spec.readonly)return 0;
+    if(ctl->spec.kind==NYOTA_UI_CTRL_TBOX&&(strchr(text,'\n')||strchr(text,'\r')))return 0;
+    len=strlen(ctl->spec.text);add=strlen(text);limit=ctl->spec.kind==NYOTA_UI_CTRL_TBOX?ctl->spec.max_length:sizeof(ctl->spec.text)-1;
+    if(len+add>limit||len+add>=sizeof(ctl->spec.text))return 0;
     if(ctl->caret>len)ctl->caret=(uint32_t)len;
     memmove(ctl->spec.text+ctl->caret+add,ctl->spec.text+ctl->caret,len-ctl->caret+1);
     memcpy(ctl->spec.text+ctl->caret,text,add);
@@ -508,7 +520,7 @@ static int host_ui_tarea_insert(HostUiControl *ctl,const char *text){
 }
 static int host_ui_tarea_backspace(HostUiControl *ctl){
     uint32_t p;size_t len;
-    if(!ctl||ctl->spec.kind!=NYOTA_UI_CTRL_TAREA||ctl->spec.readonly||!ctl->caret)return 0;
+    if(!ctl||(ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX)||ctl->spec.readonly||!ctl->caret)return 0;
     len=strlen(ctl->spec.text);if(ctl->caret>len)ctl->caret=(uint32_t)len;
     p=host_ui_utf8_prev(ctl->spec.text,ctl->caret);
     memmove(ctl->spec.text+p,ctl->spec.text+ctl->caret,len-ctl->caret+1);
@@ -516,7 +528,7 @@ static int host_ui_tarea_backspace(HostUiControl *ctl){
 }
 static int host_ui_tarea_delete(HostUiControl *ctl){
     uint32_t n;size_t len;
-    if(!ctl||ctl->spec.kind!=NYOTA_UI_CTRL_TAREA||ctl->spec.readonly)return 0;
+    if(!ctl||(ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX)||ctl->spec.readonly)return 0;
     len=strlen(ctl->spec.text);if(ctl->caret>=len)return 0;
     n=host_ui_utf8_next(ctl->spec.text,ctl->caret);
     memmove(ctl->spec.text+ctl->caret,ctl->spec.text+n,len-n+1);
@@ -2901,8 +2913,12 @@ static int32_t host_ui_control_create(const char *name, int32_t window_handle,
         g_host_ui_controls[i].parent_control_handle=parent_control_handle;
         g_host_ui_controls[i].spec=*spec;
         g_host_ui_controls[i].combo_hover=-1;
+        g_host_ui_controls[i].list_hover=-1;
+        g_host_ui_controls[i].tree_expanded_mask=UINT64_MAX;
+        g_host_ui_controls[i].list_selected_mask=(spec->selected<64)?(1ULL<<spec->selected):0;
         g_host_ui_controls[i].caret=(uint32_t)strlen(spec->text);
         g_host_ui_controls[i].text_changed=0;
+        g_host_ui_controls[i].changed=0;
         host_ui_mark_dirty(wi);
         return g_host_ui_controls[i].handle;
     }
@@ -2982,14 +2998,15 @@ static int32_t host_ui_combo_set_index(int32_t handle,uint32_t index){int i=host
 static int32_t host_ui_tarea_get_text(int32_t handle,char *out,uint32_t cap,uint32_t *out_size){
     int i=host_ui_control_index_by_handle(handle);size_t n;
     if(out_size)*out_size=0;
-    if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA||!out||!cap)return -1;
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TBOX)||!out||!cap)return -1;
     host_pump();n=strlen(g_host_ui_controls[i].spec.text);if(n+1>cap)return -2;
     memcpy(out,g_host_ui_controls[i].spec.text,n+1);if(out_size)*out_size=(uint32_t)n;return 0;
 }
 static int32_t host_ui_tarea_set_text(int32_t handle,const char *text){
     int i=host_ui_control_index_by_handle(handle),wi;
-    if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA||!text)return -1;
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TBOX)||!text)return -1;
     if(strlen(text)>=sizeof(g_host_ui_controls[i].spec.text))return -2;
+    if(g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_TBOX&&(strlen(text)>g_host_ui_controls[i].spec.max_length||strchr(text,'\n')||strchr(text,'\r')))return -2;
     strncpy(g_host_ui_controls[i].spec.text,text,sizeof(g_host_ui_controls[i].spec.text)-1);
     g_host_ui_controls[i].spec.text[sizeof(g_host_ui_controls[i].spec.text)-1]='\0';
     g_host_ui_controls[i].caret=(uint32_t)strlen(g_host_ui_controls[i].spec.text);
@@ -3000,7 +3017,7 @@ static int32_t host_ui_tarea_set_text(int32_t handle,const char *text){
 }
 static int32_t host_ui_tarea_changed(int32_t handle){
     int i=host_ui_control_index_by_handle(handle);int32_t v;
-    if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA)return -1;
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TBOX))return -1;
     host_pump();v=g_host_ui_controls[i].text_changed?1:0;g_host_ui_controls[i].text_changed=0;return v;
 }
 
