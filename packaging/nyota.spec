@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        13%{?dist}
+Release:        14%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,10 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-14
+- Batch NyotaUI initial construction off-screen and show windows only after the first complete frame.
+- Coalesce POSIX UI redraws to one render/present per SDL event batch.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-13
 - Add ROW/COL AUTO layout for PANEL and TAB containers.
 - Add rounded child clipping across backgrounds, text, borders, shadows and UI primitives.
