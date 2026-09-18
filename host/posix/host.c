@@ -385,7 +385,7 @@ static int host_ui_control_focusable(const HostUiControl *ctl) {
            ctl->spec.kind == NYOTA_UI_CTRL_SPLITTER ||
            ctl->spec.kind == NYOTA_UI_CTRL_SCALE ||
            ctl->spec.kind == NYOTA_UI_CTRL_ICONBUTTON ||
-           ctl->spec.kind == NYOTA_UI_CTRL_SWITCH ||
+           ctl->spec.kind == NYOTA_UI_CTRL_TOGGLE ||
            ctl->spec.kind == NYOTA_UI_CTRL_INPUT;
 }
 
@@ -708,7 +708,7 @@ static void host_pump(void) {
                                ctl->spec.kind == NYOTA_UI_CTRL_SPLITTER ||
                                ctl->spec.kind == NYOTA_UI_CTRL_SCALE ||
                                ctl->spec.kind == NYOTA_UI_CTRL_ICONBUTTON ||
-                               ctl->spec.kind == NYOTA_UI_CTRL_SWITCH ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_TOGGLE ||
                                ctl->spec.kind == NYOTA_UI_CTRL_INPUT) {
                         over = (uint8_t)host_ui_point_in_control(i,e.motion.x,e.motion.y);
                     }
@@ -912,7 +912,7 @@ static void host_pump(void) {
                         }else ctl->caret=(uint32_t)strlen(ctl->spec.text);
                         changed=1;break;
                     }
-                    if(ctl->spec.kind==NYOTA_UI_CTRL_SWITCH&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                    if(ctl->spec.kind==NYOTA_UI_CTRL_TOGGLE&&host_ui_point_in_control(i,e.button.x,e.button.y)){
                         host_ui_set_focus(ui,i);ctl->pressed=1;ctl->spec.checked=(uint8_t)!ctl->spec.checked;ctl->changed=1;changed=1;break;
                     }
                     if((ctl->spec.kind==NYOTA_UI_CTRL_BUTTON||ctl->spec.kind==NYOTA_UI_CTRL_ICONBUTTON)&&host_ui_point_in_control(i,e.button.x,e.button.y)){
@@ -1117,7 +1117,7 @@ static void host_pump(void) {
                         ctl->clicked=1;
                         if(ctl->spec.kind==NYOTA_UI_CTRL_ICONBUTTON&&ctl->spec.toggle){ctl->spec.checked=(uint8_t)!ctl->spec.checked;ctl->changed=1;}
                         changed=1;
-                    }else if(ctl->spec.kind==NYOTA_UI_CTRL_SWITCH){
+                    }else if(ctl->spec.kind==NYOTA_UI_CTRL_TOGGLE){
                         ctl->spec.checked=(uint8_t)!ctl->spec.checked;ctl->changed=1;changed=1;
                     }else if(ctl->spec.kind==NYOTA_UI_CTRL_CBOX){
                         ctl->spec.checked=(uint8_t)!ctl->spec.checked;changed=1;
@@ -3598,22 +3598,22 @@ static void host_ui_draw_iconbutton(SDL_Renderer *ren,int idx,HostUiControl *ctl
     }
 }
 
-static void host_ui_draw_switch(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_Rect r){
-    int th=r.h<36?r.h:36,tw=r.w;int sz=(int)ctl->spec.switch_thumb_size;SDL_Rect track,thumb,glow;const NyotaUiBackground *tb;
+static void host_ui_draw_toggle(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_Rect r){
+    int th=r.h<36?r.h:36,tw=r.w;int sz=(int)ctl->spec.toggle_thumb_size;SDL_Rect track,thumb,glow;const NyotaUiBackground *tb;
     NyotaUiControlSpec ts=ctl->spec;char *label;
     if(th<16)th=16;if(tw<2*th)tw=2*th;if(tw>r.w)tw=r.w;
     track.x=r.x;track.y=r.y+(r.h-th)/2;track.w=tw;track.h=th;
-    tb=ctl->spec.checked?&ctl->spec.switch_track_on:&ctl->spec.switch_track_off;
-    if(ctl->spec.switch_blur&&ctl->spec.checked){
-        int b=(int)ctl->spec.switch_blur;glow=(SDL_Rect){track.x-b,track.y-b,track.w+2*b,track.h+2*b};
-        host_ui_draw_background_shape(ren,idx,glow,&ctl->spec.switch_glow,(uint32_t)(glow.h/2));
+    tb=ctl->spec.checked?&ctl->spec.toggle_track_on:&ctl->spec.toggle_track_off;
+    if(ctl->spec.toggle_blur&&ctl->spec.checked){
+        int b=(int)ctl->spec.toggle_blur;glow=(SDL_Rect){track.x-b,track.y-b,track.w+2*b,track.h+2*b};
+        host_ui_draw_background_shape(ren,idx,glow,&ctl->spec.toggle_glow,(uint32_t)(glow.h/2));
     }
     host_ui_draw_background_shape(ren,idx,track,tb,(uint32_t)(track.h/2));
     if(sz>track.h-4)sz=track.h-4;if(sz<8)sz=8;
     thumb.w=thumb.h=sz;thumb.y=track.y+(track.h-sz)/2;
     thumb.x=ctl->spec.checked?track.x+track.w-sz-2:track.x+2;
-    host_ui_draw_background_shape(ren,idx,thumb,&ctl->spec.switch_thumb_fill,(uint32_t)(sz/2));
-    label=ctl->spec.checked?ctl->spec.switch_on_text:ctl->spec.switch_off_text;
+    host_ui_draw_background_shape(ren,idx,thumb,&ctl->spec.toggle_thumb_fill,(uint32_t)(sz/2));
+    label=ctl->spec.checked?ctl->spec.toggle_on_text:ctl->spec.toggle_off_text;
     if(label[0]&&track.w>sz+26){
         SDL_Rect lr=track;
         strncpy(ts.text,label,sizeof(ts.text)-1);ts.text[sizeof(ts.text)-1]='\0';ts.pad_x=ts.pad_y=0;ts.font_size=ts.font_size>11?11:ts.font_size;
@@ -3769,8 +3769,8 @@ static void host_ui_draw_control_index(int idx) {
         ctl->spec=saved;
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_ICONBUTTON){
         host_ui_draw_iconbutton(u->ren,idx,ctl,r);
-    } else if(ctl->spec.kind==NYOTA_UI_CTRL_SWITCH){
-        host_ui_draw_switch(u->ren,idx,ctl,r);
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_TOGGLE){
+        host_ui_draw_toggle(u->ren,idx,ctl,r);
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_FRAME){
         host_ui_draw_frame(u->ren,idx,ctl,r);
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_SPINBOX){
@@ -4090,14 +4090,14 @@ static int32_t host_ui_darea_items(int32_t handle,char *out,uint32_t cap,uint32_
 
 static int32_t host_ui_control_checked(int32_t handle){
     int i=host_ui_control_index_by_handle(handle);if(i<0)return -1;
-    if(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_CBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SWITCH&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_ICONBUTTON)return -1;
+    if(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_CBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TOGGLE&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_ICONBUTTON)return -1;
     host_pump();return g_host_ui_controls[i].spec.checked?1:0;
 }
 static int32_t host_ui_control_set_checked(int32_t handle,uint8_t checked){
     int i=host_ui_control_index_by_handle(handle),j,wi;uint8_t old;if(i<0)return -1;
-    if(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_CBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SWITCH&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_ICONBUTTON)return -1;
+    if(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_CBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TOGGLE&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_ICONBUTTON)return -1;
     old=g_host_ui_controls[i].spec.checked;g_host_ui_controls[i].spec.checked=checked?1:0;
-    if(old!=g_host_ui_controls[i].spec.checked&&(g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_SWITCH||g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_ICONBUTTON))g_host_ui_controls[i].changed=1;
+    if(old!=g_host_ui_controls[i].spec.checked&&(g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_TOGGLE||g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_ICONBUTTON))g_host_ui_controls[i].changed=1;
     if(checked&&g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[i].spec.radio_group[0])
         for(j=0;j<HOST_MAX_UI_CONTROLS;j++)if(j!=i&&g_host_ui_controls[j].used&&g_host_ui_controls[j].spec.kind==NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[j].window_handle==g_host_ui_controls[i].window_handle&&!strcmp(g_host_ui_controls[j].spec.radio_group,g_host_ui_controls[i].spec.radio_group))g_host_ui_controls[j].spec.checked=0;
     wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);if(wi>=0)host_ui_mark_dirty(wi);return 0;
@@ -4169,7 +4169,7 @@ static int32_t host_ui_control_changed(int32_t handle){
     if(i<0)return -1;
     if(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SPINBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SCALE&&
        g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SPLITTER&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_LISTVIEW&&
-       g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TREEVIEW&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SWITCH&&
+       g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TREEVIEW&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TOGGLE&&
        g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_ICONBUTTON)return -1;
     host_pump();v=g_host_ui_controls[i].changed?1:0;g_host_ui_controls[i].changed=0;return v;
 }
