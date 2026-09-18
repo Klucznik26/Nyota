@@ -5962,7 +5962,7 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"BOLD")){if(!UiParseBoolProperty(rhs,&s->bold,"BOLD"))return 0;}
     else if(NStrEq(prop,"ITALIC")){if(!UiParseBoolProperty(rhs,&s->italic,"ITALIC"))return 0;}
     else if(NStrEq(prop,"UNDERLINE")){if(!UiParseBoolProperty(rhs,&s->underline,"UNDERLINE"))return 0;}
-    else if(NStrEq(prop,"WRAP")){if(!UiParseBoolProperty(rhs,&s->wrap,"WRAP"))return 0;}
+    else if(NStrEq(prop,"WRAP")){if(s->kind==NYOTA_UI_CTRL_SCALE){if(!UiParseBoolProperty(rhs,&s->scale_wrap,"WRAP"))return 0;}else if(!UiParseBoolProperty(rhs,&s->wrap,"WRAP"))return 0;}
     else if(NStrEq(prop,"ENABLED")){if(!UiParseBoolProperty(rhs,&s->enabled,"ENABLED"))return 0;}
     else if(NStrEq(prop,"PADX")){if(!UiParseUIntProperty(rhs,&s->pad_x,0,256,"PADX"))return 0;}
     else if(NStrEq(prop,"PADY")){if(!UiParseUIntProperty(rhs,&s->pad_y,0,256,"PADY"))return 0;}
@@ -6096,7 +6096,6 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"SHOWLINES")){if(!UiParseBoolProperty(rhs,&s->show_lines,"SHOWLINES"))return 0;}
     else if(NStrEq(prop,"STARTANGLE")){if(!UiParseIntProperty(rhs,&s->start_angle,-3600,3600,"STARTANGLE"))return 0;}
     else if(NStrEq(prop,"ENDANGLE")){if(!UiParseIntProperty(rhs,&s->end_angle,-3600,3600,"ENDANGLE"))return 0;}
-    else if(NStrEq(prop,"WRAP")){if(!UiParseBoolProperty(rhs,&s->scale_wrap,"WRAP"))return 0;}
     else if(NStrEq(prop,"INTERACTIVE")){if(!UiParseBoolProperty(rhs,&s->scale_interactive,"INTERACTIVE"))return 0;}
     else if(NStrEq(prop,"TRACKWIDTH")){if(!UiParseUIntProperty(rhs,&s->track_width,1,128,"TRACKWIDTH"))return 0;}
     else if(NStrEq(prop,"TRACKFILL")){if(!UiParseBackground(rhs,&s->track_fill))return 0;}
