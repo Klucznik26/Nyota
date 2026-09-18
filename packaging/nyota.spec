@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -38,6 +38,11 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-4
+- Complete the v0.5 parser precedence and numeric edge checks.
+- Implement RECORD/WITH, IMPORT, EVERY, ON ERROR/ERR_CODE and SCREEN.
+- Extend regression coverage and VS Code language support 0.4.0.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-3
 - Add FILE and DIR/LS through the NyotaHost contract and POSIX backend.
 - Add explicit SORT algorithms and safe virtual NYASM.
