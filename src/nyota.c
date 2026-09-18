@@ -165,6 +165,46 @@ static int32_t HostUiEqboxSetBar(int32_t handle, uint32_t index, uint32_t value)
     return -1;
 }
 
+static int32_t HostUiSignedValue(int32_t handle, int32_t *value) {
+    if (g_host && g_host->ui_signed_value) return g_host->ui_signed_value(handle, value);
+    return -1;
+}
+
+static int32_t HostUiSignedSetValue(int32_t handle, int32_t value) {
+    if (g_host && g_host->ui_signed_set_value) return g_host->ui_signed_set_value(handle, value);
+    return -1;
+}
+
+static int32_t HostUiControlChanged(int32_t handle) {
+    if (g_host && g_host->ui_control_changed) return g_host->ui_control_changed(handle);
+    return -1;
+}
+
+static int32_t HostUiSelectIndex(int32_t handle) {
+    if (g_host && g_host->ui_select_index) return g_host->ui_select_index(handle);
+    return -1;
+}
+
+static int32_t HostUiSelectSetIndex(int32_t handle, uint32_t index) {
+    if (g_host && g_host->ui_select_set_index) return g_host->ui_select_set_index(handle, index);
+    return -1;
+}
+
+static int32_t HostUiClockSetValues(int32_t handle, const int32_t *values, uint32_t count) {
+    if (g_host && g_host->ui_clock_set_values) return g_host->ui_clock_set_values(handle, values, count);
+    return -1;
+}
+
+static int32_t HostUiClockSetNeedle(int32_t handle, uint32_t index, int32_t value) {
+    if (g_host && g_host->ui_clock_set_needle) return g_host->ui_clock_set_needle(handle, index, value);
+    return -1;
+}
+
+static int32_t HostUiClockValue(int32_t handle, uint32_t index, int32_t *value) {
+    if (g_host && g_host->ui_clock_value) return g_host->ui_clock_value(handle, index, value);
+    return -1;
+}
+
 static int32_t HostSpriteLoad(const char *path) {
     if (g_host && g_host->gfx_sprite_load) return g_host->gfx_sprite_load(path);
     return -1;
