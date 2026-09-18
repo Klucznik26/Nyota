@@ -1,4 +1,4 @@
-# NYOTA — mocny plik zasad dla agenta AI w AyoEdit
+# NYOTA — bieżąca specyfikacja implementacji v0.5
 
 **Ostatnia weryfikacja całości:** 2026-09-18  
 **Powiązane:** [`docs/nyota_v05.md`](../../../docs/nyota_v05.md) — plan wydania v0.5 i rozwoju po rdzeniu; ten plik jest specyfikacją dla agenta i ma opisywać tylko to, czego ma używać, z jawnym stanem interpretera.
@@ -11,6 +11,23 @@
 > Ten sam język — w tym PRINT, GRAPH, INPUT, DELAY — ma działać na Linuksie i Windowsie.
 > Agent nie może zakładać, że Nyota działa jak C, Python, Pascal, BASIC, AMOS,
 > JavaScript, Rust ani Clojure. Źródłem prawdy jest ta specyfikacja oraz interpreter Nyoty.
+
+## Status synchronizacji z kodem
+
+**Audyt synchronizacji:** 2026-09-19, gałąź `nyota-v05-complete`.
+
+Ten plik opisuje **zachowanie faktycznie zaimplementowane**, a nie plan języka. Przy sporze obowiązuje kolejność:
+
+1. `src/nyota.c` — składnia, typy, parser, semantyka i wykonanie instrukcji;
+2. `src/nyota_host.h` oraz implementacja hosta — kontrakt platformowy;
+3. `tests/*.nyo` — regresja zachowania;
+4. `docs/nyota.md` — opis dla człowieka.
+
+Jeżeli dokument rozmija się z kodem lub regresją, jest to **błąd dokumentacji**. Elementy planowane, ale jeszcze niewdrożone, należą do [`docs/nyota_v05.md`](nyota_v05.md), a pełny kontrakt GUI do [`docs/nyotaui.md`](nyotaui.md).
+
+Bieżące typy wartości interpretera: `INTEGER`, `FLOAT`, `STRING`, `BOOLEAN`, `LIST`, `DATE`, `MARK`, `TUPLE`, `TIME`, `RECORD`, `COLOR`.
+
+---
 
 ## 0. Język, edytor, host
 
@@ -80,14 +97,16 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">FILE oraz DIR/LS przez kontrakt NyotaHost; pełny backend POSIX wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">SORT: jawny wybór AUTO/BUBBLE/INSERT/SELECT/MERGE/QUICK/HEAP/SHELL/COUNTING wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">NYASM: bezpieczna VM R0-R3 z INPUT/OUTPUT i MOV/ADD/SUB/MUL/DIV/MOD/STORE wykonane 2026-09-18</span>
-- <span style="color: #006A4E;">NyotaUI: kolory są wartościami języka; WIN z ROOT/rodzicem, LIST [w,h]/[x,y], CENTER i resize; opcjonalny WIN name.CONFIG z TITLE/BG/ICO; tła kolorowe, IMG oraz gradienty LINEAR/SHAPE/SPIRAL — rdzeń i backend POSIX wykonane 2026-09-18; AyoOS czeka na podpięcie Nexa/Sayari</span>
+- <span style="color: #006A4E;">NyotaUI: `WIN` oraz kontrolki `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `ICONBUTTON`, `SWITCH`, `FRAME`, `INPUT`; wspólne `.CONFIG`, layout FREE/ROW/COL, AUTO/CENTER, PNG, gradienty, focus, UTF-8 i HiDPI — rdzeń i backend POSIX działają; AyoOS czeka na podpięcie backendu</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - Tunga pozostaje osobnym edytorem wywołującym interpreter Nyoty; integracja Tungi nie jest częścią tego repozytorium.
-- <span style="color: #006A4E;">Linux: host POSIX/SDL2; PRINT/GRAPH/INPUT/DELAY, FILE/DIR, SCREEN, BUTTON, SPRITE oraz NyotaUI WIN z SDL2_image i gradientami wykonane 2026-09-18</span>
+- <span style="color: #006A4E;">Linux: host POSIX z SDL2, SDL2_image, SDL2_ttf i fontconfig; terminal, GRAPH/SCREEN, FILE/DIR, SPRITE oraz pełna bieżąca warstwa NyotaUI są podłączone</span>
 - Pomoc Tunga/AyoEdit znajduje się poza dostępnym repozytorium Nyoty; źródłem prawdy pozostaje reguła 4 spacji.
 
-Pełny kontrakt `WIN`, `CONFIG`, obrazów i gradientów: `docs/nyotaui.md`.\n\nTesty: `Programs/Tools/nyota/tests/` — w tym `date_arith.nyo`, `date_add.nyo`, `date_cmp.nyo`, `date_parts.nyo`, `date_leap_ok.nyo`, `date_leap_bad.nyo`, `date_gregorian.nyo`, `date_plus_date.nyo`.
+Pełny kontrakt NyotaUI: `docs/nyotaui.md`.
+
+Testy regresyjne: `tests/` — w tym `date_arith.nyo`, `date_add.nyo`, `date_cmp.nyo`, `date_parts.nyo`, `date_leap_ok.nyo`, `date_leap_bad.nyo`, `date_gregorian.nyo`, `date_plus_date.nyo`.
 
 ---
 
@@ -317,7 +336,42 @@ Reguły:
 * `TODAY()`, `YEAR()`, `MONTH()`, `DAY()` — `TODAY()` czyta czas systemowy.
 
 <span style="color: #006A4E;">literał, walidacja, arytmetyka dni i funkcje DATE wykonane 2026-09-17</span>  
-`SORT` dat, `MARK` i `TIME` nadal nie należą do tego kroku.
+`DATE` uczestniczy także w `SORT`; `MARK` i `TIME` są już częścią bieżącej implementacji.
+
+### 10.2. Typ TUPLE
+
+`TUPLE` jest niemutowalną sekwencją indeksowaną od zera.
+
+```nyota
+VAR t := (10, "Ayo", TRUE)
+PRINT LEN(t), t[1]
+```
+
+Obsługiwane są `LEN`, `IN`, `FOR ... IN`, indeksowanie oraz jawne konwersje `TUPLE(list)` i `LIST(tuple)`. Próba `t[0] := ...` jest błędem.
+
+### 10.3. Typ TIME
+
+`TIME()` zwraca lokalny czas hosta. Jawna wartość ma postać `TIME(HH.MM.SS)`.
+
+```nyota
+VAR t := TIME(14.20.05)
+PRINT HOUR(t), MINUTE(t), SECOND(t)
+VAR pozniej := t + H2 + M10 + S40
+```
+
+`TIME - TIME` zwraca różnicę w sekundach jako `INTEGER`. Przesunięcia używają jednostek `H`, `M`, `S`; wynik zawija się w obrębie doby. `TIME` można porównywać i sortować.
+
+### 10.4. Typ COLOR
+
+`COLOR` jest pełnoprawną wartością języka używaną przede wszystkim przez NyotaUI.
+
+```nyota
+VAR a := SAPPHIRE
+VAR b := 0x0F52BA
+VAR c := 0x0F52BA80
+```
+
+Nazwane kolory i wartości RGB/RGBA są kontraktem języka, a nie motywem hosta. `TRANSPARENT` i `BACKDROP` są specjalnymi trybami koloru/tła; backend może jawnie odrzucić `BACKDROP`, jeśli nie potrafi pobrać skomponowanej sceny pod obiektem. Pełna paleta znajduje się w `src/nyota_color.h`.
 
 ---
 
@@ -1142,6 +1196,26 @@ Zasady:
 
 ---
 
+## 40a. STATE i proste prymitywy NN
+
+Bieżący interpreter zawiera także małe prymitywy stanu i prostej sieci liczbowej. Są zaimplementowane i dlatego należą do opisu bieżącego kodu.
+
+```nyota
+STATE_CREATE 0
+STATE_SET 0, "gotowe"
+PRINT STATE_GET(0)
+
+NN_CREATE 0, 4
+NN_TRAIN 0, [100, 200, 300, 400], 700
+PRINT NN_PREDICT(0, [100, 200, 300, 400])
+```
+
+Limity implementacyjne: 32 sloty `STATE`, 4 obiekty `NN`, maksymalnie 16 wejść/wag na obiekt NN. `NN_PREDICT()` zwraca `INTEGER` ograniczony do zakresu 0..1000.
+
+Dodatkowe funkcje narzędziowe obecne w interpreterze: `RANDOM(max)`, `CHOOSE(list)`, `WEIGHTED(items, weights)`, `TOKENS(text)`, `MATCH(text, pattern)`, `SIMILARITY(a, b)`, `FUZZY(value, min, max)`, `SIMPLIFY(text)`, `NEAREST(x, y, points)`, `VISIBLE(x0, y0, x1, y1, rects)` i `PATHFIND(sx, sy, tx, ty)`. Są to funkcje wykonawcze obecnego interpretera, nie wpisy roadmapy.
+
+---
+
 ## 41. GRAPH
 
 Tryb graficzny ustawia się instrukcją `GRAPH`.
@@ -1192,65 +1266,46 @@ Zasady:
 
 ---
 
-## 43. WIND_OPEN
+## 43. NyotaUI — WIN i kontrolki
 
-Tworzenie okna GUI:
-
-```nyota
-WIND_OPEN <id>, <x>, <y>, <szerokosc>, <wysokosc>
-```
-
-Przykład:
+`WIND_OPEN` nie jest instrukcją bieżącego interpretera. Aktualny model okien to `WIN` i kontrolki NyotaUI.
 
 ```nyota
-WIND_OPEN 1, 100, 100, 400, 300
+WIN glowne, ROOT, [900, 620], CENTER, TRUE
+
+FRAME panel, glowne, [360, 260], [20, 20], TEXT="Ustawienia"
+FRAME panel.CONFIG:
+    LAYOUT = COL
+    GAP = 10
+    LPADX = 16
+    LPADY = 28
+
+INPUT szukaj, panel, [300, 38], AUTO, TYPE=SEARCH
+SWITCH wifi, panel, [92, 34], AUTO, VALUE=TRUE
+BUTTON zapisz, panel, [140, 38], AUTO, TEXT="Zapisz"
 ```
 
-Zasady:
+Bieżące rodzaje kontrolek: `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `ICONBUTTON`, `SWITCH`, `FRAME`, `INPUT`.
 
-* `WIND_OPEN` tworzy obiekt GUI,
-* nie zmienia aktywnego kontekstu rysowania,
-* rysowanie `BOX`, `LINE` itd. trafia nadal do aktywnego `SCREEN`.
+Kontrolki używają rodzica, rozmiaru, pozycji `AUTO`/`CENTER` albo `[x,y]`, właściwości inline oraz opcjonalnego bloku `.CONFIG:`. Szczegółowa lista właściwości, walidacja i model hosta są normatywnie opisane w [`docs/nyotaui.md`](nyotaui.md).
+
+### 43a. BUTTON
+
+Podstawowa bieżąca forma `BUTTON` należy do NyotaUI:
+
+```nyota
+BUTTON zapisz, panel, [160, 48], AUTO, TEXT="Zapisz"
+BUTTON zapisz.CONFIG:
+    BG = SAPPHIRE
+    CTEXT = WHITE
+    RADIUS = 8
+```
+
+`BUTTON_CLICKED(zapisz)` zwraca `BOOLEAN`. Interpreter zachowuje także starszą składnię `BUTTON` związaną z `GRAPH` jako zgodność przejściową; nie jest ona podstawowym modelem nowych aplikacji NyotaUI.
+
+Funkcje stanu NyotaUI obejmują m.in. rodziny `*_SET`, `*_VALUE`, `*_INDEX`, `*_TEXT`, `*_CHANGED` oraz funkcje specyficzne dla kontrolek, np. `EQBOX_SET`, `EQBOX_BAR`, `CLOCK_SET`, `CLOCK_NEEDLE`, `CLOCK_VALUE`, `CLOCK_VALUES`, `INPUT_VALID`, `DAREA_DROPPED` i `DAREA_ITEMS`. Dokładne sygnatury są w `docs/nyotaui.md`.
 
 ---
-
-## 43a. BUTTON
-
-`BUTTON` jest nazwaną kontrolką GUI. Nie jest typem zmiennej Nyoty.
-
-```nyota
-BUTTON zapisz, 40, 40, 160, 48, "Zapisz", "SYSTEM", 14, 255, 255, 255, 40, 110, 180
-```
-
-Składnia:
-
-```text
-BUTTON nazwa, x, y, szerokosc, wysokosc, tekst, font, rozmiar,
-       text_r, text_g, text_b, bg_r, bg_g, bg_b
-```
-
-Nazwa jest logicznym identyfikatorem kontrolki, analogicznie do `TABLE`; nie jest
-zmienną i nie jest automatycznie wyświetlanym tytułem. Ponowne `BUTTON` z tą samą
-nazwą aktualizuje kontrolkę. `BUTTON` wymaga wcześniejszego `GRAPH`.
-
-Kliknięcie sprawdza funkcja:
-
-```nyota
-IF BUTTON_CLICKED(zapisz):
-    # reakcja programu
-```
-
-`BUTTON_CLICKED()` zwraca `BOOLEAN` i wykrywa przejście lewego przycisku wskaźnika
-z puszczonego do wciśniętego wewnątrz kontrolki. Akceptowana jest też forma
-`BUTTON_CLICKED("zapisz")`. Host musi dostarczać stan wskaźnika; backend POSIX/SDL2
-już go udostępnia. Powiązanie wskaźnika AyoOS wymaga odpowiedniego callbacku hosta.
-
-Parametr `font` jest częścią definicji kontrolki. Bieżący prymityw tekstowy hosta
-wybiera fizyczną czcionkę po stronie backendu; nazwana obsługa fontów będzie
-rozszerzeniem kontraktu hosta, bez zmiany składni `BUTTON`.
-
----
-
 ## 43b. SPRITE
 
 `SPRITE` jest nazwanym obiektem graficznym. Nie jest typem zmiennej Nyoty.
@@ -1898,11 +1953,11 @@ błędy wracają do AI jako kontekst
 
 ## 56. Status dokumentu
 
-Ten dokument jest przeznaczony jako mocna, robocza specyfikacja dla agenta AI w AyoEdit.
+Ten dokument jest bieżącą specyfikacją implementacji Nyoty v0.5 i ma odpowiadać kodowi interpretera oraz regresji.
 
-<span style="color: #006A4E;">Rdzeń v0.5 oraz wszystkie konstrukcje z `nyota_v05.md` posiadające zamkniętą składnię i semantykę są zaimplementowane i objęte regresją 2026-09-18.</span>
+<span style="color: #006A4E;">Dokument ponownie zsynchronizowano z `src/nyota.c`, `src/nyota_host.h`, backendem POSIX i testami 2026-09-19.</span>
 
-Plan wydania i dalszy podział BLOCKS / AFTER CORE / FUTURE: [`docs/nyota_v05.md`](../../../docs/nyota_v05.md).
+Plan wydania i elementy przyszłe: [`docs/nyota_v05.md`](nyota_v05.md).
 
 W kolejnych wersjach warto wydzielić osobne pliki:
 
