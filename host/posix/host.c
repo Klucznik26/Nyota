@@ -115,6 +115,7 @@ static void host_ui_finish_initial_build(void);
 static void host_ui_clear_eq_cache(HostUiControl *ctl);
 static int host_ui_combo_popup_hit(int idx,int x,int y,int32_t *row_out);
 static uint32_t host_ui_combo_item_count(const HostUiControl *ctl);
+static int host_ui_item_at(const char *items,uint32_t wanted,char *out,size_t cap);
 static NyotaColor host_ui_tint_color(NyotaColor c,int delta);
 static uint32_t host_ui_tarea_caret_from_point(HostUiControl *ctl,SDL_Rect r,int mx,int my);
 static void host_ui_tarea_caret_visual(HostUiControl *ctl,SDL_Rect r,int *out_x,int *out_row);
