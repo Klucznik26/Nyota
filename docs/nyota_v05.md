@@ -3,7 +3,7 @@
 **Ostatnia weryfikacja całości:** 2026-09-18  
 **Powiązane:** [`nyota.md`](../Programs/Tools/nyota/nyota.md) — bieżąca specyfikacja dla agenta i stan interpretera; ten plik jest planem wydania, nie źródłem prawdy o tym, co już działa.
 
-**Status:** dokument roboczy  
+**Status:** rdzeń i zatwierdzona semantyka wdrożone; dokument zachowany jako historia decyzji  
 **Wersja dokumentu:** 0.5  
 **Data:** 2026-09-17  
 **Dotyczy:** przejścia od obecnego stanu Nyoty do wydania v0.5
@@ -266,9 +266,8 @@ konstrukcji nie oznacza automatycznie, że należy do BLOCKS v0.5.
 ## 3.1. Wcięcia: 4 spacje zamiast 7
 
 **Status wdrożenia:** BLOCKS v0.5  
-<span style="color: navy;">interpreter, `nyota.md` i `nyota.txt`: 4 spacje w toku (zaawansowany etap) 2026-09-17</span>  
-<span style="color: navy;">Tunga Run &gt; Go: pełny nyota.c w toku (zaawansowany etap) 2026-09-17</span>  
-<span style="color: yellow;">pomoc Tunga / AyoEdit nadal mówi o 7 spacjach zaczęte 2026-09-17</span>
+<span style="color: #006A4E;">interpreter: dokładne +4 spacje przy wejściu w blok, tabulator i skoki poziomów są błędem wykonane 2026-09-18</span>  
+Pomoc Tunga/AyoEdit znajduje się poza dostępnym repozytorium Nyoty; źródłem prawdy jest reguła 4 spacji.
 
 Jeden poziom bloku Nyoty ma mieć dokładnie **4 spacje**.
 
@@ -329,7 +328,7 @@ typ wyniku i kolejność działań względem `^`.
 ## 3.4. Jawne konwersje typów
 
 **Status wdrożenia:** BLOCKS v0.5  
-<span style="color: navy;">INT / FLT / STR / BOOL i zakaz zgadywania przy + oraz = w toku (zaawansowany etap) 2026-09-17</span>
+<span style="color: #006A4E;">INT / FLT / STR / BOOL oraz brak niejawnych konwersji wykonane</span>
 
 Nyota nie powinna automatycznie zgadywać, czy programista chce wykonać działanie
 liczbowe, czy tekstowe.
@@ -469,7 +468,7 @@ Porównanie wartości przy usuwaniu jest ścisłe typowo.
 ## 3.8. `><` — zmiana znaczenia operatora
 
 **Status wdrożenia:** APPROVED AFTER CORE  
-<span style="color: navy;">LIST >< LIST to różnica symetryczna; dla liczb >< nadal nierówność w toku (zaawansowany etap) 2026-09-17</span>
+<span style="color: #006A4E;">LIST >< LIST i MARK >< MARK to różnica symetryczna; skalarne >< jest błędem wykonane 2026-09-18</span>
 
 Do v0.5 operator `><` pozostaje aliasem nierówności, tak jak w bieżącej
 specyfikacji, **gdy oba operandy nie są listami**. Dla dwóch `LIST` ma
@@ -585,7 +584,7 @@ Oczekiwane:
 
 **Status wdrożenia:** BLOCKS v0.5  
 <span style="color: #006A4E;">`2 * 3 + 4 = 10`, `2 + 3 * 4 = 14`, `10 - 3 - 2 = 5`, nawiasy, NOT/AND/OR i porównania w parserze wyrażeń wykonane 2026-09-17</span>  
-<span style="color: yellow;">SHL/SHR/BAND/BXOR/BOR i silnia `!` jeszcze nie w parserze zaczęte 2026-09-17</span>
+<span style="color: #006A4E;">SHL/SHR/BAND/BXOR/BOR i silnia `!` w pełnym parserze precedencji wykonane 2026-09-18</span>
 
 ```nyota
 2 * 3 + 4
@@ -613,7 +612,7 @@ prawdziwej gałęzi interpreter nie może wykonać kolejnego `ELIF` ani `ELSE`.
 ## 4.6. Walidacja wcięć
 
 **Status wdrożenia:** BLOCKS v0.5  
-<span style="color: orange;">tabulacja i wcięcie niebędące wielokrotnością 4 są błędem; dokładne poziomy zagnieżdżenia (+4 od rodzica) jeszcze nie w toku (wczesny etap) 2026-09-17</span>
+<span style="color: #006A4E;">tabulacja, wielokrotność 4 i dokładne +4 od instrukcji otwierającej blok wykonane 2026-09-18</span>
 
 Po przejściu na 4 spacje interpreter ma wymagać poprawnych poziomów wcięcia.
 Niepoprawne wcięcie nie może być cicho akceptowane.
@@ -653,7 +652,7 @@ Oba przypadki powinny wymagać jawnej konwersji.
 ## 4.10. FLOAT
 
 **Status wdrożenia:** BLOCKS v0.5  
-<span style="color: orange;">literał z kropką jest FLOAT, działania `+` `-` `*` `/` na parze FLOAT działają; precyzja 3 miejsca i krawędzie w toku (wczesny etap) 2026-09-17</span>
+<span style="color: #006A4E;">FLOAT: fixed-point 3 miejsca, ucinanie nadmiaru cyfr, liczby ujemne i przepełnienia domknięte 2026-09-18</span>
 
 Do zweryfikowania i dopracowania w v0.5:
 
@@ -675,7 +674,7 @@ Dzielenie przez zero i `MOD 0` muszą generować jawny błąd interpretera.
 
 **Status wdrożenia:** BLOCKS v0.5  
 <span style="color: #006A4E;">RETURN z wartością w FUNCTION, zakaz w PROCEDURE, błąd braku RETURN wykonane 2026-09-17</span>  
-<span style="color: yellow;">statyczne sprawdzenie różnych typów na wielu ścieżkach RETURN zaczęte 2026-09-17</span>
+<span style="color: #006A4E;">pre-scan RETURN + blokada typu zwracanego podczas wykonania wykonane 2026-09-18</span>
 
 Do ustalenia i przetestowania:
 
@@ -2009,7 +2008,9 @@ przyszłego standardu GUI.
 
 ## 6.16. Kierunki FUTURE
 
-**Status wdrożenia:** FUTURE
+**Status wdrożenia:** wymagają osobnej specyfikacji przed kodem
+
+Ten dział nie definiuje składni ani kontraktu wykonania. Zgodnie z zasadą tego samego dokumentu interpreter nie może zgadywać semantyki. Nazwy poniżej są kierunkami projektowymi, a nie gotowymi instrukcjami do mechanicznego dodania.
 
 Poniższe elementy można projektować wcześniej. Nie należą do v0.5 i nie
 należą do pierwszej fali po rdzeniu:
@@ -2057,7 +2058,7 @@ pomysłów:
 9. Testy regresyjne.
 10. Wydanie v0.5.
 11. Dopiero potem APPROVED AFTER CORE.
-12. FUTURE pozostaje projektem.
+12. FUTURE pozostaje projektem i wymaga najpierw domknięcia semantyki; nie jest atrapą instrukcji w interpreterze.
 ```
 
 Charakterystyczne elementy Nyoty opisują tożsamość języka, a nie checklistę
