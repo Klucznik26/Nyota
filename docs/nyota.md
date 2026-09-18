@@ -80,6 +80,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">FILE oraz DIR/LS przez kontrakt NyotaHost; pełny backend POSIX wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">SORT: jawny wybór AUTO/BUBBLE/INSERT/SELECT/MERGE/QUICK/HEAP/SHELL/COUNTING wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">NYASM: bezpieczna VM R0-R3 z INPUT/OUTPUT i MOV/ADD/SUB/MUL/DIV/MOD/STORE wykonane 2026-09-18</span>
+- <span style="color: #006A4E;">NyotaUI: kontrakt kolorów — 32 rodziny DARK/base/LIGHT, BLACK, WHITE, TRANSPARENT, BACKDROP oraz parser 0xRRGGBB/0xRRGGBBAA wykonane 2026-09-18; podpięcie do CONFIG kontrolek będzie wykonywane wraz z ich składnią</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - Tunga pozostaje osobnym edytorem wywołującym interpreter Nyoty; integracja Tungi nie jest częścią tego repozytorium.
