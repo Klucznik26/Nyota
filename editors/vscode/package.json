@@ -1,8 +1,8 @@
 {
   "name": "nyota-language-support",
   "displayName": "Nyota Language Support",
-  "description": "Syntax highlighting and editor configuration for Nyota (.nyo).",
-  "version": "0.1.0",
+  "description": "Nyota language support for Visual Studio Code: syntax highlighting and running .nyo files.",
+  "version": "0.2.1",
   "publisher": "klucznik26",
   "engines": {
     "vscode": "^1.80.0"
@@ -14,6 +14,14 @@
     "type": "git",
     "url": "https://github.com/Klucznik26/Nyota.git"
   },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:nyota",
+    "onCommand:nyota.runCurrentFile"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
   "contributes": {
     "languages": [
       {
@@ -34,6 +42,52 @@
         "scopeName": "source.nyota",
         "path": "./syntaxes/nyota.tmLanguage.json"
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "nyota.runCurrentFile",
+        "title": "Nyota: Run Current File",
+        "icon": "$(play)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "nyota.runCurrentFile",
+          "when": "editorLangId == nyota",
+          "group": "navigation@1"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "-workbench.action.debug.run",
+        "key": "ctrl+f5",
+        "mac": "ctrl+f5"
+      },
+      {
+        "command": "workbench.action.debug.run",
+        "key": "ctrl+f5",
+        "mac": "ctrl+f5",
+        "when": "editorLangId != nyota && debuggersAvailable && debugState != initializing"
+      },
+      {
+        "command": "nyota.runCurrentFile",
+        "key": "ctrl+f5",
+        "mac": "ctrl+f5",
+        "when": "editorLangId == nyota && editorTextFocus && !inDebugMode"
+      }
+    ],
+    "configuration": {
+      "title": "Nyota",
+      "properties": {
+        "nyota.interpreterPath": {
+          "type": "string",
+          "default": "nyota",
+          "scope": "window",
+          "description": "Path or command used to run the Nyota interpreter. The default uses 'nyota' from PATH."
+        }
+      }
+    }
   }
 }
