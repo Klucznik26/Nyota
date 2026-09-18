@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+GRAPH 1
+SCREEN 2 SET
+END
