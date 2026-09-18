@@ -3871,9 +3871,10 @@ static int32_t host_ui_control_checked(int32_t handle){
     host_pump();return g_host_ui_controls[i].spec.checked?1:0;
 }
 static int32_t host_ui_control_set_checked(int32_t handle,uint8_t checked){
-    int i=host_ui_control_index_by_handle(handle),j,wi;if(i<0)return -1;
+    int i=host_ui_control_index_by_handle(handle),j,wi;uint8_t old;if(i<0)return -1;
     if(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_CBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SWITCH&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_ICONBUTTON)return -1;
-    g_host_ui_controls[i].spec.checked=checked?1:0;
+    old=g_host_ui_controls[i].spec.checked;g_host_ui_controls[i].spec.checked=checked?1:0;
+    if(old!=g_host_ui_controls[i].spec.checked&&(g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_SWITCH||g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_ICONBUTTON))g_host_ui_controls[i].changed=1;
     if(checked&&g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[i].spec.radio_group[0])
         for(j=0;j<HOST_MAX_UI_CONTROLS;j++)if(j!=i&&g_host_ui_controls[j].used&&g_host_ui_controls[j].spec.kind==NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[j].window_handle==g_host_ui_controls[i].window_handle&&!strcmp(g_host_ui_controls[j].spec.radio_group,g_host_ui_controls[i].spec.radio_group))g_host_ui_controls[j].spec.checked=0;
     wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);if(wi>=0)host_ui_mark_dirty(wi);return 0;
@@ -3945,7 +3946,8 @@ static int32_t host_ui_control_changed(int32_t handle){
     if(i<0)return -1;
     if(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SPINBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SCALE&&
        g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SPLITTER&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_LISTVIEW&&
-       g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TREEVIEW)return -1;
+       g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TREEVIEW&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SWITCH&&
+       g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_ICONBUTTON)return -1;
     host_pump();v=g_host_ui_controls[i].changed?1:0;g_host_ui_controls[i].changed=0;return v;
 }
 static int32_t host_ui_select_index(int32_t handle){
