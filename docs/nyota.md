@@ -1303,7 +1303,32 @@ BUTTON zapisz.CONFIG:
 
 `BUTTON_CLICKED(zapisz)` zwraca `BOOLEAN`. Interpreter zachowuje także starszą składnię `BUTTON` związaną z `GRAPH` jako zgodność przejściową; nie jest ona podstawowym modelem nowych aplikacji NyotaUI.
 
-Funkcje stanu NyotaUI obejmują m.in. rodziny `*_SET`, `*_VALUE`, `*_INDEX`, `*_TEXT`, `*_CHANGED` oraz funkcje specyficzne dla kontrolek, np. `EQBOX_SET`, `EQBOX_BAR`, `CLOCK_SET`, `CLOCK_NEEDLE`, `CLOCK_VALUE`, `CLOCK_VALUES`, `INPUT_VALID`, `DAREA_DROPPED` i `DAREA_ITEMS`. Dokładne sygnatury są w `docs/nyotaui.md`.
+Funkcje stanu NyotaUI zaimplementowane w bieżącym interpreterze:
+
+```text
+BUTTON_CLICKED
+CBOX_CHECKED       CBOX_SET
+RADIO_CHECKED      RADIO_SET
+COMBO_INDEX        COMBO_VALUE        COMBO_SET
+TAREA_TEXT         TAREA_SET          TAREA_CHANGED
+TBOX_TEXT          TBOX_SET           TBOX_CHANGED
+INPUT_TEXT         INPUT_SET          INPUT_VALID       INPUT_CHANGED
+SBAR_VALUE         SBAR_SET
+PBAR_VALUE         PBAR_SET
+SLIDER_VALUE       SLIDER_SET
+SPINBOX_VALUE      SPINBOX_SET        SPINBOX_CHANGED
+LISTVIEW_INDEX     LISTVIEW_VALUE     LISTVIEW_SET      LISTVIEW_CHANGED
+TREEVIEW_INDEX     TREEVIEW_VALUE     TREEVIEW_SET      TREEVIEW_CHANGED
+SPLITTER_VALUE     SPLITTER_SET       SPLITTER_CHANGED
+SCALE_VALUE        SCALE_SET          SCALE_CHANGED
+SWITCH_VALUE       SWITCH_SET         SWITCH_CHANGED
+ICONBUTTON_VALUE   ICONBUTTON_SET     ICONBUTTON_CLICKED
+EQBOX_SET          EQBOX_BAR
+CLOCK_SET          CLOCK_NEEDLE       CLOCK_VALUE       CLOCK_VALUES
+DAREA_DROPPED      DAREA_ITEMS
+```
+
+`IMG(...)` i `GRAD(...)` są wyrażeniami NyotaUI używanymi do obrazów i teł/gradientów. Dokładne sygnatury, właściwości i ograniczenia każdej kontrolki są w [`docs/nyotaui.md`](nyotaui.md).
 
 ---
 ## 43b. SPRITE
