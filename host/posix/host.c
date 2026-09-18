@@ -86,6 +86,8 @@ typedef struct {
     uint64_t tree_expanded_mask;
     uint32_t caret;
     uint8_t text_changed;
+    uint32_t eq_peak_value[NYOTA_UI_EQ_MAX_BARS];
+    uint64_t eq_peak_tick[NYOTA_UI_EQ_MAX_BARS];
     SDL_Texture *eq_barbg_cache;
     SDL_Texture *eq_fill_cache;
     SDL_Texture *eq_glow_cache;
@@ -3560,6 +3562,14 @@ static int32_t host_ui_control_create(const char *name, int32_t window_handle,
         g_host_ui_controls[i].caret=(uint32_t)strlen(spec->text);
         g_host_ui_controls[i].text_changed=0;
         g_host_ui_controls[i].changed=0;
+        if(spec->kind==NYOTA_UI_CTRL_EQBOX){
+            uint32_t k;
+            for(k=0;k<NYOTA_UI_EQ_MAX_BARS;k++){
+                uint32_t v=k<spec->eq_value_count?spec->eq_values[k]:spec->range_min;
+                g_host_ui_controls[i].eq_peak_value[k]=v;
+                g_host_ui_controls[i].eq_peak_tick[k]=host_ticks();
+            }
+        }
         host_ui_mark_dirty(wi);
         return g_host_ui_controls[i].handle;
     }
