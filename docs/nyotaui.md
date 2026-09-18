@@ -439,3 +439,16 @@ Cienie zachowują teraz geometrię kontrolki zamiast być zawsze prostokątem. N
 
 
 Zaokrąglone i kołowe bordery oraz obrysy focusu są na hoście POSIX renderowane z antyaliasingiem. Focus na `TAB` jest zaznaczany delikatnym akcentem na główce, bez dodawania dolnej krawędzi oddzielającej aktywną zakładkę od jej zawartości.
+
+
+## Padding tekstu
+
+Tekstowe kontrolki `BUTTON`, `LABEL`, `DAREA` i `COMBO` obsługują `PADX` i `PADY`.
+
+```nyota
+BUTTON zapisz, panel, [140, 38], [20, 20], TEXT="Zapisz", PADX=12, PADY=6
+```
+
+Domyślne wartości NyotaUI to `PADX=8` i `PADY=4`.
+
+Główki `TAB` mają osobne `TABPADX` i `TABPADY`; domyślnie odpowiednio 12 i 6. Padding wpływa również na automatycznie wyliczaną szerokość i wysokość główki zakładki.
