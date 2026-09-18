@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        22%{?dist}
+Release:        23%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,11 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-23
+- Fix EQBOX peak timer recursion that could cause SIGSEGV during rendering.
+- Keep peak timing monotonic without pumping the GUI from inside the renderer.
+- Preserve the redesigned segmented EQBOX visual path.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-22
 - Add INPUT with TEXT/PASSWORD/NUMBER/SEARCH/EMAIL modes, icons, affixes and clear button.
 - Add ICONBUTTON with PNG icons, hover/pressed/on states and optional toggle behavior.
