@@ -10,6 +10,72 @@
 #define NYOTA_HOST_H
 
 #include <stdint.h>
+#include "nyota_color.h"
+
+#define NYOTA_UI_MAX_GRAD_COLORS 64u
+#define NYOTA_UI_PATH_MAX 512u
+
+/* NyotaUI: stabilny kontrakt języka z hostem. */
+enum {
+    NYOTA_UI_POS_SYSTEM = 0,
+    NYOTA_UI_POS_XY = 1,
+    NYOTA_UI_POS_CENTER = 2
+};
+
+enum {
+    NYOTA_UI_BG_COLOR = 0,
+    NYOTA_UI_BG_IMAGE = 1,
+    NYOTA_UI_BG_LINEAR = 2,
+    NYOTA_UI_BG_SHAPE = 3,
+    NYOTA_UI_BG_SPIRAL = 4
+};
+
+enum {
+    NYOTA_UI_IMG_CROP = 0,
+    NYOTA_UI_IMG_FIT = 1,
+    NYOTA_UI_IMG_STRETCH = 2,
+    NYOTA_UI_IMG_NATIVE = 3,
+    NYOTA_UI_IMG_TILE = 4
+};
+
+enum {
+    NYOTA_UI_DIR_VERTICAL = 0,
+    NYOTA_UI_DIR_HORIZONTAL = 1,
+    NYOTA_UI_DIR_DIAG_DOWN = 2,
+    NYOTA_UI_DIR_DIAG_UP = 3
+};
+
+enum {
+    NYOTA_UI_SHAPE_CIRCLE = 0,
+    NYOTA_UI_SHAPE_ELLIPSE = 1,
+    NYOTA_UI_SHAPE_SQUARE = 2,
+    NYOTA_UI_SHAPE_RECT = 3,
+    NYOTA_UI_SHAPE_DIAMOND = 4,
+    NYOTA_UI_SHAPE_STAR = 5,
+    NYOTA_UI_SHAPE_EGG = 6
+};
+
+enum {
+    NYOTA_UI_SPIRAL_CW = 0,
+    NYOTA_UI_SPIRAL_CCW = 1
+};
+
+typedef struct {
+    uint8_t kind;
+    uint8_t image_mode;
+    uint8_t direction;
+    uint8_t shape;
+    uint8_t center_mode;
+    uint8_t spiral_direction;
+    int32_t center_x;
+    int32_t center_y;
+    int32_t angle_deg;
+    uint32_t turns;
+    uint32_t color_count;
+    NyotaColor colors[NYOTA_UI_MAX_GRAD_COLORS];
+    char image_path[NYOTA_UI_PATH_MAX];
+} NyotaUiBackground;
+
 
 typedef struct NyotaHost {
     void (*emit)(char c);
@@ -63,6 +129,16 @@ typedef struct NyotaHost {
                                   uint32_t frame_count,
                                   int32_t x, int32_t y,
                                   uint32_t w, uint32_t h);
+
+    /* NyotaUI WIN. handle 0 oznacza ROOT po stronie hosta. */
+    int32_t (*ui_win_create)(const char *name, int32_t parent_handle,
+                             uint32_t w, uint32_t h,
+                             int32_t x, int32_t y,
+                             uint8_t position_mode, uint8_t resizable);
+    int32_t (*ui_win_set_title)(int32_t handle, const char *title);
+    int32_t (*ui_win_set_icon)(int32_t handle, const char *path);
+    int32_t (*ui_win_set_background)(int32_t handle, const NyotaUiBackground *background);
+    void (*ui_win_destroy)(int32_t handle);
 } NyotaHost;
 
 void NyotaSetHost(NyotaHost *h);
