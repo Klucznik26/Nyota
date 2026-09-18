@@ -3248,6 +3248,56 @@ static NyotaVal ParsePrimary(const char **pp) {
         if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_EQBOX||iv.type!=TYPE_INT||vv.type!=TYPE_INT||iv.i<0||(uint32_t)iv.i>=uc->spec.eq_bars||vv.i<0||(uint32_t)vv.i<uc->spec.range_min||(uint32_t)vv.i>uc->spec.range_max||HostUiEqboxSetBar(uc->host_handle,(uint32_t)iv.i,(uint32_t)vv.i)!=0){OutError("EQBOX_BAR: indeks/wartosc poza zakresem albo host odrzucil");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
         uc->spec.eq_values[iv.i]=(uint32_t)vv.i;if(uc->spec.eq_value_count<=(uint32_t)iv.i)uc->spec.eq_value_count=(uint32_t)iv.i+1;ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
     }
+    if (NStrEqN(expr, "ICONBUTTON_CLICKED(", 19)) {
+        char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+19,args,2);NyotaUiControl*uc;int32_t v;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("ICONBUTTON_CLICKED() wymaga nazwy ICONBUTTON");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_ICONBUTTON||(v=HostUiButtonClicked(uc->host_handle))<0){OutError("ICONBUTTON_CLICKED: host nie obsluguje zdarzenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValFromBool(&result,v!=0);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "ICONBUTTON_VALUE(", 17) || NStrEqN(expr, "SWITCH_VALUE(", 13)) {
+        int sw=NStrEqN(expr,"SWITCH_VALUE(",13);int off=sw?13:17;char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+off,args,2);NyotaUiControl*uc;int32_t v;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("ICONBUTTON_VALUE/SWITCH_VALUE wymaga nazwy");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=(sw?NYOTA_UI_CTRL_SWITCH:NYOTA_UI_CTRL_ICONBUTTON)||(!sw&&!uc->spec.toggle)||(v=HostUiControlChecked(uc->host_handle))<0){OutError("VALUE: kontrolka nie obsluguje stanu logicznego");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc->spec.checked=(uint8_t)(v!=0);ValFromBool(&result,v!=0);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "ICONBUTTON_SET(", 15) || NStrEqN(expr, "SWITCH_SET(", 11)) {
+        int sw=NStrEqN(expr,"SWITCH_SET(",11);int off=sw?11:15;char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+off,args,3);NyotaUiControl*uc;NyotaVal bv;
+        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("ICONBUTTON_SET/SWITCH_SET wymaga (nazwa, BOOLEAN)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        bv=Eval(args[1]);uc=FindUiControl(name);
+        if(bv.type!=TYPE_BOOL||!uc||uc->spec.kind!=(sw?NYOTA_UI_CTRL_SWITCH:NYOTA_UI_CTRL_ICONBUTTON)||(!sw&&!uc->spec.toggle)||HostUiControlSetChecked(uc->host_handle,(uint8_t)(bv.i!=0))!=0){OutError("ICONBUTTON_SET/SWITCH_SET: nie mozna ustawic stanu");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc->spec.checked=(uint8_t)(bv.i!=0);ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "SWITCH_CHANGED(", 15)) {
+        char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+15,args,2);NyotaUiControl*uc;int32_t ch;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("SWITCH_CHANGED() wymaga nazwy SWITCH");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_SWITCH||(ch=HostUiControlChanged(uc->host_handle))<0){OutError("SWITCH_CHANGED: host nie obsluguje zdarzenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValFromBool(&result,ch!=0);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "INPUT_TEXT(", 11)) {
+        char args[2][MAX_STR_LEN],name[64],buf[NYOTA_UI_TEXT_MAX];uint32_t got=0;int n=SplitFunctionArgs(expr+11,args,2);NyotaUiControl*uc;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("INPUT_TEXT() wymaga nazwy INPUT");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_INPUT||HostUiTareaGetText(uc->host_handle,buf,sizeof(buf),&got)!=0){OutError("INPUT_TEXT: host nie zwrocil tekstu");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValClear(&result);result.type=TYPE_STR;NStrCopy(result.s,buf,sizeof(result.s));NStrCopy(uc->spec.text,buf,sizeof(uc->spec.text));*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "INPUT_SET(", 10)) {
+        char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+10,args,3);NyotaUiControl*uc;NyotaVal tv;
+        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("INPUT_SET wymaga (nazwa, STRING)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        tv=Eval(args[1]);uc=FindUiControl(name);
+        if(tv.type!=TYPE_STR||!uc||uc->spec.kind!=NYOTA_UI_CTRL_INPUT||strlen(tv.s)>uc->spec.max_length||strchr(tv.s,'\n')||strchr(tv.s,'\r')||(tv.s[0]&&!UiInputTextValid(uc->spec.input_type,tv.s))||HostUiTareaSetText(uc->host_handle,tv.s)!=0){OutError("INPUT_SET: tekst nie pasuje do TYPE albo host odrzucil");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        NStrCopy(uc->spec.text,tv.s,sizeof(uc->spec.text));ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "INPUT_CHANGED(", 14)) {
+        char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+14,args,2);NyotaUiControl*uc;int32_t ch;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("INPUT_CHANGED() wymaga nazwy INPUT");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_INPUT||(ch=HostUiTareaChanged(uc->host_handle))<0){OutError("INPUT_CHANGED: host nie obsluguje zdarzenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValFromBool(&result,ch!=0);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "INPUT_VALID(", 12)) {
+        char args[2][MAX_STR_LEN],name[64],buf[NYOTA_UI_TEXT_MAX];uint32_t got=0;int n=SplitFunctionArgs(expr+12,args,2);NyotaUiControl*uc;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("INPUT_VALID() wymaga nazwy INPUT");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_INPUT||HostUiTareaGetText(uc->host_handle,buf,sizeof(buf),&got)!=0){OutError("INPUT_VALID: host nie zwrocil tekstu");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValFromBool(&result,UiInputTextValid(uc->spec.input_type,buf));*pp=call_open?MatchParen(call_open):expr;return result;
+    }
     if (NStrEqN(expr, "TBOX_TEXT(", 10)) {
         char args[2][MAX_STR_LEN],name[64],buf[NYOTA_UI_TEXT_MAX];uint32_t got=0;int n=SplitFunctionArgs(expr+10,args,2);NyotaUiControl*uc;
         if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("TBOX_TEXT() wymaga nazwy TBOX");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
