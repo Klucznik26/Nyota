@@ -56,6 +56,8 @@ typedef struct {
     uint32_t w, h;
     NyotaUiBackground background;
     int has_background;
+    uint8_t dirty;
+    uint8_t shown;
 } HostUiWindow;
 
 static HostUiWindow g_ui_windows[HOST_MAX_UI_WINDOWS];
@@ -94,10 +96,14 @@ static HostUiFont g_host_ui_fonts[HOST_MAX_UI_FONTS];
 static void host_ui_render_background_index(int idx);
 static void host_ui_destroy_index(int idx);
 static void host_ui_redraw_controls(int window_index);
+static void host_ui_mark_dirty(int window_index);
+static void host_ui_flush_dirty(void);
+static void host_ui_finish_initial_build(void);
 static NyotaColor host_ui_tint_color(NyotaColor c,int delta);
 static uint32_t host_ui_tarea_caret_from_point(HostUiControl *ctl,SDL_Rect r,int mx,int my);
 static void host_ui_tarea_caret_visual(HostUiControl *ctl,SDL_Rect r,int *out_x,int *out_row);
 static int g_ui_draw_clip_idx = -1;
+static uint8_t g_ui_initializing = 1;
 
 static void posix_emit(char c) {
     fputc(c, stdout);
@@ -457,9 +463,7 @@ static void host_pump(void) {
                         g_ui_windows[ui].w = (uint32_t)w;
                         g_ui_windows[ui].h = (uint32_t)h;
                         if(g_ui_windows[ui].ren)SDL_RenderSetLogicalSize(g_ui_windows[ui].ren,w,h);
-                        if (g_ui_windows[ui].has_background)
-                            host_ui_render_background_index(ui);
-                        host_ui_redraw_controls(ui);
+                        host_ui_mark_dirty(ui);
                     }
                 } else if (e.window.event == SDL_WINDOWEVENT_CLOSE) {
                     host_ui_destroy_index(ui);
@@ -513,10 +517,7 @@ static void host_pump(void) {
                         if(hi!=ctl->combo_hover){ctl->combo_hover=hi;changed=1;}
                     }
                 }
-                if (changed) {
-                    if (g_ui_windows[ui].has_background) host_ui_render_background_index(ui);
-                    host_ui_redraw_controls(ui);
-                }
+                if (changed) host_ui_mark_dirty(ui);
             }
             continue;
         }
@@ -577,7 +578,7 @@ static void host_pump(void) {
                         ctl->pressed=1;ctl->clicked=1;changed=1;break;
                     }
                 }
-                if(changed){if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);host_ui_redraw_controls(ui);}
+                if(changed)host_ui_mark_dirty(ui);
             }
             continue;
         }
@@ -589,7 +590,7 @@ static void host_pump(void) {
                     HostUiControl *ctl=&g_host_ui_controls[i];
                     if(ctl->used&&ctl->window_handle==g_ui_windows[ui].handle&&ctl->pressed){ctl->pressed=0;changed=1;}
                 }
-                if(changed){if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);host_ui_redraw_controls(ui);}
+                if(changed)host_ui_mark_dirty(ui);
             }
             continue;
         }
@@ -637,7 +638,7 @@ static void host_pump(void) {
                         changed=host_ui_tarea_insert(ctl,e.text.text);break;
                     }
                 }
-                if(changed){if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);host_ui_redraw_controls(ui);}
+                if(changed)host_ui_mark_dirty(ui);
             }
             continue;
         }
@@ -675,18 +676,14 @@ static void host_pump(void) {
                     else if(k==SDLK_BACKSPACE&&!e.key.repeat){changed=host_ui_tarea_backspace(ctl);handled=1;}
                     else if(k==SDLK_DELETE&&!e.key.repeat){changed=host_ui_tarea_delete(ctl);handled=1;}
                     else if((k==SDLK_RETURN||k==SDLK_KP_ENTER)&&!e.key.repeat){changed=host_ui_tarea_insert(ctl,"\n");handled=1;}
-                    if(handled){
-                        if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);
-                        host_ui_redraw_controls(ui);
-                    }
+                    if(handled)host_ui_mark_dirty(ui);
                     break;
                 }
                 if(handled)continue;
             }
             if (ui >= 0 && k == SDLK_TAB) {
                 host_ui_focus_next(ui, (e.key.keysym.mod & KMOD_SHIFT) ? 1 : 0);
-                if (g_ui_windows[ui].has_background) host_ui_render_background_index(ui);
-                host_ui_redraw_controls(ui);
+                host_ui_mark_dirty(ui);
                 continue;
             }
             if (ui >= 0 && !e.key.repeat && (k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_SPACE)) {
@@ -717,10 +714,7 @@ static void host_pump(void) {
                     }
                     break;
                 }
-                if(changed){
-                    if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);
-                    host_ui_redraw_controls(ui);
-                }
+                if(changed)host_ui_mark_dirty(ui);
                 continue;
             }
             if (k == SDLK_ESCAPE && g_win &&
@@ -738,13 +732,11 @@ static void host_pump(void) {
                         ctl->pressed=0;changed=1;
                     }
                 }
-                if(changed){
-                    if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);
-                    host_ui_redraw_controls(ui);
-                }
+                if(changed)host_ui_mark_dirty(ui);
             }
         }
     }
+    host_ui_flush_dirty();
     if (g_dirty && g_ren && !g_graph_closed) {
         SDL_RenderPresent(g_ren);
         g_dirty = 0;
@@ -2095,6 +2087,56 @@ static void host_ui_redraw_controls(int window_index) {
     if(u->ren) SDL_RenderPresent(u->ren);
 }
 
+static void host_ui_mark_dirty(int window_index) {
+    if(window_index<0||window_index>=HOST_MAX_UI_WINDOWS||!g_ui_windows[window_index].used)return;
+    g_ui_windows[window_index].dirty=1;
+}
+
+static void host_ui_render_window(int window_index) {
+    HostUiWindow *u;
+    if(window_index<0||window_index>=HOST_MAX_UI_WINDOWS||!g_ui_windows[window_index].used)return;
+    u=&g_ui_windows[window_index];
+    if(!u->ren)return;
+    if(u->has_background) {
+        host_ui_render_background_index(window_index);
+    } else {
+        SDL_SetRenderDrawColor(u->ren,0,0,0,255);
+        SDL_RenderClear(u->ren);
+    }
+    host_ui_redraw_controls(window_index);
+    u->dirty=0;
+}
+
+static void host_ui_flush_dirty(void) {
+    int i;
+    if(g_ui_initializing)return;
+    for(i=0;i<HOST_MAX_UI_WINDOWS;i++) {
+        if(!g_ui_windows[i].used||!g_ui_windows[i].dirty)continue;
+        host_ui_render_window(i);
+        if(!g_ui_windows[i].shown&&g_ui_windows[i].win) {
+            SDL_ShowWindow(g_ui_windows[i].win);
+            g_ui_windows[i].shown=1;
+        }
+    }
+}
+
+static void host_ui_finish_initial_build(void) {
+    int i;
+    g_ui_initializing=0;
+
+    /* Najpierw renderujemy wszystkie ukryte okna do kompletnego back-buffera. */
+    for(i=0;i<HOST_MAX_UI_WINDOWS;i++)
+        if(g_ui_windows[i].used&&g_ui_windows[i].dirty)
+            host_ui_render_window(i);
+
+    /* Dopiero potem pokazujemy gotowe okna — bez widocznego budowania UI. */
+    for(i=0;i<HOST_MAX_UI_WINDOWS;i++) {
+        if(!g_ui_windows[i].used||g_ui_windows[i].shown||!g_ui_windows[i].win)continue;
+        SDL_ShowWindow(g_ui_windows[i].win);
+        g_ui_windows[i].shown=1;
+    }
+}
+
 static int32_t host_ui_control_create(const char *name, int32_t window_handle,
                                       int32_t parent_control_handle,
                                       const NyotaUiControlSpec *spec) {
@@ -2122,8 +2164,7 @@ static int32_t host_ui_control_create(const char *name, int32_t window_handle,
         g_host_ui_controls[i].combo_hover=-1;
         g_host_ui_controls[i].caret=(uint32_t)strlen(spec->text);
         g_host_ui_controls[i].text_changed=0;
-        if (g_ui_windows[wi].has_background) host_ui_render_background_index(wi);
-        host_ui_redraw_controls(wi);
+        host_ui_mark_dirty(wi);
         return g_host_ui_controls[i].handle;
     }
     return -1;
@@ -2135,8 +2176,7 @@ static int32_t host_ui_control_update(int32_t handle, const NyotaUiControlSpec *
     g_host_ui_controls[i].spec=*spec;
     wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);
     if(wi<0)return -1;
-    if(g_ui_windows[wi].has_background) host_ui_render_background_index(wi);
-    host_ui_redraw_controls(wi);
+    host_ui_mark_dirty(wi);
     return 0;
 }
 
@@ -2150,7 +2190,7 @@ static void host_ui_control_destroy_index(int idx) {
         if(g_host_ui_controls[i].used&&g_host_ui_controls[i].parent_control_handle==handle)
             host_ui_control_destroy_index(i);
     memset(&g_host_ui_controls[idx],0,sizeof(g_host_ui_controls[idx]));
-    if(wi>=0){if(g_ui_windows[wi].has_background)host_ui_render_background_index(wi);host_ui_redraw_controls(wi);}
+    if(wi>=0)host_ui_mark_dirty(wi);
 }
 
 static void host_ui_control_destroy(int32_t handle) {
@@ -2193,10 +2233,10 @@ static int32_t host_ui_control_set_checked(int32_t handle,uint8_t checked){
     g_host_ui_controls[i].spec.checked=checked?1:0;
     if(checked&&g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[i].spec.radio_group[0])
         for(j=0;j<HOST_MAX_UI_CONTROLS;j++)if(j!=i&&g_host_ui_controls[j].used&&g_host_ui_controls[j].spec.kind==NYOTA_UI_CTRL_RADIO&&g_host_ui_controls[j].window_handle==g_host_ui_controls[i].window_handle&&!strcmp(g_host_ui_controls[j].spec.radio_group,g_host_ui_controls[i].spec.radio_group))g_host_ui_controls[j].spec.checked=0;
-    wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);if(wi>=0){if(g_ui_windows[wi].has_background)host_ui_render_background_index(wi);host_ui_redraw_controls(wi);}return 0;
+    wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);if(wi>=0)host_ui_mark_dirty(wi);return 0;
 }
 static int32_t host_ui_combo_index(int32_t handle){int i=host_ui_control_index_by_handle(handle);if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_COMBO)return -1;host_pump();return (int32_t)g_host_ui_controls[i].spec.selected;}
-static int32_t host_ui_combo_set_index(int32_t handle,uint32_t index){int i=host_ui_control_index_by_handle(handle),wi;uint32_t count=0,k;if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_COMBO)return -1;for(k=0;g_host_ui_controls[i].spec.items[k];k++)if(g_host_ui_controls[i].spec.items[k]=='\n')count++;if(index>=count)return -1;g_host_ui_controls[i].spec.selected=index;wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);if(wi>=0){if(g_ui_windows[wi].has_background)host_ui_render_background_index(wi);host_ui_redraw_controls(wi);}return 0;}
+static int32_t host_ui_combo_set_index(int32_t handle,uint32_t index){int i=host_ui_control_index_by_handle(handle),wi;uint32_t count=0,k;if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_COMBO)return -1;for(k=0;g_host_ui_controls[i].spec.items[k];k++)if(g_host_ui_controls[i].spec.items[k]=='\n')count++;if(index>=count)return -1;g_host_ui_controls[i].spec.selected=index;wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);if(wi>=0)host_ui_mark_dirty(wi);return 0;}
 
 static int32_t host_ui_tarea_get_text(int32_t handle,char *out,uint32_t cap,uint32_t *out_size){
     int i=host_ui_control_index_by_handle(handle);size_t n;
@@ -2214,7 +2254,7 @@ static int32_t host_ui_tarea_set_text(int32_t handle,const char *text){
     g_host_ui_controls[i].caret=(uint32_t)strlen(g_host_ui_controls[i].spec.text);
     g_host_ui_controls[i].text_changed=1;
     wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);
-    if(wi>=0){if(g_ui_windows[wi].has_background)host_ui_render_background_index(wi);host_ui_redraw_controls(wi);}
+    if(wi>=0)host_ui_mark_dirty(wi);
     return 0;
 }
 static int32_t host_ui_tarea_changed(int32_t handle){
@@ -2256,7 +2296,7 @@ static int32_t host_ui_win_create(const char *name, int32_t parent_handle,
         sy = parent_handle > 0 ? py + y : y;
     }
     if (resizable) flags |= SDL_WINDOW_RESIZABLE;
-    flags |= SDL_WINDOW_ALLOW_HIGHDPI;
+    flags |= SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_HIDDEN;
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"1");
     win = SDL_CreateWindow(name, sx, sy, (int)w, (int)h, flags);
     if (!win) return -1;
@@ -2274,6 +2314,8 @@ static int32_t host_ui_win_create(const char *name, int32_t parent_handle,
     g_ui_windows[slot].w = w;
     g_ui_windows[slot].h = h;
     g_ui_windows[slot].has_background = 0;
+    g_ui_windows[slot].dirty = 1;
+    g_ui_windows[slot].shown = 0;
     return g_ui_windows[slot].handle;
 }
 
@@ -2302,8 +2344,7 @@ static int32_t host_ui_win_set_background(int32_t handle, const NyotaUiBackgroun
         background->colors[0].mode == NYOTA_COLOR_BACKDROP) return -2;
     g_ui_windows[i].background = *background;
     g_ui_windows[i].has_background = 1;
-    host_ui_render_background_index(i);
-    host_ui_redraw_controls(i);
+    host_ui_mark_dirty(i);
     return 0;
 }
 
@@ -2769,6 +2810,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     NyotaEmbedRun(src, posix_emit);
+    host_ui_finish_initial_build();
     fputc('\n', stdout);
     free(src);
     wait_close();
