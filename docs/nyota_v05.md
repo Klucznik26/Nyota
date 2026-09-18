@@ -194,7 +194,7 @@ wcześniej, wdrożenie nie należy nawet do fali po rdzeniu v0.5:
 wybór algorytmu SORT jako składnia języka (BUBBLE, QUICK, ...) — wykonane 2026-09-18
 relacyjny MARK
 DATETIME
-standard GUI Nyoty — pierwszy etap WIN/tła wykonany 2026-09-18; dalsze kontrolki i zdarzenia pozostają FUTURE
+standard GUI Nyoty — WIN/tła oraz pierwszy zestaw kontrolek BUTTON/LABEL/PANEL/DAREA wykonany 2026-09-18; dalsze kontrolki pozostają FUTURE
 dalszy rozwój sprite'ów (podstawowy SPRITE i animacja klatkowa są już wdrożone)
 audio
 NYASM — bezpieczna VM wykonana 2026-09-18; assembler natywny nadal FUTURE
@@ -2060,7 +2060,7 @@ Przed implementacją NC/NZ/NA trzeba zamknąć:
 
 ## 6.18. NyotaUI — kontrakt kolorów
 
-**Status wdrożenia:** WDROŻONE jako wspólny kontrakt kolorów oraz pierwszy etap NyotaUI `WIN`; dalsze kontrolki i wspólny model zdarzeń pozostają kolejnym etapem.
+**Status wdrożenia:** WDROŻONE jako wspólny kontrakt kolorów, `WIN` oraz pierwszy zestaw kontrolek `BUTTON`, `LABEL`, `PANEL`, `DAREA`; kolejne kontrolki i szerszy model zdarzeń pozostają kolejnym etapem.
 
 Ustalono 32 rodziny kolorów z wariantami DARK / podstawowym / LIGHT,
 osobne BLACK i WHITE bez sztucznych wariantów oraz dwa tryby specjalne:
@@ -2070,7 +2070,7 @@ Parser `src/nyota_color.h` przyjmuje również `0xRRGGBB` i
 `0xRRGGBBAA`. Wartości nazwanych kolorów są stałe dla wszystkich hostów
 zgodnie z Nyota Platform Invariance Rule.
 
-Pełna tabela i semantyka kolorów: `docs/colors.md`. Kontrakt `WIN`, `ROOT`, geometrii, `CONFIG`, `IMG(...)` i `GRAD(...)`: `docs/nyotaui.md`.
+Pełna tabela i semantyka kolorów: `docs/colors.md`. Kontrakt `WIN`, `ROOT`, geometrii, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CONFIG`, `IMG(...)` i `GRAD(...)`: `docs/nyotaui.md`.
 
 ### 6.18a. NyotaUI WIN
 
