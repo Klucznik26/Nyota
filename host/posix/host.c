@@ -640,23 +640,26 @@ static void host_pump(void) {
             SDL_Keycode k = e.key.keysym.sym;
             int ui = host_ui_index_by_window_id(e.key.windowID);
             if (k == SDLK_LSHIFT || k == SDLK_RSHIFT) g_shift = 1;
-            if(ui>=0){
-                int i;
+            if(ui>=0 && k!=SDLK_TAB){
+                int i,handled=0,changed=0;
                 for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
                     HostUiControl *ctl=&g_host_ui_controls[i];
                     if(!ctl->used||ctl->window_handle!=g_ui_windows[ui].handle||!ctl->focused||
                        ctl->spec.kind!=NYOTA_UI_CTRL_TAREA||!ctl->spec.enabled)continue;
-                    if(k==SDLK_LEFT){ctl->caret=host_ui_utf8_prev(ctl->spec.text,ctl->caret);}
-                    else if(k==SDLK_RIGHT){ctl->caret=host_ui_utf8_next(ctl->spec.text,ctl->caret);}
-                    else if(k==SDLK_HOME){while(ctl->caret>0&&ctl->spec.text[ctl->caret-1]!='\n')ctl->caret=host_ui_utf8_prev(ctl->spec.text,ctl->caret);}
-                    else if(k==SDLK_END){size_t nn=strlen(ctl->spec.text);while(ctl->caret<nn&&ctl->spec.text[ctl->caret]!='\n')ctl->caret=host_ui_utf8_next(ctl->spec.text,ctl->caret);}
-                    else if(k==SDLK_BACKSPACE&&!e.key.repeat){host_ui_tarea_backspace(ctl);}
-                    else if(k==SDLK_DELETE&&!e.key.repeat){host_ui_tarea_delete(ctl);}
-                    else if((k==SDLK_RETURN||k==SDLK_KP_ENTER)&&!e.key.repeat){host_ui_tarea_insert(ctl,"\n");}
-                    else break;
-                    if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);host_ui_redraw_controls(ui);
-                    continue;
+                    if(k==SDLK_LEFT){ctl->caret=host_ui_utf8_prev(ctl->spec.text,ctl->caret);handled=1;}
+                    else if(k==SDLK_RIGHT){ctl->caret=host_ui_utf8_next(ctl->spec.text,ctl->caret);handled=1;}
+                    else if(k==SDLK_HOME){while(ctl->caret>0&&ctl->spec.text[ctl->caret-1]!='\n')ctl->caret=host_ui_utf8_prev(ctl->spec.text,ctl->caret);handled=1;}
+                    else if(k==SDLK_END){size_t nn=strlen(ctl->spec.text);while(ctl->caret<nn&&ctl->spec.text[ctl->caret]!='\n')ctl->caret=host_ui_utf8_next(ctl->spec.text,ctl->caret);handled=1;}
+                    else if(k==SDLK_BACKSPACE&&!e.key.repeat){changed=host_ui_tarea_backspace(ctl);handled=1;}
+                    else if(k==SDLK_DELETE&&!e.key.repeat){changed=host_ui_tarea_delete(ctl);handled=1;}
+                    else if((k==SDLK_RETURN||k==SDLK_KP_ENTER)&&!e.key.repeat){changed=host_ui_tarea_insert(ctl,"\n");handled=1;}
+                    if(handled){
+                        if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);
+                        host_ui_redraw_controls(ui);
+                    }
+                    break;
                 }
+                if(handled)continue;
             }
             if (ui >= 0 && k == SDLK_TAB) {
                 host_ui_focus_next(ui, (e.key.keysym.mod & KMOD_SHIFT) ? 1 : 0);
@@ -1627,6 +1630,10 @@ static void host_ui_draw_shadow(SDL_Renderer *ren,const NyotaUiControlSpec *s,SD
         ss.w=(uint32_t)r.w;ss.h=(uint32_t)r.h;
         sf=host_ui_control_background_surface(&ss,&bg);
         if(sf){
+            if(s>=&g_host_ui_controls[0].spec && s<=&g_host_ui_controls[HOST_MAX_UI_CONTROLS-1].spec){
+                int idx=(int)(((const HostUiControl *)((const char *)s-(size_t)&((HostUiControl *)0)->spec))-g_host_ui_controls));
+                if(idx>=0&&idx<HOST_MAX_UI_CONTROLS)host_ui_apply_ancestor_mask(idx,sf,q.x,q.y);
+            }
             tx=SDL_CreateTextureFromSurface(ren,sf);
             SDL_FreeSurface(sf);
             if(tx){
@@ -1724,6 +1731,8 @@ static void host_ui_draw_focus_ring(SDL_Renderer *ren,const HostUiControl *ctl,S
         if(fs.radius)fs.radius+=2;
         sf=host_ui_border_surface(&fs,c,1);
         if(sf){
+            int idx=(int)(ctl-g_host_ui_controls);
+            host_ui_apply_ancestor_mask(idx,sf,q.x,q.y);
             tx=SDL_CreateTextureFromSurface(ren,sf);SDL_FreeSurface(sf);
             if(tx){SDL_SetTextureBlendMode(tx,SDL_BLENDMODE_BLEND);SDL_RenderCopy(ren,tx,NULL,&q);SDL_DestroyTexture(tx);}
         }
@@ -1921,6 +1930,9 @@ static int32_t host_ui_control_create(const char *name, int32_t window_handle,
     if (parent_control_handle > 0) {
         int pi = host_ui_control_index_by_handle(parent_control_handle);
         if (pi < 0 || g_host_ui_controls[pi].window_handle != window_handle) return -1;
+        if (spec->position_mode==NYOTA_UI_POS_AUTO &&
+            g_host_ui_controls[pi].spec.layout!=NYOTA_UI_LAYOUT_ROW &&
+            g_host_ui_controls[pi].spec.layout!=NYOTA_UI_LAYOUT_COL) return -1;
         if (spec->kind == NYOTA_UI_CTRL_TAB) {
             if (g_host_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_TABS) return -1;
         } else if (g_host_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_PANEL &&
