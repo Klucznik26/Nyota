@@ -556,6 +556,99 @@ IF TBOX_CHANGED(login):
     PRINT "zmiana"
 ```
 
+## INPUT
+
+`INPUT` jest bogatszym jednoliniowym polem wejściowym. `TBOX` pozostaje lekkim polem tekstowym, natomiast `INPUT` dodaje typ danych, ikonę, prefiks/sufiks i opcjonalny przycisk czyszczenia.
+
+```nyota
+INPUT search, panel, [340, 40], [20, 20], TYPE=SEARCH, PLACEHOLDER="Szukaj...", CLEARBUTTON=TRUE
+INPUT watts, panel, [220, 40], [20, 72], TYPE=NUMBER, PREFIX="GPU ", SUFFIX=" W"
+INPUT mail, panel, [340, 40], [20, 124], TYPE=EMAIL
+```
+
+Typy: `TEXT`, `PASSWORD`, `NUMBER`, `SEARCH`, `EMAIL`. Dla `PASSWORD` tekst jest maskowany. `NUMBER` filtruje wejście do liczby całkowitej ze znakiem, a `EMAIL` blokuje białe znaki i może być sprawdzony przez `INPUT_VALID`.
+
+Dekoracja:
+
+```nyota
+INPUT search.CONFIG:
+    ICON = IMG("search.png")
+    ICONSIZE = 20
+    ICONPOS = LEFT
+    PREFIX = ""
+    SUFFIX = ""
+    CLEARBUTTON = TRUE
+    BORDER = TRUE
+    RADIUS = 9
+```
+
+API: `INPUT_TEXT(name)`, `INPUT_SET(name, text)`, `INPUT_CHANGED(name)`, `INPUT_VALID(name)`.
+
+## ICONBUTTON
+
+`ICONBUTTON` jest przyciskiem z opcjonalną ikoną PNG. Może zawierać samą ikonę albo ikonę i tekst. Obsługuje też tryb przełącznika.
+
+```nyota
+ICONBUTTON save, toolbar, [128, 38], AUTO, TEXT="Zapisz"
+ICONBUTTON save.CONFIG:
+    ICON = IMG("save.png")
+    ICONSIZE = 20
+    ICONPOS = LEFT
+    GAP = 8
+    BGHOVER = SAPPHIRE
+    BGPRESSED = DARKSAPPHIRE
+    BORDER = TRUE
+    RADIUS = 7
+```
+
+`ICONPOS`: `LEFT`, `RIGHT`, `TOP`, `BOTTOM`, `CENTER`. Dla przycisku przełączanego użyj `TOGGLE=TRUE`, `VALUE` i opcjonalnego `BGON`.
+
+API: `ICONBUTTON_CLICKED(name)`, `ICONBUTTON_VALUE(name)`, `ICONBUTTON_SET(name, bool)`. Dwa ostatnie wymagają `TOGGLE=TRUE`.
+
+## SWITCH
+
+`SWITCH` jest dwustanowym przełącznikiem logicznym. Tor, uchwyt i poświata są niezależnymi warstwami wizualnymi.
+
+```nyota
+SWITCH wifi, panel, [96, 34], [20, 20], VALUE=TRUE
+SWITCH wifi.CONFIG:
+    TRACKON = EMERALD
+    TRACKOFF = DARKGRAY
+    THUMBFILL = WHITE
+    THUMBSIZE = 24
+    GLOW = EMERALD
+    BLUR = 3
+    ONTEXT = "ON"
+    OFFTEXT = "OFF"
+```
+
+API: `SWITCH_VALUE(name)`, `SWITCH_SET(name, bool)`, `SWITCH_CHANGED(name)`. Przełącznik działa myszą oraz klawiaturą `Space/Enter`.
+
+## FRAME
+
+`FRAME` jest pełnoprawnym kontenerem typu group-box. Tytuł przecina górną krawędź ramki, a dzieci mogą korzystać z ręcznych współrzędnych, `CENTER` albo `AUTO`.
+
+```nyota
+FRAME network, panel, [420, 220], [20, 80], TEXT="Siec"
+FRAME network.CONFIG:
+    BG = DARKGRAY
+    BORDER = TRUE
+    CBORDER = SAPPHIRE
+    BWIDTH = 2
+    RADIUS = 10
+    TITLEPOS = TOPLEFT
+    TITLEPAD = 12
+    LAYOUT = COL
+    GAP = 10
+    LPADX = 16
+    LPADY = 28
+
+LABEL ethLabel, network, [180, 28], AUTO, TEXT="Ethernet"
+SWITCH eth, network, [96, 34], AUTO, VALUE=TRUE
+```
+
+`TITLEPOS`: `TOPLEFT`, `TOPCENTER`, `TOPRIGHT`. `FRAME` obsługuje również `CLIP` i zaokrąglone przycinanie dzieci.
+
 ## SPINBOX
 
 `SPINBOX` przechowuje signed `INTEGER` i pozwala zmieniać go przyciskami góra/dół lub klawiaturą.
@@ -578,7 +671,20 @@ TREEVIEW tree, panel, [300, 220], [300, 160],
          INDENT=22, SHOWLINES=TRUE
 ```
 
-Gałęzie `TREEVIEW` można rozwijać i zwijać myszą albo klawiszami Left/Right. Up/Down, Home/End zmieniają zaznaczenie. `ROWHEIGHT` ustala wysokość wiersza.
+Gałęzie `TREEVIEW` można rozwijać i zwijać myszą albo klawiszami Left/Right. Up/Down, Home/End zmieniają zaznaczenie. `ROWHEIGHT` lub `NODEHEIGHT` ustala wysokość wiersza. `EXPANDED=[0,3]` wskazuje gałęzie rozwinięte przy tworzeniu. `EXPANDER=PLUS/TRIANGLE/CHEVRON` wybiera znacznik gałęzi, a `LINESTYLE=NONE/SOLID/DASH/DOT` styl linii hierarchii.
+
+Każdy typ węzła może mieć własną ikonę PNG:
+
+```nyota
+TREEVIEW tree.CONFIG:
+    ICONLEAF = IMG("file.png")
+    ICONCLOSED = IMG("folder.png")
+    ICONOPEN = IMG("folder-open.png")
+    ICONSPACING = 7
+    EXPANDER = CHEVRON
+    LINESTYLE = DASH
+    EXPANDED = [0, 3]
+```
 
 API obu kontrolek:
 
@@ -819,7 +925,7 @@ Główki `TAB` mają osobne `TABPADX` i `TABPADY`; domyślnie odpowiednio 12 i 6
 
 ## Layout: FREE / ROW / COL
 
-`PANEL`, zawartość `TAB`, `STATBAR` i `TOOLBAR` mogą zarządzać pozycjami dzieci.
+`PANEL`, zawartość `TAB`, `STATBAR`, `TOOLBAR` i `FRAME` mogą zarządzać pozycjami dzieci.
 
 ```nyota
 PANEL pasek, glowne, [600, 70], [20, 20], LAYOUT=ROW, GAP=10, LPADX=12, LPADY=12
@@ -832,7 +938,7 @@ BUTTON drugi, pasek, [120, 36], AUTO, TEXT="Drugi"
 
 ## Rounded clipping
 
-Przy `CLIP=TRUE` dzieci `PANEL`, `TAB`, `STATBAR` i `TOOLBAR` są na hoście POSIX przycinane również do zaokrąglonego kształtu rodzica. Maskowanie obejmuje tła, tekst, bordery, focus, cienie i prymitywy kontrolek, a nie tylko prostokątny bounding box.
+Przy `CLIP=TRUE` dzieci `PANEL`, `TAB`, `STATBAR`, `TOOLBAR` i `FRAME` są na hoście POSIX przycinane również do zaokrąglonego kształtu rodzica. Maskowanie obejmuje tła, tekst, bordery, focus, cienie i prymitywy kontrolek, a nie tylko prostokątny bounding box.
 
 ## HiDPI
 
