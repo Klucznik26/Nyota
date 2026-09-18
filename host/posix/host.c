@@ -2686,20 +2686,178 @@ static void host_ui_eq_draw_segment_shape(SDL_Renderer *ren,int idx,uint8_t buil
     else host_ui_fill_rect_masked(ren,idx,q);
 }
 
+
+static int host_ui_eq_segment_layout(const HostUiControl *ctl,SDL_Rect track,int *segments,int *size,int *gap,int *group_len){
+    int len,seg,sz,sg,total,maxsz;
+    if(!ctl||!segments||!size||!gap||!group_len)return 0;
+    len=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?track.h:track.w;
+    if(len<=0)return 0;
+    seg=(int)ctl->spec.eq_segments;if(seg<1)seg=1;if(seg>256)seg=256;
+    sz=(int)ctl->spec.eq_segment_size;if(sz<2)sz=2;
+    sg=(int)ctl->spec.eq_segment_gap;if(sg<0)sg=0;
+    total=seg*sz+(seg>1?(seg-1)*sg:0);
+    if(total>len){
+        maxsz=(len-(seg>1?(seg-1)*sg:0))/seg;
+        if(maxsz<2){
+            sg=seg>1?(len-2*seg)/(seg-1):0;if(sg<0)sg=0;
+            maxsz=(len-(seg>1?(seg-1)*sg:0))/seg;
+        }
+        if(maxsz<2){
+            seg=(len+sg)/(2+sg);if(seg<1)seg=1;
+            maxsz=(len-(seg>1?(seg-1)*sg:0))/seg;
+        }
+        if(maxsz<2)maxsz=2;
+        if(sz>maxsz)sz=maxsz;
+    }
+    total=seg*sz+(seg>1?(seg-1)*sg:0);
+    if(total>len&&seg==1){sz=len;total=len;}
+    *segments=seg;*size=sz;*gap=sg;*group_len=total;
+    return seg>0&&sz>0;
+}
+
+static SDL_Rect host_ui_eq_segment_rect(const HostUiControl *ctl,SDL_Rect track,int physical,int segments,int size,int gap,int group_len){
+    SDL_Rect q={0,0,0,0};int start,cross;
+    if(ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL){
+        if(ctl->spec.eq_direction==NYOTA_UI_EQ_DOWN)start=track.y;
+        else if(ctl->spec.eq_direction==NYOTA_UI_EQ_CENTER)start=track.y+(track.h-group_len)/2;
+        else start=track.y+track.h-group_len;
+        cross=size;if(cross>track.w)cross=track.w;if(cross<1)cross=1;
+        q.x=track.x+(track.w-cross)/2;q.w=cross;
+        q.y=start+physical*(size+gap);q.h=size;
+    }else{
+        if(ctl->spec.eq_direction==NYOTA_UI_EQ_RIGHT)start=track.x;
+        else if(ctl->spec.eq_direction==NYOTA_UI_EQ_CENTER)start=track.x+(track.w-group_len)/2;
+        else start=track.x+track.w-group_len;
+        cross=size;if(cross>track.h)cross=track.h;if(cross<1)cross=1;
+        q.y=track.y+(track.h-cross)/2;q.h=cross;
+        q.x=start+physical*(size+gap);q.w=size;
+    }
+    (void)segments;
+    return q;
+}
+
+static double host_ui_eq_segment_t(const HostUiControl *ctl,int physical,int segments){
+    double t;
+    if(segments<=1)return 0.0;
+    t=(double)physical/(double)(segments-1);
+    if(ctl->spec.eq_direction==NYOTA_UI_EQ_UP||ctl->spec.eq_direction==NYOTA_UI_EQ_LEFT)t=1.0-t;
+    else if(ctl->spec.eq_direction==NYOTA_UI_EQ_CENTER){
+        double center=(double)(segments-1)/2.0,dist=fabs((double)physical-center),den=center>0.0?center:1.0;
+        t=dist/den;
+    }
+    return t;
+}
+
+static uint32_t host_ui_eq_active_segment_count(const HostUiControl *ctl,uint32_t value,int segments){
+    uint32_t span,pos;
+    if(!ctl||segments<=0||ctl->spec.range_max<=ctl->spec.range_min)return 0;
+    span=ctl->spec.range_max-ctl->spec.range_min;
+    if(value<=ctl->spec.range_min)return 0;
+    if(value>=ctl->spec.range_max)return (uint32_t)segments;
+    pos=value-ctl->spec.range_min;
+    return (uint32_t)(((uint64_t)pos*(uint64_t)segments+(uint64_t)span-1u)/(uint64_t)span);
+}
+
+static int host_ui_eq_segment_active(const HostUiControl *ctl,int physical,int segments,uint32_t active){
+    int start;
+    if(active==0)return 0;if(active>=(uint32_t)segments)return 1;
+    if(ctl->spec.eq_direction==NYOTA_UI_EQ_UP||ctl->spec.eq_direction==NYOTA_UI_EQ_LEFT)
+        return physical>=segments-(int)active;
+    if(ctl->spec.eq_direction==NYOTA_UI_EQ_DOWN||ctl->spec.eq_direction==NYOTA_UI_EQ_RIGHT)
+        return physical<(int)active;
+    start=(segments-(int)active)/2;
+    return physical>=start&&physical<start+(int)active;
+}
+
+static int host_ui_eq_peak_physical(const HostUiControl *ctl,int segments,uint32_t active){
+    int start;
+    if(!active||segments<=0)return -1;
+    if(active>(uint32_t)segments)active=(uint32_t)segments;
+    if(ctl->spec.eq_direction==NYOTA_UI_EQ_UP||ctl->spec.eq_direction==NYOTA_UI_EQ_LEFT)
+        return segments-(int)active;
+    if(ctl->spec.eq_direction==NYOTA_UI_EQ_DOWN||ctl->spec.eq_direction==NYOTA_UI_EQ_RIGHT)
+        return (int)active-1;
+    start=(segments-(int)active)/2;
+    return start+(int)active-1;
+}
+
+static void host_ui_eq_draw_segment_glow(SDL_Renderer *ren,int idx,uint8_t build,SDL_Rect q,NyotaColor c,uint8_t orientation,uint32_t blur){
+    int pass;
+    if(!blur||c.a==0||c.mode==NYOTA_COLOR_TRANSPARENT)return;
+    for(pass=3;pass>=1;pass--){
+        int grow=(int)((blur*(uint32_t)pass)/3u);SDL_Rect gq=q;NyotaColor gc=c;
+        gq.x-=grow;gq.y-=grow;gq.w+=2*grow;gq.h+=2*grow;
+        gc.a=(uint8_t)(18+(3-pass)*18);
+        host_ui_eq_draw_segment_shape(ren,idx,build,gq,gc,orientation);
+    }
+}
+
+static uint32_t host_ui_eq_peak_value(HostUiControl *ctl,uint32_t bar,uint32_t value){
+    uint64_t now,hold_ticks;
+    if(!ctl||bar>=NYOTA_UI_EQ_MAX_BARS)return value;
+    if(!ctl->spec.eq_peak)return value;
+    now=host_ticks();
+    if(ctl->eq_peak_value[bar]<ctl->spec.range_min||ctl->eq_peak_value[bar]>ctl->spec.range_max||
+       value>=ctl->eq_peak_value[bar]){
+        ctl->eq_peak_value[bar]=value;
+        ctl->eq_peak_tick[bar]=now;
+    }else{
+        hold_ticks=((uint64_t)ctl->spec.eq_peak_hold+9u)/10u;
+        if(ctl->spec.eq_peak_hold==0||now-ctl->eq_peak_tick[bar]>=hold_ticks){
+            ctl->eq_peak_value[bar]=value;
+            ctl->eq_peak_tick[bar]=now;
+        }
+    }
+    return ctl->eq_peak_value[bar];
+}
+
+static void host_ui_eq_draw_solid_peak(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_Rect track,uint32_t peak){
+    SDL_Rect p=host_ui_eq_active_rect(ctl,track,peak);NyotaColor c=ctl->spec.eq_peak_color;
+    if(p.w<=0||p.h<=0||peak<=ctl->spec.range_min)return;
+    SDL_SetRenderDrawBlendMode(ren,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(ren,c.r,c.g,c.b,c.a);
+    if(ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL){
+        int y;
+        if(ctl->spec.eq_direction==NYOTA_UI_EQ_DOWN)y=p.y+p.h-2;
+        else if(ctl->spec.eq_direction==NYOTA_UI_EQ_CENTER)y=p.y;
+        else y=p.y;
+        {SDL_Rect q={track.x,y,track.w,2};host_ui_fill_rect_masked(ren,idx,q);}
+    }else{
+        int x;
+        if(ctl->spec.eq_direction==NYOTA_UI_EQ_RIGHT)x=p.x+p.w-2;
+        else if(ctl->spec.eq_direction==NYOTA_UI_EQ_CENTER)x=p.x+p.w-2;
+        else x=p.x;
+        {SDL_Rect q={x,track.y,2,track.h};host_ui_fill_rect_masked(ren,idx,q);}
+    }
+}
+
 static void host_ui_draw_eqbox(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_Rect r){
-    SDL_Rect inner=r;uint32_t n=ctl->spec.eq_bars,i;int bw=(int)ctl->spec.eq_bar_width,gap=(int)ctl->spec.eq_gap;
+    SDL_Rect inner=r,label_strip={0,0,0,0};uint32_t n=ctl->spec.eq_bars,i;int bw,gap=(int)ctl->spec.eq_gap;
     int border=ctl->spec.border?(int)ctl->spec.border_width:0;
-    int total,start,crossLen;
+    int total,start,crossLen,label_h=0;
     if(border){inner.x+=border;inner.y+=border;inner.w-=2*border;inner.h-=2*border;}
     inner.x+=(int)ctl->spec.pad_x;inner.w-=2*(int)ctl->spec.pad_x;
     inner.y+=(int)ctl->spec.pad_y;inner.h-=2*(int)ctl->spec.pad_y;
-    if(inner.w<=0||inner.h<=0||!n||bw<=0)return;
+    if(inner.w<=0||inner.h<=0||!n)return;
+
+    if(ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL&&ctl->spec.eq_show_labels&&
+       (ctl->spec.eq_label_pos==NYOTA_UI_EQ_LABEL_BOTTOM||ctl->spec.eq_label_pos==NYOTA_UI_EQ_LABEL_TOP)){
+        label_h=(int)ctl->spec.font_size+8;if(label_h<18)label_h=18;if(label_h>inner.h/3)label_h=inner.h/3;
+        label_strip=inner;label_strip.h=label_h;
+        if(ctl->spec.eq_label_pos==NYOTA_UI_EQ_LABEL_BOTTOM){
+            label_strip.y=inner.y+inner.h-label_h;inner.h-=label_h;
+        }else{
+            inner.y+=label_h;inner.h-=label_h;
+        }
+    }
+
+    bw=ctl->spec.eq_build==NYOTA_UI_EQ_SOLID?(int)ctl->spec.eq_bar_width:(int)ctl->spec.eq_segment_size;
+    if(bw<2)bw=2;
     total=(int)n*bw+(int)(n>1?(n-1u)*(uint32_t)gap:0u);
     crossLen=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?inner.w:inner.h;
     start=(crossLen-total)/2;if(start<0)start=0;
 
     for(i=0;i<n;i++){
-        SDL_Rect track,active;uint32_t v=ctl->spec.eq_values[i];
+        SDL_Rect track,active;uint32_t v=ctl->spec.eq_values[i],peakv;
         int maxlen;
         if(v<ctl->spec.range_min)v=ctl->spec.range_min;if(v>ctl->spec.range_max)v=ctl->spec.range_max;
         if(ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL){
@@ -2715,42 +2873,59 @@ static void host_ui_draw_eqbox(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_
             else if(ctl->spec.eq_direction==NYOTA_UI_EQ_CENTER)track.x=inner.x+(inner.w-maxlen)/2;
             else track.x=inner.x+inner.w-maxlen;
         }
-        host_ui_eqbox_ensure_cache(ren,ctl,(uint32_t)track.w,(uint32_t)track.h);
-        if(ctl->eq_barbg_cache)SDL_RenderCopy(ren,ctl->eq_barbg_cache,NULL,&track);
-        active=host_ui_eq_active_rect(ctl,track,v);
-        host_ui_eq_draw_glow(ren,ctl,track,active);
+        peakv=host_ui_eq_peak_value(ctl,i,v);
 
         if(ctl->spec.eq_build==NYOTA_UI_EQ_SOLID){
+            host_ui_eqbox_ensure_cache(ren,ctl,(uint32_t)track.w,(uint32_t)track.h);
+            if(ctl->eq_barbg_cache)SDL_RenderCopy(ren,ctl->eq_barbg_cache,NULL,&track);
+            active=host_ui_eq_active_rect(ctl,track,v);
+            host_ui_eq_draw_glow(ren,ctl,track,active);
             if(i<ctl->spec.eq_color_count&&ctl->spec.eq_bar_color_set[i]){
                 NyotaColor cc=ctl->spec.eq_bar_colors[i];SDL_SetRenderDrawColor(ren,cc.r,cc.g,cc.b,cc.a);host_ui_fill_rect_masked(ren,idx,active);
             }else if(ctl->eq_fill_cache)host_ui_eq_copy_active(ren,ctl->eq_fill_cache,track,active,ctl->spec.orientation,ctl->spec.eq_direction);
+            if(ctl->spec.eq_peak)host_ui_eq_draw_solid_peak(ren,idx,ctl,track,peakv);
         }else{
-            int unit=bw,sg=(int)ctl->spec.eq_segment_gap,along=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?active.h:active.w;
-            int count=(along+sg)/(unit+sg),k;
-            if(unit<2)unit=2;
-            for(k=0;k<count;k++){
-                SDL_Rect q;double t=count>1?(double)k/(double)(count-1):0.0;NyotaColor cc;
-                if(ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL){
-                    q.x=track.x;q.w=track.w;q.h=unit;
-                    if(ctl->spec.eq_direction==NYOTA_UI_EQ_DOWN)q.y=active.y+k*(unit+sg);
-                    else q.y=active.y+active.h-unit-k*(unit+sg);
-                }else{
-                    q.y=track.y;q.h=track.h;q.w=unit;
-                    if(ctl->spec.eq_direction==NYOTA_UI_EQ_RIGHT)q.x=active.x+k*(unit+sg);
-                    else q.x=active.x+active.w-unit-k*(unit+sg);
+            int segments,size,sg,group_len,j;uint32_t active_count,peak_count;int peak_index=-1;
+            if(host_ui_eq_segment_layout(ctl,track,&segments,&size,&sg,&group_len)){
+                active_count=host_ui_eq_active_segment_count(ctl,v,segments);
+                peak_count=host_ui_eq_active_segment_count(ctl,peakv,segments);
+                if(ctl->spec.eq_peak)peak_index=host_ui_eq_peak_physical(ctl,segments,peak_count);
+
+                /* Najpierw pelna matryca nieaktywnych segmentow — bez prostokatnego BARBG. */
+                for(j=0;j<segments;j++){
+                    SDL_Rect q=host_ui_eq_segment_rect(ctl,track,j,segments,size,sg,group_len);
+                    double t=host_ui_eq_segment_t(ctl,j,segments);NyotaColor bg=host_ui_eq_sample(&ctl->spec.eq_bar_background,t);
+                    bg.a=(uint8_t)(((uint32_t)bg.a*ctl->spec.eq_inactive_alpha)/255u);
+                    host_ui_eq_draw_segment_shape(ren,idx,ctl->spec.eq_build,q,bg,ctl->spec.orientation);
                 }
-                if(q.x<active.x||q.y<active.y||q.x+q.w>active.x+active.w||q.y+q.h>active.y+active.h)continue;
-                cc=(i<ctl->spec.eq_color_count&&ctl->spec.eq_bar_color_set[i])?ctl->spec.eq_bar_colors[i]:host_ui_eq_sample(&ctl->spec.eq_bar_fill,t);
-                host_ui_eq_draw_segment_shape(ren,idx,ctl->spec.eq_build,q,cc,ctl->spec.orientation);
+
+                /* Aktywne segmenty zastępują nieaktywne dokładnie tym samym kształtem. */
+                for(j=0;j<segments;j++)if(host_ui_eq_segment_active(ctl,j,segments,active_count)){
+                    SDL_Rect q=host_ui_eq_segment_rect(ctl,track,j,segments,size,sg,group_len);
+                    double t=host_ui_eq_segment_t(ctl,j,segments);NyotaColor cc,gc;
+                    cc=(i<ctl->spec.eq_color_count&&ctl->spec.eq_bar_color_set[i])?ctl->spec.eq_bar_colors[i]:host_ui_eq_sample(&ctl->spec.eq_bar_fill,t);
+                    gc=host_ui_eq_sample(&ctl->spec.eq_glow,t);
+                    host_ui_eq_draw_segment_glow(ren,idx,ctl->spec.eq_build,q,gc,ctl->spec.orientation,ctl->spec.eq_blur);
+                    host_ui_eq_draw_segment_shape(ren,idx,ctl->spec.eq_build,q,cc,ctl->spec.orientation);
+                }
+
+                if(peak_index>=0&&peak_index<segments){
+                    SDL_Rect pq=host_ui_eq_segment_rect(ctl,track,peak_index,segments,size,sg,group_len);
+                    host_ui_eq_draw_segment_shape(ren,idx,ctl->spec.eq_build,pq,ctl->spec.eq_peak_color,ctl->spec.orientation);
+                }
             }
+            active=host_ui_eq_active_rect(ctl,track,v);
         }
 
         if(ctl->spec.eq_show_labels&&i<ctl->spec.eq_label_count&&ctl->spec.eq_labels[i][0]){
             NyotaUiControlSpec ts=ctl->spec;SDL_Rect lr=track;
             strncpy(ts.text,ctl->spec.eq_labels[i],sizeof(ts.text)-1);ts.text[sizeof(ts.text)-1]='\0';
             ts.halign=NYOTA_UI_ALIGN_CENTER;ts.valign=NYOTA_UI_VALIGN_MIDDLE;ts.pad_x=ts.pad_y=0;
-            if(ctl->spec.eq_label_pos==NYOTA_UI_EQ_LABEL_BOTTOM){lr.y=track.y+track.h-(int)ctl->spec.font_size-4;lr.h=(int)ctl->spec.font_size+4;}
-            else if(ctl->spec.eq_label_pos==NYOTA_UI_EQ_LABEL_TOP){lr.h=(int)ctl->spec.font_size+4;}
+            if(ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL&&label_h){
+                lr.x=track.x-(gap/2);lr.w=track.w+gap;lr.y=label_strip.y;lr.h=label_strip.h;
+            }else if(ctl->spec.eq_label_pos==NYOTA_UI_EQ_LABEL_BOTTOM){
+                lr.y=track.y+track.h-(int)ctl->spec.font_size-4;lr.h=(int)ctl->spec.font_size+4;
+            }else if(ctl->spec.eq_label_pos==NYOTA_UI_EQ_LABEL_TOP)lr.h=(int)ctl->spec.font_size+4;
             else lr=active;
             host_ui_draw_text(ren,&ts,lr);
         }
