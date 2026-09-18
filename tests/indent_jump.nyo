@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+IF TRUE:
+        PRINT "za gleboko"
+END
