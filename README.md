@@ -81,6 +81,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `MARK` | ✅ | klucze+kolumny, algebra, iteracja, sortowanie, przebudowa kolumn i statystyki |
 | `TABLE` | ✅ | nazwana kontrolka prezentacji LIST/TUPLE/MARK w trybie graficznym |
 | `BUTTON` | ✅ | nazwana kontrolka GUI; wygląd + wykrywanie kliknięcia na hoście POSIX |
+| `SPRITE` | ✅ | nazwany obiekt graficzny; ruch, widoczność, jawne rysowanie i kolizja AABB |
 | Host Linux | 🚧 | terminal + backend SDL2 dla grafiki |
 | Host AyoOS | 🚧 | docelowo wspólny `src/nyota.c` dla wszystkich hostów |
 
