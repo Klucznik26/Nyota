@@ -2,12 +2,12 @@
 
 Rozszerzenie VS Code dla języka Nyota.
 
-## Wersja 0.2.1
+## Wersja 0.3.0
 
 Rozszerzenie obsługuje:
 
 - rozpoznawanie plików `.nyo`,
-- kolorowanie składni Nyoty,
+- kolorowanie składni Nyoty, w tym FILE/DIR, algorytmów SORT i NYASM,
 - komentarze, nawiasy i folding oparty na wcięciach,
 - przycisk `▶` w edytorze pliku Nyota,
 - komendę `Nyota: Run Current File`,
@@ -56,7 +56,7 @@ npx @vscode/vsce package
 Dla tej wersji powstanie plik:
 
 ```text
-nyota-language-support-0.2.1.vsix
+nyota-language-support-0.3.0.vsix
 ```
 
 Instalacja:
@@ -64,6 +64,13 @@ Instalacja:
 ```bash
 code --install-extension ./nyota-language-support-0.2.1.vsix --force
 ```
+
+## Zmiany w 0.3.0
+
+- kolorowanie nowych funkcji i instrukcji `FILE_*` oraz `DIR_*`,
+- kolorowanie `LS()`,
+- kolorowanie jawnych algorytmów `SORT`,
+- kolorowanie `NYASM` / `ASM`, `INPUT`, `OUTPUT` oraz instrukcji VM.
 
 ## Zmiany w 0.2.1
 
