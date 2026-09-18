@@ -84,7 +84,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `SPRITE` | ✅ | nazwany obiekt graficzny; ruch, widoczność, animacja klatkowa, jawne rysowanie i kolizja AABB |
 | Host Linux | 🚧 | terminal + backend SDL2 dla grafiki |
 | Host AyoOS | 🚧 | docelowo wspólny `src/nyota.c` dla wszystkich hostów |
-| VS Code | ✅ | rozszerzenie `.nyo` z kolorowaniem składni w `editors/vscode/` |
+| VS Code | ✅ | rozszerzenie `.nyo` z kolorowaniem oraz uruchamianiem przez `▶` / `Ctrl+F5` |
 
 Szczegółowy stan interpretera znajduje się w [`docs/nyota.md`](docs/nyota.md), a droga do stabilizacji i rozwoju w [`docs/nyota_v05.md`](docs/nyota_v05.md).
 
@@ -229,7 +229,7 @@ docs/
 
 tests/               programy testowe .nyo
 scripts/             automatyzacja testów
-editors/vscode/      rozszerzenie VS Code: .nyo + kolorowanie składni
+editors/vscode/      rozszerzenie VS Code: .nyo + kolorowanie + uruchamianie
 Makefile             budowanie hosta Linux
 ```
 
@@ -250,7 +250,7 @@ Najważniejsze dokumenty projektu:
 
 Po ustabilizowaniu rdzenia Nyota ma rozwijać się także w stronę bogatszych struktur danych, `DATETIME`, relacyjnego `MARK`, dalszego rozwoju `TABLE`, standardowego GUI, dalszego rozwoju sprite'ów, audio oraz dalszej pracy nad hostem Linuksa.
 
-Poza AyoOS działa już pierwsze rozszerzenie dla **Visual Studio Code**: rozpoznaje `.nyo` i koloruje składnię Nyoty. Kolejne etapy mogą dodać uruchamianie interpretera, diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
+Poza AyoOS działa rozszerzenie **Nyota Language Support 0.2.1** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
 
 Nyota nie ma zastępować C lub Zig w najniższych warstwach systemu. Jej celem jest wygodne tworzenie aplikacji, narzędzi, automatyzacji, grafiki i prostych gier przy zachowaniu własnej, spójnej semantyki.
 
