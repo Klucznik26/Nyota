@@ -1,8 +1,8 @@
 {
   "name": "nyota-language-support",
   "displayName": "Nyota Language Support",
-  "description": "Nyota language support for Visual Studio Code: syntax highlighting, running .nyo files, FILE/DIR, SORT algorithms and NYASM syntax.",
-  "version": "0.3.0",
+  "description": "Nyota language support for Visual Studio Code: full v0.5 syntax highlighting, running .nyo files, FILE/DIR, SCREEN, RECORD/WITH, scheduler and NYASM.",
+  "version": "0.4.0",
   "publisher": "klucznik26",
   "engines": {
     "vscode": "^1.80.0"
