@@ -1,0 +1,57 @@
+# Oczekiwane: zawiera SORT_OK
+BEGIN
+VAR ok := TRUE
+VAR a := [5, 1, 4, 2, 3]
+
+SORT a, BUBBLE
+IF a <> [1, 2, 3, 4, 5]:
+    ok := FALSE
+
+a := [5, 1, 4, 2, 3]
+SORT a, INSERT
+IF a <> [1, 2, 3, 4, 5]:
+    ok := FALSE
+
+a := [5, 1, 4, 2, 3]
+SORT a, SELECT
+IF a <> [1, 2, 3, 4, 5]:
+    ok := FALSE
+
+a := [5, 1, 4, 2, 3]
+SORT a, MERGE
+IF a <> [1, 2, 3, 4, 5]:
+    ok := FALSE
+
+a := [5, 1, 4, 2, 3]
+SORT a, QUICK
+IF a <> [1, 2, 3, 4, 5]:
+    ok := FALSE
+
+a := [5, 1, 4, 2, 3]
+SORT a, HEAP
+IF a <> [1, 2, 3, 4, 5]:
+    ok := FALSE
+
+a := [5, 1, 4, 2, 3]
+SORT a, SHELL
+IF a <> [1, 2, 3, 4, 5]:
+    ok := FALSE
+
+a := [5, -2, 4, 0, 3]
+SORT a, COUNTING
+IF a <> [-2, 0, 3, 4, 5]:
+    ok := FALSE
+
+a := [5, 1, 4, 2, 3]
+SORT a, QUICK, REVERSE
+IF a <> [5, 4, 3, 2, 1]:
+    ok := FALSE
+
+VAR b := [TRUE, FALSE, TRUE]
+SORT b, COUNTING
+IF b <> [FALSE, TRUE, TRUE]:
+    ok := FALSE
+
+IF ok:
+    PRINT "SORT_OK"
+END
