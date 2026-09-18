@@ -700,7 +700,10 @@ static void host_pump(void) {
                                ctl->spec.kind == NYOTA_UI_CTRL_LISTVIEW ||
                                ctl->spec.kind == NYOTA_UI_CTRL_TREEVIEW ||
                                ctl->spec.kind == NYOTA_UI_CTRL_SPLITTER ||
-                               ctl->spec.kind == NYOTA_UI_CTRL_SCALE) {
+                               ctl->spec.kind == NYOTA_UI_CTRL_SCALE ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_ICONBUTTON ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_SWITCH ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_INPUT) {
                         over = (uint8_t)host_ui_point_in_control(i,e.motion.x,e.motion.y);
                     }
                     if (popup_owner >= 0 && i != popup_owner) over = 0;
@@ -889,17 +892,24 @@ static void host_pump(void) {
                         }
                         changed=1;break;
                     }
-                    if((ctl->spec.kind==NYOTA_UI_CTRL_TAREA||ctl->spec.kind==NYOTA_UI_CTRL_TBOX)&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                    if((ctl->spec.kind==NYOTA_UI_CTRL_TAREA||ctl->spec.kind==NYOTA_UI_CTRL_TBOX||ctl->spec.kind==NYOTA_UI_CTRL_INPUT)&&host_ui_point_in_control(i,e.button.x,e.button.y)){
                         SDL_Rect tr;
                         host_ui_set_focus(ui,i);
-                        if(host_ui_control_rect_index(i,&tr))
-                            ctl->caret=host_ui_tarea_caret_from_point(ctl,tr,e.button.x,e.button.y);
-                        else ctl->caret=(uint32_t)strlen(ctl->spec.text);
+                        if(host_ui_control_rect_index(i,&tr)){
+                            if(ctl->spec.kind==NYOTA_UI_CTRL_INPUT&&ctl->spec.clear_button&&e.button.x>=tr.x+tr.w-tr.h){
+                                if(ctl->spec.text[0]){ctl->spec.text[0]='\0';ctl->caret=0;ctl->text_changed=1;}
+                            }else ctl->caret=host_ui_tarea_caret_from_point(ctl,tr,e.button.x,e.button.y);
+                        }else ctl->caret=(uint32_t)strlen(ctl->spec.text);
                         changed=1;break;
                     }
-                    if(ctl->spec.kind==NYOTA_UI_CTRL_BUTTON&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                    if(ctl->spec.kind==NYOTA_UI_CTRL_SWITCH&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                        host_ui_set_focus(ui,i);ctl->pressed=1;ctl->spec.checked=(uint8_t)!ctl->spec.checked;ctl->changed=1;changed=1;break;
+                    }
+                    if((ctl->spec.kind==NYOTA_UI_CTRL_BUTTON||ctl->spec.kind==NYOTA_UI_CTRL_ICONBUTTON)&&host_ui_point_in_control(i,e.button.x,e.button.y)){
                         host_ui_set_focus(ui,i);
-                        ctl->pressed=1;ctl->clicked=1;changed=1;break;
+                        ctl->pressed=1;ctl->clicked=1;
+                        if(ctl->spec.kind==NYOTA_UI_CTRL_ICONBUTTON&&ctl->spec.toggle){ctl->spec.checked=(uint8_t)!ctl->spec.checked;ctl->changed=1;}
+                        changed=1;break;
                     }
                 }
                 if(changed)host_ui_mark_dirty(ui);
@@ -962,7 +972,7 @@ static void host_pump(void) {
                 for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
                     HostUiControl *ctl=&g_host_ui_controls[i];
                     if(ctl->used&&ctl->window_handle==g_ui_windows[ui].handle&&ctl->focused&&
-                       (ctl->spec.kind==NYOTA_UI_CTRL_TAREA||ctl->spec.kind==NYOTA_UI_CTRL_TBOX)&&ctl->spec.enabled&&!ctl->spec.readonly){
+                       (ctl->spec.kind==NYOTA_UI_CTRL_TAREA||ctl->spec.kind==NYOTA_UI_CTRL_TBOX||ctl->spec.kind==NYOTA_UI_CTRL_INPUT)&&ctl->spec.enabled&&!ctl->spec.readonly){
                         changed=host_ui_tarea_insert(ctl,e.text.text);break;
                     }
                 }
@@ -1092,8 +1102,12 @@ static void host_pump(void) {
                     if(!ctl->used||ctl->window_handle!=g_ui_windows[ui].handle||!ctl->focused||
                        !ctl->spec.enabled||!host_ui_control_visible_index(i))continue;
                     ctl->pressed=1;
-                    if(ctl->spec.kind==NYOTA_UI_CTRL_BUTTON){
-                        ctl->clicked=1;changed=1;
+                    if(ctl->spec.kind==NYOTA_UI_CTRL_BUTTON||ctl->spec.kind==NYOTA_UI_CTRL_ICONBUTTON){
+                        ctl->clicked=1;
+                        if(ctl->spec.kind==NYOTA_UI_CTRL_ICONBUTTON&&ctl->spec.toggle){ctl->spec.checked=(uint8_t)!ctl->spec.checked;ctl->changed=1;}
+                        changed=1;
+                    }else if(ctl->spec.kind==NYOTA_UI_CTRL_SWITCH){
+                        ctl->spec.checked=(uint8_t)!ctl->spec.checked;ctl->changed=1;changed=1;
                     }else if(ctl->spec.kind==NYOTA_UI_CTRL_CBOX){
                         ctl->spec.checked=(uint8_t)!ctl->spec.checked;changed=1;
                     }else if(ctl->spec.kind==NYOTA_UI_CTRL_RADIO){
