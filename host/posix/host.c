@@ -702,7 +702,6 @@ static int host_ui_render_gradient(HostUiWindow *u) {
     SDL_SetRenderDrawColor(u->ren, 0, 0, 0, 255);
     SDL_RenderClear(u->ren);
     SDL_RenderCopy(u->ren, texture, NULL, NULL);
-    SDL_RenderPresent(u->ren);
     SDL_DestroyTexture(texture);
     return 0;
 }
@@ -758,7 +757,6 @@ static int host_ui_render_image(HostUiWindow *u) {
         }
         SDL_RenderCopy(u->ren, texture, &src, &dst);
     }
-    SDL_RenderPresent(u->ren);
     SDL_DestroyTexture(texture);
     return 0;
 }
@@ -783,7 +781,6 @@ static void host_ui_render_background_index(int idx) {
     if (c.mode == NYOTA_COLOR_BACKDROP) return;
     SDL_SetRenderDrawColor(u->ren, c.r, c.g, c.b, c.a);
     SDL_RenderClear(u->ren);
-    SDL_RenderPresent(u->ren);
 }
 
 
@@ -1284,13 +1281,8 @@ static int32_t host_ui_win_set_background(int32_t handle, const NyotaUiBackgroun
         background->colors[0].mode == NYOTA_COLOR_BACKDROP) return -2;
     g_ui_windows[i].background = *background;
     g_ui_windows[i].has_background = 1;
-    if (background->kind == NYOTA_UI_BG_IMAGE)
-        return host_ui_render_image(&g_ui_windows[i]);
-    if (background->kind == NYOTA_UI_BG_LINEAR ||
-        background->kind == NYOTA_UI_BG_SHAPE ||
-        background->kind == NYOTA_UI_BG_SPIRAL)
-        return host_ui_render_gradient(&g_ui_windows[i]);
     host_ui_render_background_index(i);
+    host_ui_redraw_controls(i);
     return 0;
 }
 
