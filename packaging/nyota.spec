@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        20%{?dist}
+Release:        21%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,12 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-21
+- Redesign segmented EQBOX rendering: no rectangular bar channel behind shaped segments.
+- Add SEGMENTS, SEGMENTSIZE and INACTIVEALPHA visual controls.
+- Add PEAK, PEAKCOLOR and millisecond PEAKHOLD markers.
+- Apply glow per active segment and reserve a dedicated label strip outside vertical bars.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-20
 - Add TBOX single-line text input and SPINBOX signed numeric control.
 - Add LISTVIEW and hierarchical TREEVIEW controls.
