@@ -359,6 +359,8 @@ static NyotaVal g_return_val;
 // Obsługa błędów
 static char     g_error[256];
 static uint32_t g_error_handler_proc = 0xFFFFFFFF;  // indeks procedury ON ERROR CALL
+static int32_t  g_err_code = 0;
+static uint8_t  g_in_error_handler = 0;
 // Lista elementów (prosta pula statyczna)
 #define LIST_POOL_SIZE 2048
 static NyotaVal  g_list_pool[LIST_POOL_SIZE];
@@ -596,6 +598,8 @@ static int NLineHasTab(const char *line) {
     return 0;
 }
 
+static NyotaVal CallNamed(const char *name, const char *paren, const char **after_out);
+
 // ============================================================
 // WYJŚCIE NA EKRAN
 // ============================================================
@@ -651,27 +655,38 @@ static void OutPrintInt(int32_t v) {
 
 static void OutError(const char *msg) {
     char buf[300];
+    g_err_code = 1; /* 1 = błąd interpretera; host może ustawić własny kod przed OutError */
     NStrCopy(buf, "BLAD [ln.", sizeof(buf));
-    char num[12]; NIntToStr((int32_t)(g_cur_line + 1), num, sizeof(num));
-    NStrAppend(buf, num, sizeof(buf));
+    {
+        char num[12];
+        NIntToStr((int32_t)(g_cur_line + 1), num, sizeof(num));
+        NStrAppend(buf, num, sizeof(buf));
+    }
     NStrAppend(buf, "]: ", sizeof(buf));
     NStrAppend(buf, msg, sizeof(buf));
 #ifdef NYOTA_EMBEDDED
     if (g_ny_emit) {
         OutPrint(buf);
         OutNewLine();
-        return;
-    }
+    } else
 #endif
-    // Czerwony tekst błędu
-    HostRect(0, g_out_y, SCREEN_W, OUT_FONT_H, 10, 10, 20);
-    HostText(OUT_MARGIN, g_out_y, buf, 255, 80, 80, 2);
-    OutNewLine();
-}
+    {
+        HostRect(0, g_out_y, SCREEN_W, OUT_FONT_H, 10, 10, 20);
+        HostText(OUT_MARGIN, g_out_y, buf, 255, 80, 80, 2);
+        OutNewLine();
+    }
 
-static void ValClear(NyotaVal *v);
-static NyotaVal *PoolAlloc(uint32_t n);
-static NyotaVal Eval(const char *expr);
+    if (g_ny_running && !g_in_error_handler &&
+        g_error_handler_proc != 0xFFFFFFFF &&
+        g_error_handler_proc < g_proc_count) {
+        NyotaProc *p = &g_procs[g_error_handler_proc];
+        if (!p->is_function && p->param_count == 0) {
+            g_in_error_handler = 1;
+            CallNamed(p->name, "()", 0);
+            g_in_error_handler = 0;
+        }
+    }
+}
 
 // ============================================================
 // ZMIENNE
@@ -3527,6 +3542,11 @@ static NyotaVal ParsePrimary(const char **pp) {
         {
             NyotaVal *with_field = WithFieldPtr(name);
             NyotaVar *vv = 0;
+            if (NStrEq(name, "ERR_CODE")) {
+                ValFromInt(&result, g_err_code);
+                *pp = after;
+                return result;
+            }
             if (with_field) {
                 result = *with_field;
                 *pp = after;
@@ -5931,6 +5951,7 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         const char *p = NTrim(line + 3);
         char name[64]; uint32_t nlen = ParseIdent(p, name, sizeof(name));
         p = NTrim(p + nlen);
+        if (NStrEq(name, "ERR_CODE")) { OutError("ERR_CODE jest zmienna systemowa tylko do odczytu"); return; }
         if (p[0] != ':' || p[1] != '=') { OutError("VAR: brakuje :="); return; }
         p = NTrim(p + 2);
         NyotaVal val = Eval(p);
@@ -5955,6 +5976,7 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         const char *p = NTrim(line + 5);
         char name[64]; uint32_t nlen = ParseIdent(p, name, sizeof(name));
         p = NTrim(p + nlen);
+        if (NStrEq(name, "ERR_CODE")) { OutError("ERR_CODE jest zarezerwowane"); return; }
         if (p[0] != ':' || p[1] != '=') { OutError("CONST: brakuje :="); return; }
         p = NTrim(p + 2);
         NyotaVal val = Eval(p);
@@ -6099,7 +6121,9 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         }
 
         if (after[0] == ':' && after[1] == '=') {
-            NyotaVal *wf = WithFieldPtr(name);
+            NyotaVal *wf;
+            if (NStrEq(name, "ERR_CODE")) { OutError("ERR_CODE jest tylko do odczytu"); return; }
+            wf = WithFieldPtr(name);
             if (wf) {
                 NyotaVal nv;
                 if (g_with_var && g_with_var->is_const) { OutError("Nie mozna zmienic stalego RECORD"); return; }
@@ -7038,12 +7062,21 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
     // --- ON ERROR CALL procedura ---
     if (NStartsWith(line, "ON ERROR CALL")) {
         const char *p = NTrim(line + 13);
-        char pname[64]; ParseIdent(p, pname, sizeof(pname));
-        for (uint32_t pi = 0; pi < g_proc_count; pi++) {
+        char pname[64];
+        uint32_t pn = ParseIdent(p, pname, sizeof(pname));
+        uint32_t pi;
+        if (!pname[0] || *NTrim(p + pn)) { OutError("ON ERROR CALL: brak nazwy procedury"); return; }
+        for (pi = 0; pi < g_proc_count; pi++) {
             if (NStrEq(g_procs[pi].name, pname)) {
-                g_error_handler_proc = pi; return;
+                if (g_procs[pi].is_function || g_procs[pi].param_count != 0) {
+                    OutError("ON ERROR CALL wymaga PROCEDURE bez parametrow");
+                    return;
+                }
+                g_error_handler_proc = pi;
+                return;
             }
         }
+        OutError("ON ERROR CALL: nieznana procedura");
         return;
     }
 
@@ -7397,6 +7430,8 @@ static void NyotaEmbedReset(void) {
     g_loop_depth = 0;
     g_return_flag = 0;
     g_error_handler_proc = 0xFFFFFFFF;
+    g_err_code = 0;
+    g_in_error_handler = 0;
     g_list_pool_used = 0;
     g_table_count = 0;
     g_button_count = 0;
@@ -7547,6 +7582,8 @@ void _start(AyoAPI *api) {
     g_loop_depth = 0;
     g_return_flag = 0;
     g_error_handler_proc = 0xFFFFFFFF;
+    g_err_code = 0;
+    g_in_error_handler = 0;
     g_list_pool_used = 0;
     g_table_count = 0;
     g_button_count = 0;
