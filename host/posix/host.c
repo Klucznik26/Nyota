@@ -70,6 +70,7 @@ typedef struct {
     uint8_t hover;
     uint8_t pressed;
     uint8_t focused;
+    uint8_t clicked;
     uint8_t dropped;
     uint8_t combo_open;
     int32_t combo_hover;
@@ -493,7 +494,7 @@ static void host_pump(void) {
                     }
                     if(ctl->spec.kind==NYOTA_UI_CTRL_BUTTON&&host_ui_point_in_control(i,e.button.x,e.button.y)){
                         host_ui_set_focus(ui,i);
-                        ctl->pressed=1;changed=1;break;
+                        ctl->pressed=1;ctl->clicked=1;changed=1;break;
                     }
                 }
                 if(changed){if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);host_ui_redraw_controls(ui);}
@@ -555,12 +556,60 @@ static void host_pump(void) {
                 host_ui_redraw_controls(ui);
                 continue;
             }
+            if (ui >= 0 && !e.key.repeat && (k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_SPACE)) {
+                int i, changed = 0;
+                for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
+                    HostUiControl *ctl=&g_host_ui_controls[i];
+                    if(!ctl->used||ctl->window_handle!=g_ui_windows[ui].handle||!ctl->focused||
+                       !ctl->spec.enabled||!host_ui_control_visible_index(i))continue;
+                    ctl->pressed=1;
+                    if(ctl->spec.kind==NYOTA_UI_CTRL_BUTTON){
+                        ctl->clicked=1;changed=1;
+                    }else if(ctl->spec.kind==NYOTA_UI_CTRL_CBOX){
+                        ctl->spec.checked=(uint8_t)!ctl->spec.checked;changed=1;
+                    }else if(ctl->spec.kind==NYOTA_UI_CTRL_RADIO){
+                        int j;ctl->spec.checked=1;
+                        if(ctl->spec.radio_group[0])
+                            for(j=0;j<HOST_MAX_UI_CONTROLS;j++)
+                                if(j!=i&&g_host_ui_controls[j].used&&g_host_ui_controls[j].spec.kind==NYOTA_UI_CTRL_RADIO&&
+                                   g_host_ui_controls[j].window_handle==ctl->window_handle&&
+                                   !strcmp(g_host_ui_controls[j].spec.radio_group,ctl->spec.radio_group))
+                                    g_host_ui_controls[j].spec.checked=0;
+                        changed=1;
+                    }else if(ctl->spec.kind==NYOTA_UI_CTRL_COMBO){
+                        ctl->combo_open=(uint8_t)!ctl->combo_open;ctl->combo_hover=-1;changed=1;
+                    }else if(ctl->spec.kind==NYOTA_UI_CTRL_TAB){
+                        int pi=host_ui_control_index_by_handle(ctl->parent_control_handle);
+                        if(pi>=0){g_host_ui_controls[pi].spec.selected=ctl->spec.tab_index;changed=1;}
+                    }
+                    break;
+                }
+                if(changed){
+                    if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);
+                    host_ui_redraw_controls(ui);
+                }
+                continue;
+            }
             if (k == SDLK_ESCAPE && g_win &&
                 e.key.windowID == SDL_GetWindowID(g_win)) g_graph_closed = 1;
         }
         if (e.type == SDL_KEYUP) {
             SDL_Keycode k = e.key.keysym.sym;
+            int ui = host_ui_index_by_window_id(e.key.windowID);
             if (k == SDLK_LSHIFT || k == SDLK_RSHIFT) g_shift = 0;
+            if(ui>=0&&(k==SDLK_RETURN||k==SDLK_KP_ENTER||k==SDLK_SPACE)){
+                int i,changed=0;
+                for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
+                    HostUiControl *ctl=&g_host_ui_controls[i];
+                    if(ctl->used&&ctl->window_handle==g_ui_windows[ui].handle&&ctl->pressed){
+                        ctl->pressed=0;changed=1;
+                    }
+                }
+                if(changed){
+                    if(g_ui_windows[ui].has_background)host_ui_render_background_index(ui);
+                    host_ui_redraw_controls(ui);
+                }
+            }
         }
     }
     if (g_dirty && g_ren && !g_graph_closed) {
@@ -1543,18 +1592,14 @@ static void host_ui_control_destroy(int32_t handle) {
 }
 
 static int32_t host_ui_button_clicked(int32_t handle) {
-    int i=host_ui_control_index_by_handle(handle), wi, mx=0,my=0;
-    Uint32 buttons; uint8_t down; int inside, clicked;
+    int i=host_ui_control_index_by_handle(handle);
+    int32_t clicked;
     if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_BUTTON)return -1;
     if(!g_host_ui_controls[i].spec.enabled)return 0;
     host_pump();
-    wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle); if(wi<0)return -1;
-    if(SDL_GetMouseFocus()!=g_ui_windows[wi].win){g_host_ui_controls[i].prev_down=0;return 0;}
-    buttons=SDL_GetMouseState(&mx,&my); down=(buttons&SDL_BUTTON(SDL_BUTTON_LEFT))?1:0;
-    inside=host_ui_point_in_control(i,mx,my);
-    clicked=down&&!g_host_ui_controls[i].prev_down&&inside;
-    g_host_ui_controls[i].prev_down=down;
-    return clicked?1:0;
+    clicked=g_host_ui_controls[i].clicked?1:0;
+    g_host_ui_controls[i].clicked=0;
+    return clicked;
 }
 
 static int32_t host_ui_darea_dropped(int32_t handle) {
