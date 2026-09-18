@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        16%{?dist}
+Release:        17%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,11 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-17
+- Render expanded COMBO dropdowns in a top-level window overlay pass.
+- Give open COMBO popups input priority over controls underneath.
+- Close other COMBO popups when a new one is opened and suppress hover behind the popup.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-16
 - Keep NyotaUI hidden for the full construction phase; do not finish the initial frame from host tick/event pumping.
 - Cache POSIX window gradient/image backgrounds instead of rebuilding them on every hover/redraw.
