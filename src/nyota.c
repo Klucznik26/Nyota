@@ -6032,6 +6032,34 @@ static int UiValidateControlSpec(const NyotaUiControlSpec *s){
         if(s->orientation==NYOTA_UI_SEP_HORIZONTAL&&(s->eq_direction==NYOTA_UI_EQ_UP||s->eq_direction==NYOTA_UI_EQ_DOWN)){OutError("EQBOX HORIZONTAL wymaga DIRECTION=LEFT/RIGHT/CENTER");return 0;}
         for(i=0;i<s->eq_value_count;i++)if(s->eq_values[i]<s->range_min||s->eq_values[i]>s->range_max){OutError("EQBOX VALUES: wartosc poza MIN..MAX");return 0;}
     }
+    if(s->kind==NYOTA_UI_CTRL_TBOX){
+        if(strlen(s->text)>s->max_length){OutError("TBOX: TEXT przekracza MAXLEN");return 0;}
+        if(strchr(s->text,'\n')||strchr(s->text,'\r')){OutError("TBOX: TEXT musi byc jednowierszowy");return 0;}
+    }
+    if(s->kind==NYOTA_UI_CTRL_SPINBOX||s->kind==NYOTA_UI_CTRL_SCALE){
+        if(s->signed_max<=s->signed_min){OutError("SPINBOX/SCALE: MAX musi byc wieksze od MIN");return 0;}
+        if(s->signed_step<=0){OutError("SPINBOX/SCALE: STEP musi byc dodatni");return 0;}
+        if(s->signed_value<s->signed_min||(!s->scale_wrap&&s->signed_value>s->signed_max)||
+           (s->kind==NYOTA_UI_CTRL_SCALE&&s->scale_wrap&&s->signed_value>=s->signed_max)){OutError("SPINBOX/SCALE: VALUE poza zakresem");return 0;}
+        if(s->kind==NYOTA_UI_CTRL_SCALE&&s->scale_shape!=NYOTA_UI_SCALE_LINE&&s->end_angle==s->start_angle){OutError("SCALE: STARTANGLE i ENDANGLE nie moga byc rowne");return 0;}
+    }
+    if(s->kind==NYOTA_UI_CTRL_LISTVIEW||s->kind==NYOTA_UI_CTRL_TREEVIEW){
+        uint32_t n=UiItemsCount(s->items);
+        if(n&&s->selected>=n){OutError("LISTVIEW/TREEVIEW: SELECTED poza ITEMS");return 0;}
+    }
+    if(s->kind==NYOTA_UI_CTRL_SPLITTER){
+        if(s->range_max<=s->range_min||s->range_value<s->range_min||s->range_value>s->range_max){OutError("SPLITTER: nieprawidlowy MIN/MAX/VALUE");return 0;}
+    }
+    if(s->kind==NYOTA_UI_CTRL_CLOCK){
+        uint32_t i;
+        if(!s->clock_needles||s->clock_needles>NYOTA_UI_CLOCK_MAX_NEEDLES){OutError("CLOCK: NEEDLES poza zakresem 1..8");return 0;}
+        if(s->clock_value_count>s->clock_needles||s->clock_color_count>s->clock_needles||s->clock_shape_count>s->clock_needles||s->clock_width_count>s->clock_needles||s->clock_len_count>s->clock_needles||s->clock_blur_count>s->clock_needles||s->clock_min_count>s->clock_needles||s->clock_max_count>s->clock_needles){OutError("CLOCK: lista parametrow wskazowek dluzsza niz NEEDLES");return 0;}
+        if(s->clock_shape==NYOTA_UI_CLOCK_ARC&&s->end_angle==s->start_angle){OutError("CLOCK: STARTANGLE i ENDANGLE nie moga byc rowne");return 0;}
+        for(i=0;i<s->clock_needles;i++){
+            if(s->clock_needle_max[i]<=s->clock_needle_min[i]){OutError("CLOCK: NEEDLEMAX musi byc wieksze od NEEDLEMIN");return 0;}
+            if(i<s->clock_value_count&&(s->clock_values[i]<s->clock_needle_min[i]||s->clock_values[i]>s->clock_needle_max[i])){OutError("CLOCK: wartosc wskazowki poza zakresem");return 0;}
+        }
+    }
     return 1;
 }
 
@@ -6047,7 +6075,11 @@ static int UiControlKindFromLine(const char *l,uint8_t*k,uint32_t*n){
     if(PeekWord(l,"TAREA")){*k=NYOTA_UI_CTRL_TAREA;*n=5;return 1;}
     if(PeekWord(l,"SBAR")){*k=NYOTA_UI_CTRL_SBAR;*n=4;return 1;} if(PeekWord(l,"PBAR")){*k=NYOTA_UI_CTRL_PBAR;*n=4;return 1;}
     if(PeekWord(l,"EQBOX")){*k=NYOTA_UI_CTRL_EQBOX;*n=5;return 1;} if(PeekWord(l,"SLIDER")){*k=NYOTA_UI_CTRL_SLIDER;*n=6;return 1;}
-    if(PeekWord(l,"STATBAR")){*k=NYOTA_UI_CTRL_STATBAR;*n=7;return 1;} if(PeekWord(l,"TOOLBAR")){*k=NYOTA_UI_CTRL_TOOLBAR;*n=7;return 1;} return 0;
+    if(PeekWord(l,"STATBAR")){*k=NYOTA_UI_CTRL_STATBAR;*n=7;return 1;} if(PeekWord(l,"TOOLBAR")){*k=NYOTA_UI_CTRL_TOOLBAR;*n=7;return 1;}
+    if(PeekWord(l,"TBOX")){*k=NYOTA_UI_CTRL_TBOX;*n=4;return 1;} if(PeekWord(l,"SPINBOX")){*k=NYOTA_UI_CTRL_SPINBOX;*n=7;return 1;}
+    if(PeekWord(l,"LISTVIEW")){*k=NYOTA_UI_CTRL_LISTVIEW;*n=8;return 1;} if(PeekWord(l,"TREEVIEW")){*k=NYOTA_UI_CTRL_TREEVIEW;*n=8;return 1;}
+    if(PeekWord(l,"SPLITTER")){*k=NYOTA_UI_CTRL_SPLITTER;*n=8;return 1;} if(PeekWord(l,"SCALE")){*k=NYOTA_UI_CTRL_SCALE;*n=5;return 1;}
+    if(PeekWord(l,"CLOCK")){*k=NYOTA_UI_CTRL_CLOCK;*n=5;return 1;} return 0;
 }
 static int UiResolveParent(const char *arg,uint8_t kind,NyotaWindow **pw,NyotaUiControl **pc,char *name,uint32_t cap){
     uint32_t pn=ParseIdent(NTrim(arg),name,cap);*pw=0;*pc=0;
@@ -6837,7 +6869,10 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         PeekWord(line, "TAREA") || PeekWord(line, "SBAR") ||
         PeekWord(line, "PBAR") || PeekWord(line, "EQBOX") ||
         PeekWord(line, "SLIDER") || PeekWord(line, "STATBAR") ||
-        PeekWord(line, "TOOLBAR")) {
+        PeekWord(line, "TOOLBAR") || PeekWord(line, "TBOX") ||
+        PeekWord(line, "SPINBOX") || PeekWord(line, "LISTVIEW") ||
+        PeekWord(line, "TREEVIEW") || PeekWord(line, "SPLITTER") ||
+        PeekWord(line, "SCALE") || PeekWord(line, "CLOCK")) {
         if (UiExecControl(ln, raw, line)) return;
         /* legacy GRAPH BUTTON falls through to its old implementation below */
     }
