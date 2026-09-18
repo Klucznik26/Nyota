@@ -5240,6 +5240,7 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
     UiColorSolid(&s->text_color, 232, 236, 242, 255);
     s->halign = NYOTA_UI_ALIGN_LEFT;
     s->valign = NYOTA_UI_VALIGN_MIDDLE;
+    s->enabled = 1;
 
     UiBackgroundBlack(&s->background);
     UiColorSolid(&s->background.colors[0], 36, 41, 50, 255);
@@ -5326,7 +5327,7 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
         UiBackgroundBlack(&s->background_over);
         UiColorSolid(&s->background_over.colors[0], 37, 47, 61, 255);
         s->border = 1;
-        s->radius = 6;
+        s->radius = 0;
     } else if (kind == NYOTA_UI_CTRL_CBOX || kind == NYOTA_UI_CTRL_RADIO) {
         UiBackgroundBlack(&s->background);
         UiColorSolid(&s->background.colors[0], 238, 241, 245, 255);
@@ -5364,17 +5365,17 @@ static uint32_t UiItemsCount(const char *s){uint32_t n=0,i=0;if(!s)return 0;whil
 
 static int UiControlPropertyAllowed(uint8_t k,const char *p){
     if(k==NYOTA_UI_CTRL_BUTTON){
-        return NStrEq(p,"TEXT")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"UNDERLINE")||NStrEq(p,"HALIGN")||NStrEq(p,"VALIGN")||NStrEq(p,"WRAP")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS");
+        return NStrEq(p,"TEXT")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"UNDERLINE")||NStrEq(p,"HALIGN")||NStrEq(p,"VALIGN")||NStrEq(p,"WRAP")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED");
     }
     if(k==NYOTA_UI_CTRL_LABEL) return NStrEq(p,"TEXT")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"UNDERLINE")||NStrEq(p,"HALIGN")||NStrEq(p,"VALIGN")||NStrEq(p,"WRAP")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH");
     if(k==NYOTA_UI_CTRL_PANEL) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CLIP")||NStrEq(p,"RADIUS");
-    if(k==NYOTA_UI_CTRL_DAREA) return UiControlPropertyAllowed(NYOTA_UI_CTRL_LABEL,p)||NStrEq(p,"SHAPE")||NStrEq(p,"ACCEPT")||NStrEq(p,"MULTI")||NStrEq(p,"BGOVER")||NStrEq(p,"CBORDEROVER")||NStrEq(p,"BWIDTHOVER")||NStrEq(p,"RADIUS");
-    if(k==NYOTA_UI_CTRL_CBOX) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CCHECK")||NStrEq(p,"CHECKED")||NStrEq(p,"CSYMBOL");
-    if(k==NYOTA_UI_CTRL_RADIO) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CCHECK")||NStrEq(p,"CHECKED")||NStrEq(p,"RGROUP");
-    if(k==NYOTA_UI_CTRL_COMBO) return NStrEq(p,"ITEMS")||NStrEq(p,"SELECTED")||NStrEq(p,"BG")||NStrEq(p,"CTEXT")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CARROW")||NStrEq(p,"BGDROP")||NStrEq(p,"CDROP")||NStrEq(p,"BGSELECT")||NStrEq(p,"CSELECT")||NStrEq(p,"HOVER")||NStrEq(p,"BGHOVER")||NStrEq(p,"CHOVER")||NStrEq(p,"MAXVISIBLE")||NStrEq(p,"RADIUS");
+    if(k==NYOTA_UI_CTRL_DAREA) return UiControlPropertyAllowed(NYOTA_UI_CTRL_LABEL,p)||NStrEq(p,"SHAPE")||NStrEq(p,"ACCEPT")||NStrEq(p,"MULTI")||NStrEq(p,"BGOVER")||NStrEq(p,"CBORDEROVER")||NStrEq(p,"BWIDTHOVER")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED");
+    if(k==NYOTA_UI_CTRL_CBOX) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CCHECK")||NStrEq(p,"CHECKED")||NStrEq(p,"CSYMBOL")||NStrEq(p,"ENABLED");
+    if(k==NYOTA_UI_CTRL_RADIO) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CCHECK")||NStrEq(p,"CHECKED")||NStrEq(p,"RGROUP")||NStrEq(p,"ENABLED");
+    if(k==NYOTA_UI_CTRL_COMBO) return NStrEq(p,"ITEMS")||NStrEq(p,"SELECTED")||NStrEq(p,"BG")||NStrEq(p,"CTEXT")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CARROW")||NStrEq(p,"BGDROP")||NStrEq(p,"CDROP")||NStrEq(p,"BGSELECT")||NStrEq(p,"CSELECT")||NStrEq(p,"HOVER")||NStrEq(p,"BGHOVER")||NStrEq(p,"CHOVER")||NStrEq(p,"MAXVISIBLE")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED");
     if(k==NYOTA_UI_CTRL_SEP) return NStrEq(p,"CSEP")||NStrEq(p,"THICK")||NStrEq(p,"EFFECT")||NStrEq(p,"BG");
     if(k==NYOTA_UI_CTRL_TABS) return NStrEq(p,"SELECTED");
-    if(k==NYOTA_UI_CTRL_TAB) return NStrEq(p,"TABBG")||NStrEq(p,"TABFONT")||NStrEq(p,"TABFSIZE")||NStrEq(p,"TABCTEXT")||NStrEq(p,"TABBOLD")||NStrEq(p,"TABITALIC")||NStrEq(p,"TABUNDERLINE")||NStrEq(p,"TABBORDER")||NStrEq(p,"TABCBORDER")||NStrEq(p,"TABBWIDTH")||NStrEq(p,"TABRADIUS")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CLIP")||NStrEq(p,"RADIUS");
+    if(k==NYOTA_UI_CTRL_TAB) return NStrEq(p,"TABBG")||NStrEq(p,"TABFONT")||NStrEq(p,"TABFSIZE")||NStrEq(p,"TABCTEXT")||NStrEq(p,"TABBOLD")||NStrEq(p,"TABITALIC")||NStrEq(p,"TABUNDERLINE")||NStrEq(p,"TABBORDER")||NStrEq(p,"TABCBORDER")||NStrEq(p,"TABBWIDTH")||NStrEq(p,"TABRADIUS")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"CLIP")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED");
     return 0;
 }
 
@@ -5389,6 +5390,7 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"ITALIC")){if(!UiParseBoolProperty(rhs,&s->italic,"ITALIC"))return 0;}
     else if(NStrEq(prop,"UNDERLINE")){if(!UiParseBoolProperty(rhs,&s->underline,"UNDERLINE"))return 0;}
     else if(NStrEq(prop,"WRAP")){if(!UiParseBoolProperty(rhs,&s->wrap,"WRAP"))return 0;}
+    else if(NStrEq(prop,"ENABLED")){if(!UiParseBoolProperty(rhs,&s->enabled,"ENABLED"))return 0;}
     else if(NStrEq(prop,"HALIGN")){const char *v=NTrim(rhs);if(NStrEq(v,"LEFT"))s->halign=NYOTA_UI_ALIGN_LEFT;else if(NStrEq(v,"CENTER"))s->halign=NYOTA_UI_ALIGN_CENTER;else if(NStrEq(v,"RIGHT"))s->halign=NYOTA_UI_ALIGN_RIGHT;else{OutError("HALIGN wymaga LEFT/CENTER/RIGHT");return 0;}}
     else if(NStrEq(prop,"VALIGN")){const char *v=NTrim(rhs);if(NStrEq(v,"TOP"))s->valign=NYOTA_UI_VALIGN_TOP;else if(NStrEq(v,"MIDDLE"))s->valign=NYOTA_UI_VALIGN_MIDDLE;else if(NStrEq(v,"BOTTOM"))s->valign=NYOTA_UI_VALIGN_BOTTOM;else{OutError("VALIGN wymaga TOP/MIDDLE/BOTTOM");return 0;}}
     else if(NStrEq(prop,"BG")){if(!UiParseBackground(rhs,&s->background))return 0;}
