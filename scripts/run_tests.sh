@@ -35,6 +35,17 @@ for f in "$TDIR"/*.nyo; do
         out=$("$NYOTA" "$f" 2>&1) || true
     fi
     case "$expect" in
+    "BLAD zawiera "*)
+        needle=${expect#BLAD zawiera }
+        if echo "$out" | grep -q BLAD && echo "$out" | grep -F -q -- "$needle"; then
+            echo "PASS $base"
+            pass=$((pass + 1))
+        else
+            echo "FAIL $base — oczekiwano BLAD oraz: $needle"
+            echo "$out" | sed 's/^/  /'
+            fail=$((fail + 1))
+        fi
+        ;;
     BLAD*)
         if echo "$out" | grep -q BLAD; then
             echo "PASS $base"
