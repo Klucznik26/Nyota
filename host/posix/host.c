@@ -1535,6 +1535,14 @@ static void host_ui_draw_tab_header(int idx,SDL_Renderer *ren){
     tmp.halign=NYOTA_UI_ALIGN_CENTER;tmp.valign=NYOTA_UI_VALIGN_MIDDLE;
     strncpy(tmp.text,c->spec.text,sizeof(tmp.text)-1);
     host_ui_draw_text(ren,&tmp,r);
+    if(c->focused&&c->spec.enabled){
+        NyotaColor fc=host_ui_tint_color(c->spec.tab_border_color,78);
+        int x1=r.x+(int)c->spec.tab_radius+4,x2=r.x+r.w-1-(int)c->spec.tab_radius-4;
+        if(fc.mode==NYOTA_COLOR_TRANSPARENT){fc.r=110;fc.g=165;fc.b=235;fc.a=255;}
+        SDL_SetRenderDrawBlendMode(ren,SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(ren,fc.r,fc.g,fc.b,220);
+        if(x2>x1){SDL_RenderDrawLine(ren,x1,r.y+1,x2,r.y+1);SDL_RenderDrawLine(ren,x1,r.y+2,x2,r.y+2);}
+    }
 }
 
 static void host_ui_draw_focus_ring(SDL_Renderer *ren,const HostUiControl *ctl,SDL_Rect r){
@@ -1544,15 +1552,25 @@ static void host_ui_draw_focus_ring(SDL_Renderer *ren,const HostUiControl *ctl,S
     if(ctl->spec.kind==NYOTA_UI_CTRL_TAB)return;
     c=host_ui_tint_color(ctl->spec.border_color,70);
     if(c.mode==NYOTA_COLOR_TRANSPARENT){c.r=110;c.g=165;c.b=235;c.a=255;c.mode=NYOTA_COLOR_SOLID;}
-    SDL_SetRenderDrawBlendMode(ren,SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(ren,c.r,c.g,c.b,190);
+    c.a=190;
     q.x-=2;q.y-=2;q.w+=4;q.h+=4;
-    if(ctl->spec.kind==NYOTA_UI_CTRL_RADIO){
-        int seg,nseg=72,px=0,py=0;double pi=3.14159265358979323846;
-        double rr=(double)(q.w<q.h?q.w:q.h)/2.0,cx=q.x+q.w/2.0,cy=q.y+q.h/2.0;
-        for(seg=0;seg<=nseg;seg++){double a=2.0*pi*seg/nseg;int nx=(int)lrint(cx+cos(a)*rr),ny=(int)lrint(cy+sin(a)*rr);if(seg)SDL_RenderDrawLine(ren,px,py,nx,ny);px=nx;py=ny;}
-    }else if(ctl->spec.radius) host_ui_draw_rounded_rect(ren,q,(int)ctl->spec.radius+2);
-    else SDL_RenderDrawRect(ren,&q);
+    if(ctl->spec.kind==NYOTA_UI_CTRL_RADIO||ctl->spec.radius||
+       (ctl->spec.kind==NYOTA_UI_CTRL_DAREA&&ctl->spec.shape!=NYOTA_UI_DAREA_RECT)){
+        NyotaUiControlSpec fs=ctl->spec;
+        SDL_Surface *sf;
+        SDL_Texture *tx;
+        fs.w=(uint32_t)q.w;fs.h=(uint32_t)q.h;
+        if(fs.radius)fs.radius+=2;
+        sf=host_ui_border_surface(&fs,c,1);
+        if(sf){
+            tx=SDL_CreateTextureFromSurface(ren,sf);SDL_FreeSurface(sf);
+            if(tx){SDL_SetTextureBlendMode(tx,SDL_BLENDMODE_BLEND);SDL_RenderCopy(ren,tx,NULL,&q);SDL_DestroyTexture(tx);}
+        }
+    }else{
+        SDL_SetRenderDrawBlendMode(ren,SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(ren,c.r,c.g,c.b,c.a);
+        SDL_RenderDrawRect(ren,&q);
+    }
 }
 
 static void host_ui_draw_control_index(int idx) {
