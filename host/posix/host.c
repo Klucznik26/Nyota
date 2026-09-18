@@ -432,6 +432,19 @@ static uint32_t host_ui_range_clamp(const NyotaUiControlSpec *s,int64_t v){
     if(v>(int64_t)s->range_max)return s->range_max;
     return (uint32_t)v;
 }
+static int32_t host_ui_wrap_signed(int32_t v,int32_t minv,int32_t maxv){
+    int64_t span=(int64_t)maxv-(int64_t)minv,x;
+    if(span<=0)return minv;
+    x=((int64_t)v-(int64_t)minv)%span;if(x<0)x+=span;
+    return (int32_t)((int64_t)minv+x);
+}
+static int32_t host_ui_signed_clamp(const NyotaUiControlSpec *s,int64_t v){
+    if(!s)return 0;
+    if(s->kind==NYOTA_UI_CTRL_SCALE&&s->scale_wrap)return host_ui_wrap_signed((int32_t)v,s->signed_min,s->signed_max);
+    if(v<(int64_t)s->signed_min)return s->signed_min;
+    if(v>(int64_t)s->signed_max)return s->signed_max;
+    return (int32_t)v;
+}
 
 static int host_ui_range_thumb_rect(int idx,SDL_Rect *out){
     HostUiControl *ctl;
@@ -579,11 +592,16 @@ static void host_pump(void) {
 
                 for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
                     HostUiControl *dc=&g_host_ui_controls[i];
-                    if(!dc->used||dc->window_handle!=g_ui_windows[ui].handle||
-                       (dc->spec.kind!=NYOTA_UI_CTRL_SBAR&&dc->spec.kind!=NYOTA_UI_CTRL_SLIDER)||!dc->range_dragging||!dc->spec.enabled)continue;
-                    {
+                    if(!dc->used||dc->window_handle!=g_ui_windows[ui].handle||!dc->spec.enabled)continue;
+                    if((dc->spec.kind==NYOTA_UI_CTRL_SBAR||dc->spec.kind==NYOTA_UI_CTRL_SLIDER)&&dc->range_dragging){
                         uint32_t nv=host_ui_range_value_from_pointer(i,e.motion.x,e.motion.y);
-                        if(nv!=dc->spec.range_value){dc->spec.range_value=nv;changed=1;}
+                        if(nv!=dc->spec.range_value){dc->spec.range_value=nv;dc->changed=1;changed=1;}
+                    }else if(dc->spec.kind==NYOTA_UI_CTRL_SPLITTER&&dc->range_dragging){
+                        uint32_t nv=host_ui_splitter_value_from_pointer(i,e.motion.x,e.motion.y);
+                        if(nv!=dc->spec.range_value){dc->spec.range_value=nv;dc->changed=1;changed=1;}
+                    }else if(dc->spec.kind==NYOTA_UI_CTRL_SCALE&&dc->scale_dragging&&dc->spec.scale_interactive){
+                        int32_t nv=host_ui_scale_value_from_pointer(i,e.motion.x,e.motion.y);
+                        if(nv!=dc->spec.signed_value){dc->spec.signed_value=nv;dc->changed=1;changed=1;}
                     }
                 }
 
@@ -617,8 +635,14 @@ static void host_pump(void) {
                                ctl->spec.kind == NYOTA_UI_CTRL_COMBO ||
                                ctl->spec.kind == NYOTA_UI_CTRL_DAREA ||
                                ctl->spec.kind == NYOTA_UI_CTRL_TAREA ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_TBOX ||
                                ctl->spec.kind == NYOTA_UI_CTRL_SBAR ||
-                               ctl->spec.kind == NYOTA_UI_CTRL_SLIDER) {
+                               ctl->spec.kind == NYOTA_UI_CTRL_SLIDER ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_SPINBOX ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_LISTVIEW ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_TREEVIEW ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_SPLITTER ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_SCALE) {
                         over = (uint8_t)host_ui_point_in_control(i,e.motion.x,e.motion.y);
                     }
                     if (popup_owner >= 0 && i != popup_owner) over = 0;
@@ -635,6 +659,17 @@ static void host_pump(void) {
                             if(row>=0 && (uint32_t)row<count && (uint32_t)row<ctl->spec.max_visible) hi=row;
                         }
                         if(hi!=ctl->combo_hover){ctl->combo_hover=hi;changed=1;}
+                    }
+                    if(ctl->spec.kind==NYOTA_UI_CTRL_LISTVIEW||ctl->spec.kind==NYOTA_UI_CTRL_TREEVIEW){
+                        SDL_Rect lr;int32_t hi=-1;
+                        if(host_ui_control_rect_index(i,&lr)&&e.motion.x>=lr.x&&e.motion.x<lr.x+lr.w&&e.motion.y>=lr.y&&e.motion.y<lr.y+lr.h){
+                            int row=(e.motion.y-lr.y-1)/(int)(ctl->spec.row_height?ctl->spec.row_height:28);
+                            if(row>=0){
+                                if(ctl->spec.kind==NYOTA_UI_CTRL_TREEVIEW){uint32_t ix;if(host_ui_tree_visible_row_to_index(ctl,(uint32_t)row,&ix))hi=(int32_t)ix;}
+                                else if((uint32_t)row<host_ui_combo_item_count(ctl))hi=row;
+                            }
+                        }
+                        if(hi!=ctl->list_hover){ctl->list_hover=hi;changed=1;}
                     }
                 }
                 if (changed) host_ui_mark_dirty(ui);
