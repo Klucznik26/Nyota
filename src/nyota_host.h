@@ -37,6 +37,10 @@ typedef struct NyotaHost {
     void (*gfx_sprite_free)(int32_t handle);
     void (*gfx_sprite_draw)(int32_t handle, int32_t x, int32_t y,
                             uint32_t w, uint32_t h);
+    void (*gfx_sprite_draw_frame)(int32_t handle, uint32_t frame,
+                                  uint32_t frame_count,
+                                  int32_t x, int32_t y,
+                                  uint32_t w, uint32_t h);
 } NyotaHost;
 
 void NyotaSetHost(NyotaHost *h);

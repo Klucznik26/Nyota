@@ -207,6 +207,32 @@ static void host_sprite_draw(int32_t handle, int32_t x, int32_t y,
     g_dirty = 1;
 }
 
+static void host_sprite_draw_frame(int32_t handle, uint32_t frame,
+                                   uint32_t frame_count,
+                                   int32_t x, int32_t y,
+                                   uint32_t w, uint32_t h) {
+    SDL_Rect src, dst;
+    int idx = (int)handle - 1;
+    int tw = 0, th = 0, fw;
+    if (!g_gfx || !g_ren || idx < 0 || idx >= HOST_MAX_SPRITES ||
+        !g_sprite_tex[idx] || frame_count == 0 || frame >= frame_count ||
+        w == 0 || h == 0) return;
+    if (SDL_QueryTexture(g_sprite_tex[idx], 0, 0, &tw, &th) != 0) return;
+    if (tw <= 0 || th <= 0 || (uint32_t)tw < frame_count) return;
+    fw = tw / (int)frame_count;
+    if (fw <= 0) return;
+    src.x = (int)frame * fw;
+    src.y = 0;
+    src.w = fw;
+    src.h = th;
+    dst.x = (int)x;
+    dst.y = (int)y;
+    dst.w = (int)w;
+    dst.h = (int)h;
+    SDL_RenderCopy(g_ren, g_sprite_tex[idx], &src, &dst);
+    g_dirty = 1;
+}
+
 static uint8_t key_to_scancode(SDL_Keycode k) {
     if (k == SDLK_RETURN) return 0x1C;
     if (k == SDLK_BACKSPACE) return 0x0E;
@@ -375,6 +401,7 @@ int main(int argc, char **argv) {
     g_nyhost.gfx_sprite_load = host_sprite_load;
     g_nyhost.gfx_sprite_free = host_sprite_free;
     g_nyhost.gfx_sprite_draw = host_sprite_draw;
+    g_nyhost.gfx_sprite_draw_frame = host_sprite_draw_frame;
     NyotaSetHost(&g_nyhost);
     g_input_feed = getenv("NYOTA_INPUT");
     g_input_pos = 0;
