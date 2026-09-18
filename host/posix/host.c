@@ -563,8 +563,11 @@ static void host_pump(void) {
                         changed=1;break;
                     }
                     if(ctl->spec.kind==NYOTA_UI_CTRL_TAREA&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                        SDL_Rect tr;
                         host_ui_set_focus(ui,i);
-                        ctl->caret=(uint32_t)strlen(ctl->spec.text);
+                        if(host_ui_control_rect_index(i,&tr))
+                            ctl->caret=host_ui_tarea_caret_from_point(ctl,tr,e.button.x,e.button.y);
+                        else ctl->caret=(uint32_t)strlen(ctl->spec.text);
                         changed=1;break;
                     }
                     if(ctl->spec.kind==NYOTA_UI_CTRL_BUTTON&&host_ui_point_in_control(i,e.button.x,e.button.y)){
@@ -648,6 +651,23 @@ static void host_pump(void) {
                        ctl->spec.kind!=NYOTA_UI_CTRL_TAREA||!ctl->spec.enabled)continue;
                     if(k==SDLK_LEFT){ctl->caret=host_ui_utf8_prev(ctl->spec.text,ctl->caret);handled=1;}
                     else if(k==SDLK_RIGHT){ctl->caret=host_ui_utf8_next(ctl->spec.text,ctl->caret);handled=1;}
+                    else if(k==SDLK_UP||k==SDLK_DOWN){
+                        SDL_Rect tr;int x=0,row=0,lineh;TTF_Font *tf;
+                        if(host_ui_control_rect_index(i,&tr)){
+                            host_ui_tarea_caret_visual(ctl,tr,&x,&row);
+                            tf=host_ui_get_font(ctl->spec.font,ctl->spec.font_size,ctl->spec.bold,ctl->spec.italic,ctl->spec.underline);
+                            lineh=tf?TTF_FontLineSkip(tf):(int)ctl->spec.font_size+2;if(lineh<=0)lineh=(int)ctl->spec.font_size+2;
+                            if(k==SDLK_UP&&row>0)row--;else if(k==SDLK_DOWN)row++;
+                            ctl->caret=host_ui_tarea_caret_from_point(ctl,tr,tr.x+(int)ctl->spec.pad_x+x,
+                                      tr.y+(int)ctl->spec.pad_y+row*lineh+lineh/2);
+                        }
+                        handled=1;
+                    }
+                    else if((e.key.keysym.mod & KMOD_CTRL) && k==SDLK_v && !ctl->spec.readonly && !e.key.repeat){
+                        char *clip=SDL_GetClipboardText();
+                        if(clip){changed=host_ui_tarea_insert(ctl,clip);SDL_free(clip);}
+                        handled=1;
+                    }
                     else if(k==SDLK_HOME){while(ctl->caret>0&&ctl->spec.text[ctl->caret-1]!='\n')ctl->caret=host_ui_utf8_prev(ctl->spec.text,ctl->caret);handled=1;}
                     else if(k==SDLK_END){size_t nn=strlen(ctl->spec.text);while(ctl->caret<nn&&ctl->spec.text[ctl->caret]!='\n')ctl->caret=host_ui_utf8_next(ctl->spec.text,ctl->caret);handled=1;}
                     else if(k==SDLK_BACKSPACE&&!e.key.repeat){changed=host_ui_tarea_backspace(ctl);handled=1;}
@@ -1848,6 +1868,73 @@ static int host_ui_tarea_next_line(TTF_Font *font,const char *text,uint32_t star
         last_good=q;p=q;
     }
     *end=n;*next=n;return 1;
+}
+
+static uint32_t host_ui_tarea_caret_from_point(HostUiControl *ctl,SDL_Rect r,int mx,int my){
+    TTF_Font *font;
+    uint32_t start=0,end=0,next=0,row=0,target_row,maxw;
+    int lineh,targetx;
+    if(!ctl)return 0;
+    font=host_ui_get_font(ctl->spec.font,ctl->spec.font_size,ctl->spec.bold,ctl->spec.italic,ctl->spec.underline);
+    if(!font)return (uint32_t)strlen(ctl->spec.text);
+    lineh=TTF_FontLineSkip(font);if(lineh<=0)lineh=(int)ctl->spec.font_size+2;
+    target_row=my<=r.y+(int)ctl->spec.pad_y?0u:(uint32_t)((my-r.y-(int)ctl->spec.pad_y)/lineh);
+    targetx=mx-r.x-(int)ctl->spec.pad_x;if(targetx<0)targetx=0;
+    maxw=r.w>(int)(2u*ctl->spec.pad_x)?(uint32_t)(r.w-(int)(2u*ctl->spec.pad_x)):0;
+    while(start<(uint32_t)strlen(ctl->spec.text)){
+        if(ctl->spec.wrap)host_ui_tarea_next_line(font,ctl->spec.text,start,maxw,&end,&next);
+        else{
+            const char *nl=strchr(ctl->spec.text+start,'\n');
+            end=nl?(uint32_t)(nl-ctl->spec.text):(uint32_t)strlen(ctl->spec.text);
+            next=nl?end+1:end;
+        }
+        if(row==target_row){
+            uint32_t p=start,prev=start;int pw=0,w=0,h=0;
+            while(p<end){
+                uint32_t q=host_ui_utf8_next(ctl->spec.text,p);
+                char buf[NYOTA_UI_TEXT_MAX];size_t len=q-start;
+                if(len>=sizeof(buf))len=sizeof(buf)-1;memcpy(buf,ctl->spec.text+start,len);buf[len]='\0';
+                if(buf[0])TTF_SizeUTF8(font,buf,&w,&h);
+                if(w>=targetx){
+                    if(abs(targetx-pw)<=abs(w-targetx))return prev;
+                    return q;
+                }
+                prev=q;pw=w;p=q;
+            }
+            return end;
+        }
+        if(next<=start)break;
+        start=next;row++;
+    }
+    return (uint32_t)strlen(ctl->spec.text);
+}
+
+static void host_ui_tarea_caret_visual(HostUiControl *ctl,SDL_Rect r,int *out_x,int *out_row){
+    TTF_Font *font;
+    uint32_t caret,start=0,end=0,next=0,row=0,maxw;
+    int w=0,h=0;
+    if(out_x)*out_x=0;if(out_row)*out_row=0;if(!ctl)return;
+    font=host_ui_get_font(ctl->spec.font,ctl->spec.font_size,ctl->spec.bold,ctl->spec.italic,ctl->spec.underline);
+    if(!font)return;
+    caret=ctl->caret;if(caret>(uint32_t)strlen(ctl->spec.text))caret=(uint32_t)strlen(ctl->spec.text);
+    maxw=r.w>(int)(2u*ctl->spec.pad_x)?(uint32_t)(r.w-(int)(2u*ctl->spec.pad_x)):0;
+    while(start<=caret){
+        if(start==(uint32_t)strlen(ctl->spec.text)){end=next=start;}
+        else if(ctl->spec.wrap)host_ui_tarea_next_line(font,ctl->spec.text,start,maxw,&end,&next);
+        else{
+            const char *nl=strchr(ctl->spec.text+start,'\n');
+            end=nl?(uint32_t)(nl-ctl->spec.text):(uint32_t)strlen(ctl->spec.text);
+            next=nl?end+1:end;
+        }
+        if(caret<=end){
+            char buf[NYOTA_UI_TEXT_MAX];size_t len=caret-start;
+            if(len>=sizeof(buf))len=sizeof(buf)-1;memcpy(buf,ctl->spec.text+start,len);buf[len]='\0';
+            if(buf[0])TTF_SizeUTF8(font,buf,&w,&h);
+            if(out_x)*out_x=w;if(out_row)*out_row=(int)row;return;
+        }
+        if(next<=start)break;
+        start=next;row++;
+    }
 }
 
 static void host_ui_draw_tarea(SDL_Renderer *ren,HostUiControl *ctl,SDL_Rect r,int idx){
