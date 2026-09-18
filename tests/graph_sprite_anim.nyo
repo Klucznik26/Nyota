@@ -1,0 +1,19 @@
+# Oczekiwane: OK
+BEGIN
+GRAPH 1
+SPRITE gracz, "tests/assets/sprite_test.bmp", 10, 10, 24, 24
+SPRITE_ANIM gracz, 2, 20
+IF NOT SPRITE_PLAYING(gracz):
+    PRNIT "play"
+SPRITE_DRAW gracz
+SPRITE_STOP gracz
+IF SPRITE_PLAYING(gracz):
+    PRNIT "stop"
+SPRITE_FRAME gracz, 1
+IF SPRITE_FRAME(gracz) <> 1:
+    PRNIT "frame"
+SPRITE_DRAW gracz
+SPRITE_PLAY gracz
+DELAY 30
+SPRITE_DRAW gracz
+END

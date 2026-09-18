@@ -54,6 +54,15 @@ static int HostSpriteDraw(int32_t handle, int32_t x, int32_t y,
     return 1;
 }
 
+static int HostSpriteDrawFrame(int32_t handle, uint32_t frame,
+                               uint32_t frame_count,
+                               int32_t x, int32_t y,
+                               uint32_t w, uint32_t h) {
+    if (!g_host || !g_host->gfx_sprite_draw_frame) return 0;
+    g_host->gfx_sprite_draw_frame(handle, frame, frame_count, x, y, w, h);
+    return 1;
+}
+
 static uint64_t HostTicks(void) {
     if (g_host && g_host->ticks_100hz) return g_host->ticks_100hz();
     return 0;
@@ -184,6 +193,11 @@ typedef struct {
     int32_t x, y, w, h;
     int32_t host_handle;
     uint8_t visible;
+    uint16_t frame_count;
+    uint16_t frame;
+    uint32_t frame_ms;
+    uint8_t playing;
+    uint64_t last_frame_tick;
 } NyotaSprite;
 
 // ============================================================
@@ -1418,6 +1432,7 @@ static int ButtonPollClicked(NyotaButton *b);
 static NyotaSprite *FindSprite(const char *name);
 static int SpriteArgName(const char *arg, char *out, uint32_t out_size);
 static int SpriteHit(const NyotaSprite *a, const NyotaSprite *b);
+static void SpriteUpdateAnimation(NyotaSprite *s);
 
 static NyotaVal ValArith(const NyotaVal *a, char op, const NyotaVal *b) {
     NyotaVal r;
@@ -2213,6 +2228,33 @@ static NyotaVal ParsePrimary(const char **pp) {
         else if (which == 2) ValFromInt(&result, s->w);
         else if (which == 3) ValFromInt(&result, s->h);
         else ValFromBool(&result, s->visible != 0);
+        *pp = call_open ? MatchParen(call_open) : expr;
+        return result;
+    }
+    if (NStrEqN(expr, "SPRITE_FRAME(", 13) ||
+        NStrEqN(expr, "SPRITE_PLAYING(", 15)) {
+        char args[1][MAX_STR_LEN];
+        char sname[64];
+        int is_playing = NStrEqN(expr, "SPRITE_PLAYING(", 15);
+        int off = is_playing ? 15 : 13;
+        int n = SplitFunctionArgs(expr + off, args, 1);
+        NyotaSprite *s;
+        if (n != 1 || !SpriteArgName(args[0], sname, sizeof(sname))) {
+            OutError("SPRITE_FRAME/PLAYING wymaga jednej nazwy SPRITE");
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        s = FindSprite(sname);
+        if (!s) {
+            OutError("Nieznany SPRITE");
+            ValClear(&result);
+            *pp = call_open ? MatchParen(call_open) : expr;
+            return result;
+        }
+        SpriteUpdateAnimation(s);
+        if (is_playing) ValFromBool(&result, s->playing != 0);
+        else ValFromInt(&result, (int32_t)s->frame);
         *pp = call_open ? MatchParen(call_open) : expr;
         return result;
     }
@@ -3641,6 +3683,11 @@ static NyotaSprite *GetOrCreateSprite(const char *name) {
     s->w = s->h = 1;
     s->host_handle = -1;
     s->visible = 1;
+    s->frame_count = 1;
+    s->frame = 0;
+    s->frame_ms = 100;
+    s->playing = 0;
+    s->last_frame_tick = 0;
     NStrCopy(s->name, name, sizeof(s->name));
     return s;
 }
@@ -3681,6 +3728,23 @@ static int SpriteHit(const NyotaSprite *a, const NyotaSprite *b) {
            (int64_t)a->y < by2 && ay2 > (int64_t)b->y;
 }
 
+static void SpriteUpdateAnimation(NyotaSprite *s) {
+    uint64_t now, frame_ticks, elapsed, steps;
+    if (!s || !s->playing || s->frame_count <= 1 || s->frame_ms == 0) return;
+    now = HostTicks();
+    frame_ticks = ((uint64_t)s->frame_ms + 9ULL) / 10ULL;
+    if (frame_ticks < 1) frame_ticks = 1;
+    if (s->last_frame_tick == 0) {
+        s->last_frame_tick = now;
+        return;
+    }
+    elapsed = now - s->last_frame_tick;
+    steps = elapsed / frame_ticks;
+    if (steps == 0) return;
+    s->frame = (uint16_t)(((uint64_t)s->frame + steps) % s->frame_count);
+    s->last_frame_tick += steps * frame_ticks;
+}
+
 static int RenderSprite(NyotaSprite *s) {
     if (!s || !s->visible) return 1;
     if (!g_is_graphics) {
@@ -3691,8 +3755,16 @@ static int RenderSprite(NyotaSprite *s) {
         OutError("SPRITE_DRAW: zasob nie jest zaladowany");
         return 0;
     }
-    if (!HostSpriteDraw(s->host_handle, s->x, s->y,
-                        (uint32_t)s->w, (uint32_t)s->h)) {
+    SpriteUpdateAnimation(s);
+    if (s->frame_count > 1) {
+        if (!HostSpriteDrawFrame(s->host_handle, s->frame, s->frame_count,
+                                 s->x, s->y,
+                                 (uint32_t)s->w, (uint32_t)s->h)) {
+            OutError("SPRITE_DRAW: host nie obsluguje animacji sprite");
+            return 0;
+        }
+    } else if (!HostSpriteDraw(s->host_handle, s->x, s->y,
+                               (uint32_t)s->w, (uint32_t)s->h)) {
         OutError("SPRITE_DRAW: host nie obsluguje sprite");
         return 0;
     }
@@ -4199,6 +4271,96 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         return;
     }
 
+    // --- SPRITE_ANIM nazwa, liczba_klatek, ms_na_klatke ---
+    if (NStartsWith(line, "SPRITE_ANIM")) {
+        const char *p = NTrim(line + 11);
+        char sname[64], args[2][MAX_STR_LEN];
+        uint32_t sn = ParseIdent(p, sname, sizeof(sname));
+        NyotaSprite *s;
+        int32_t frames, frame_ms;
+        int n;
+        if (!sname[0]) { OutError("SPRITE_ANIM: brak nazwy SPRITE"); return; }
+        p = NTrim(p + sn);
+        if (*p != ',') { OutError("SPRITE_ANIM: wymagany przecinek"); return; }
+        n = SplitFunctionArgs(NTrim(p + 1), args, 2);
+        if (n != 2) {
+            OutError("SPRITE_ANIM wymaga liczby klatek i czasu klatki");
+            return;
+        }
+        if (!SpriteEvalInt(args[0], &frames) || !SpriteEvalInt(args[1], &frame_ms)) return;
+        if (frames < 1 || frames > 256) {
+            OutError("SPRITE_ANIM: liczba klatek poza zakresem 1..256");
+            return;
+        }
+        if (frame_ms < 1 || frame_ms > 60000) {
+            OutError("SPRITE_ANIM: czas klatki poza zakresem 1..60000 ms");
+            return;
+        }
+        s = FindSprite(sname);
+        if (!s) { OutError("SPRITE_ANIM: nieznany SPRITE"); return; }
+        if (frames > 1 && (!g_host || !g_host->gfx_sprite_draw_frame)) {
+            OutError("SPRITE_ANIM: host nie obsluguje animacji sprite");
+            return;
+        }
+        s->frame_count = (uint16_t)frames;
+        s->frame = 0;
+        s->frame_ms = (uint32_t)frame_ms;
+        s->playing = frames > 1 ? 1 : 0;
+        s->last_frame_tick = HostTicks();
+        return;
+    }
+
+    // --- SPRITE_PLAY / SPRITE_STOP nazwa ---
+    if (NStartsWith(line, "SPRITE_PLAY") || NStartsWith(line, "SPRITE_STOP")) {
+        const char *p;
+        char sname[64];
+        uint32_t sn;
+        NyotaSprite *s;
+        int play = NStartsWith(line, "SPRITE_PLAY");
+        p = NTrim(line + (play ? 11 : 11));
+        sn = ParseIdent(p, sname, sizeof(sname));
+        if (!sname[0] || *NTrim(p + sn)) {
+            OutError("SPRITE_PLAY/STOP wymaga jednej nazwy SPRITE");
+            return;
+        }
+        s = FindSprite(sname);
+        if (!s) { OutError("SPRITE_PLAY/STOP: nieznany SPRITE"); return; }
+        SpriteUpdateAnimation(s);
+        if (play && s->frame_count > 1) {
+            s->playing = 1;
+            s->last_frame_tick = HostTicks();
+        } else {
+            s->playing = 0;
+        }
+        return;
+    }
+
+    // --- SPRITE_FRAME nazwa, indeks ---
+    if (NStartsWith(line, "SPRITE_FRAME")) {
+        const char *p = NTrim(line + 12);
+        char sname[64], args[1][MAX_STR_LEN];
+        uint32_t sn = ParseIdent(p, sname, sizeof(sname));
+        NyotaSprite *s;
+        int32_t frame;
+        int n;
+        if (!sname[0]) { OutError("SPRITE_FRAME: brak nazwy SPRITE"); return; }
+        p = NTrim(p + sn);
+        if (*p != ',') { OutError("SPRITE_FRAME: wymagany przecinek"); return; }
+        n = SplitFunctionArgs(NTrim(p + 1), args, 1);
+        if (n != 1) { OutError("SPRITE_FRAME wymaga indeksu klatki"); return; }
+        if (!SpriteEvalInt(args[0], &frame)) return;
+        s = FindSprite(sname);
+        if (!s) { OutError("SPRITE_FRAME: nieznany SPRITE"); return; }
+        if (frame < 0 || frame >= (int32_t)s->frame_count) {
+            OutError("SPRITE_FRAME: indeks klatki poza zakresem");
+            return;
+        }
+        s->frame = (uint16_t)frame;
+        s->playing = 0;
+        s->last_frame_tick = HostTicks();
+        return;
+    }
+
     // --- SPRITE_DRAW nazwa ---
     if (NStartsWith(line, "SPRITE_DRAW")) {
         const char *p = NTrim(line + 11);
@@ -4323,6 +4485,11 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         s->x = x; s->y = y; s->w = w; s->h = h;
         s->host_handle = handle;
         s->visible = 1;
+        s->frame_count = 1;
+        s->frame = 0;
+        s->frame_ms = 100;
+        s->playing = 0;
+        s->last_frame_tick = 0;
         return;
     }
 
