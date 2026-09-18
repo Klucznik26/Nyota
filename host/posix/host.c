@@ -1263,12 +1263,12 @@ static void host_ui_draw_text_fallback(SDL_Renderer *ren, const NyotaUiControlSp
     if (scale < 1) scale = 1;
     if (scale > 16) scale = 16;
     charw = 8 * scale; charh = 8 * scale; len = (int)strlen(text);
-    tx = r.x + 6;
+    tx = r.x + (int)s->pad_x;
     if (s->halign == NYOTA_UI_ALIGN_CENTER) tx = r.x + (r.w - len * charw) / 2;
-    else if (s->halign == NYOTA_UI_ALIGN_RIGHT) tx = r.x + r.w - len * charw - 6;
-    ty = r.y + 4;
+    else if (s->halign == NYOTA_UI_ALIGN_RIGHT) tx = r.x + r.w - len * charw - (int)s->pad_x;
+    ty = r.y + (int)s->pad_y;
     if (s->valign == NYOTA_UI_VALIGN_MIDDLE) ty = r.y + (r.h - charh) / 2;
-    else if (s->valign == NYOTA_UI_VALIGN_BOTTOM) ty = r.y + r.h - charh - 4;
+    else if (s->valign == NYOTA_UI_VALIGN_BOTTOM) ty = r.y + r.h - charh - (int)s->pad_y;
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(ren, color.r, color.g, color.b, color.a);
     for (i = 0; text[i]; i++) {
