@@ -940,6 +940,32 @@ static void host_ui_draw_text(SDL_Renderer *ren, const NyotaUiControlSpec *s, SD
     }
 }
 
+static void host_ui_draw_rounded_rect(SDL_Renderer *ren, SDL_Rect q, int radius) {
+    const double pi = 3.14159265358979323846;
+    int seg, nseg = 12, px = 0, py = 0, first = 1;
+    if (!ren || q.w <= 1 || q.h <= 1) return;
+    if (radius <= 0) { SDL_RenderDrawRect(ren, &q); return; }
+    if (radius > q.w / 2) radius = q.w / 2;
+    if (radius > q.h / 2) radius = q.h / 2;
+    for (seg = 0; seg <= nseg * 4; seg++) {
+        int quad = seg / nseg;
+        int step = seg % nseg;
+        double a;
+        double cx, cy;
+        if (quad > 3) { quad = 3; step = nseg; }
+        if (quad == 0) { a = pi + (pi / 2.0) * step / nseg; cx = q.x + radius; cy = q.y + radius; }
+        else if (quad == 1) { a = 1.5 * pi + (pi / 2.0) * step / nseg; cx = q.x + q.w - 1 - radius; cy = q.y + radius; }
+        else if (quad == 2) { a = (pi / 2.0) * step / nseg; cx = q.x + q.w - 1 - radius; cy = q.y + q.h - 1 - radius; }
+        else { a = pi / 2.0 + (pi / 2.0) * step / nseg; cx = q.x + radius; cy = q.y + q.h - 1 - radius; }
+        {
+            int nx = (int)lrint(cx + cos(a) * radius);
+            int ny = (int)lrint(cy + sin(a) * radius);
+            if (!first) SDL_RenderDrawLine(ren, px, py, nx, ny);
+            first = 0; px = nx; py = ny;
+        }
+    }
+}
+
 static void host_ui_draw_border(SDL_Renderer *ren, const HostUiControl *ctl, SDL_Rect r) {
     uint32_t k, width;
     NyotaColor color;
@@ -969,6 +995,10 @@ static void host_ui_draw_border(SDL_Renderer *ren, const HostUiControl *ctl, SDL
                 if (seg) SDL_RenderDrawLine(ren, px, py, nx, ny);
                 px = nx; py = ny;
             }
+        } else if (ctl->spec.radius) {
+            int rr = (int)ctl->spec.radius - (int)k;
+            if (rr < 0) rr = 0;
+            host_ui_draw_rounded_rect(ren, q, rr);
         } else SDL_RenderDrawRect(ren, &q);
     }
 }
