@@ -376,11 +376,7 @@ PARALLELOGRAM
 Przykład:
 
 ```nyota
-SBAR pozycja, panel, [360, 30], [20, 60],
-     MIN=0, MAX=1000, VALUE=250, PAGE=100, STEP=10,
-     THUMB=PARALLELOGRAM,
-     CTHUMB=SAPPHIRE,
-     CTHUMBOVER=LIGHTSAPPHIRE
+SBAR pozycja, panel, [360, 30], [20, 60], MIN=0, MAX=1000, VALUE=250, PAGE=100, STEP=10, THUMB=PARALLELOGRAM, CTHUMB=SAPPHIRE, CTHUMBOVER=LIGHTSAPPHIRE
 ```
 
 Na hoście POSIX `SBAR` obsługuje kliknięcie toru, przeciąganie przesuwaka, focus klawiatury, strzałki, `PageUp/PageDown`, `Home` i `End`.
@@ -397,13 +393,7 @@ VAR ok := SBAR_SET(pozycja, 500)
 `PBAR` jest paskiem postępu. Wspiera klasyczny ciągły pasek oraz postęp zbudowany z powtarzanych figur.
 
 ```nyota
-PBAR postep, panel, [420, 32], [20, 120],
-     MIN=0, MAX=100, VALUE=65,
-     SHAPE=CIRCLE,
-     SEGMENTS=20,
-     SPACING=5,
-     CFILL=EMERALD,
-     CEMPTY=DARKGRAY
+PBAR postep, panel, [420, 32], [20, 120], MIN=0, MAX=100, VALUE=65, SHAPE=CIRCLE, SEGMENTS=20, SPACING=5, CFILL=EMERALD, CEMPTY=DARKGRAY
 ```
 
 `SHAPE` może mieć wartość:
