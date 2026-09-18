@@ -5452,6 +5452,86 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
 
     s->slider_thumb_size = 18;
 
+    s->max_length = NYOTA_UI_TEXT_MAX - 1u;
+    s->password = 0;
+
+    s->signed_min = 0;
+    s->signed_max = 100;
+    s->signed_value = 0;
+    s->signed_step = 1;
+
+    s->row_height = 28;
+    s->tree_indent = 20;
+    s->show_lines = 1;
+    s->splitter_thickness = 6;
+
+    s->scale_shape = NYOTA_UI_SCALE_LINE;
+    s->scale_wrap = 0;
+    s->scale_interactive = 1;
+    s->scale_radius = 90;
+    s->start_angle = 210;
+    s->end_angle = 510;
+    s->track_style = NYOTA_UI_TRACK_SOLID;
+    s->track_width = 6;
+    s->track_gap = 4;
+    UiBackgroundBlack(&s->track_fill);
+    UiColorSolid(&s->track_fill.colors[0], 82, 92, 108, 255);
+    UiBackgroundTransparent(&s->track_glow);
+    s->track_blur = 0;
+    s->scale_thumb_shape = NYOTA_UI_SCALE_THUMB_CIRCLE;
+    s->thumb_rotate = 1;
+    s->thumb_align = NYOTA_UI_THUMB_ALIGN_RADIAL;
+    s->scale_thumb_size = 18;
+    s->scale_thumb_width = 3;
+    UiBackgroundBlack(&s->scale_thumb_fill);
+    UiColorSolid(&s->scale_thumb_fill.colors[0], 110, 174, 244, 255);
+    s->scale_thumb_border = 0;
+    UiColorSolid(&s->scale_thumb_border_color, 235, 240, 248, 255);
+    s->scale_thumb_border_width = 1;
+    UiBackgroundTransparent(&s->scale_thumb_glow);
+    s->scale_thumb_blur = 0;
+
+    s->major_step = 10;
+    s->minor_step = 5;
+    s->tick_style = NYOTA_UI_TICK_LINE;
+    UiColorSolid(&s->tick_color, 226, 232, 240, 255);
+    UiColorSolid(&s->minor_tick_color, 120, 130, 145, 255);
+    s->tick_len = 12;
+    s->minor_tick_len = 6;
+    s->tick_width = 2;
+    s->tick_blur = 0;
+    s->show_labels = 1;
+    s->label_step = 10;
+    s->label_offset = 18;
+
+    s->clock_shape = NYOTA_UI_CLOCK_ARC;
+    s->clock_radius = 90;
+    s->clock_needles = 1;
+    s->clock_value_count = 1;
+    s->clock_values[0] = 0;
+    s->clock_color_count = 1;
+    s->clock_shape_count = 1;
+    s->clock_width_count = 1;
+    s->clock_len_count = 1;
+    s->clock_blur_count = 1;
+    s->clock_min_count = 1;
+    s->clock_max_count = 1;
+    s->clock_needle_shape[0] = NYOTA_UI_NEEDLE_LINE;
+    UiColorSolid(&s->clock_needle_color[0], 235, 74, 86, 255);
+    s->clock_needle_width[0] = 3;
+    s->clock_needle_len[0] = 82;
+    s->clock_needle_blur[0] = 0;
+    s->clock_needle_min[0] = 0;
+    s->clock_needle_max[0] = 100;
+    s->dial_blur = 0;
+    s->center_dot = 1;
+    UiColorSolid(&s->center_color, 235, 240, 248, 255);
+    s->center_size = 10;
+    s->center_blur = 0;
+    s->show_value = 1;
+    s->unit[0] = '\0';
+    s->zone_count = 0;
+
     s->eq_bars = 8;
     s->eq_bar_width = 18;
     s->eq_gap = 6;
@@ -5564,6 +5644,47 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
         s->gap = 6;
         s->layout_pad_x = 8;
         s->layout_pad_y = 4;
+    } else if (kind == NYOTA_UI_CTRL_TBOX) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 26, 30, 37, 255);
+        s->border = 1;
+        s->radius = 6;
+        s->wrap = 0;
+        s->valign = NYOTA_UI_VALIGN_MIDDLE;
+    } else if (kind == NYOTA_UI_CTRL_SPINBOX) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 30, 35, 43, 255);
+        s->border = 1;
+        s->radius = 6;
+        s->halign = NYOTA_UI_ALIGN_RIGHT;
+    } else if (kind == NYOTA_UI_CTRL_LISTVIEW || kind == NYOTA_UI_CTRL_TREEVIEW) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 25, 29, 36, 255);
+        s->border = 1;
+        s->radius = 6;
+        s->multi = 0;
+    } else if (kind == NYOTA_UI_CTRL_SPLITTER) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 62, 72, 86, 255);
+        s->border = 0;
+        s->radius = 2;
+        s->range_min = 0;
+        s->range_max = 1000;
+        s->range_value = 500;
+        s->range_step = 1;
+    } else if (kind == NYOTA_UI_CTRL_SCALE) {
+        UiBackgroundTransparent(&s->background);
+        s->border = 0;
+        s->signed_min = 0;
+        s->signed_max = 100;
+        s->signed_value = 0;
+        s->signed_step = 1;
+    } else if (kind == NYOTA_UI_CTRL_CLOCK) {
+        UiBackgroundBlack(&s->background);
+        UiColorSolid(&s->background.colors[0], 20, 24, 31, 255);
+        s->border = 1;
+        s->radius = 0;
+        s->halign = NYOTA_UI_ALIGN_CENTER;
     }
 }
 
