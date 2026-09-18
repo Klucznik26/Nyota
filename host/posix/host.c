@@ -216,6 +216,25 @@ static int host_ui_measure_text(const char *family, const char *text, uint32_t s
     return TTF_SizeUTF8(font, text, w, h) == 0;
 }
 
+static SDL_Texture *host_ui_texture_from_path(SDL_Renderer *ren,SDL_Texture **cache,const char *path){
+    SDL_Surface *sf;SDL_Texture *tx;
+    if(!ren||!cache||!path||!path[0])return NULL;
+    if(*cache)return *cache;
+    sf=IMG_Load(path);if(!sf)return NULL;
+    tx=SDL_CreateTextureFromSurface(ren,sf);SDL_FreeSurface(sf);
+    if(!tx)return NULL;
+    SDL_SetTextureBlendMode(tx,SDL_BLENDMODE_BLEND);*cache=tx;return tx;
+}
+static void host_ui_draw_texture_fit(SDL_Renderer *ren,SDL_Texture *tx,SDL_Rect box,uint8_t alpha){
+    int w=0,h=0,dw,dh;SDL_Rect d;
+    if(!ren||!tx||box.w<=0||box.h<=0||SDL_QueryTexture(tx,NULL,NULL,&w,&h)!=0||w<=0||h<=0)return;
+    if((int64_t)box.w*h<=(int64_t)box.h*w){dw=box.w;dh=(int)((int64_t)h*dw/w);}
+    else{dh=box.h;dw=(int)((int64_t)w*dh/h);}
+    if(dw<1)dw=1;if(dh<1)dh=1;
+    d.x=box.x+(box.w-dw)/2;d.y=box.y+(box.h-dh)/2;d.w=dw;d.h=dh;
+    SDL_SetTextureAlphaMod(tx,alpha);SDL_RenderCopy(ren,tx,NULL,&d);SDL_SetTextureAlphaMod(tx,255);
+}
+
 static int host_ui_index_by_window_id(uint32_t id) {
     int i;
     for (i = 0; i < HOST_MAX_UI_WINDOWS; i++) {
