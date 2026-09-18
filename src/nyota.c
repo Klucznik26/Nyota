@@ -5510,6 +5510,7 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
         s->border = 1;
         s->radius = 6;
     } else if (kind == NYOTA_UI_CTRL_EQBOX) {
+        s->orientation = NYOTA_UI_SEP_VERTICAL;
         UiBackgroundBlack(&s->background);
         UiColorSolid(&s->background.colors[0], 18, 22, 29, 255);
         s->border = 1;
