@@ -1,0 +1,11 @@
+# Oczekiwane: zawiera BIT_OK
+BEGIN
+VAR a := 1 SHL 3
+VAR b := 15 BAND 6
+VAR c := 8 BOR 3
+VAR d := 15 BXOR 5
+VAR e := 16 SHR 2
+VAR f := 1 SHL 2 + 1
+IF a = 8 AND b = 6 AND c = 11 AND d = 10 AND e = 4 AND f = 8:
+    PRINT "BIT_OK"
+END
