@@ -86,6 +86,12 @@
           "default": "nyota",
           "scope": "window",
           "description": "Path or command used to run the Nyota interpreter. The default uses 'nyota' from PATH."
+        },
+        "nyota.autoUppercaseCommands": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "Automatically normalize recognized Nyota command keywords to canonical uppercase while typing."
         }
       }
     }
