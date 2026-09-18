@@ -55,6 +55,7 @@ typedef struct {
     SDL_Renderer *ren;
     uint32_t w, h;
     NyotaUiBackground background;
+    SDL_Texture *background_cache;
     int has_background;
     uint8_t dirty;
     uint8_t shown;
@@ -462,6 +463,10 @@ static void host_pump(void) {
                     if (w > 0 && h > 0) {
                         g_ui_windows[ui].w = (uint32_t)w;
                         g_ui_windows[ui].h = (uint32_t)h;
+                        if(g_ui_windows[ui].background_cache) {
+                            SDL_DestroyTexture(g_ui_windows[ui].background_cache);
+                            g_ui_windows[ui].background_cache = NULL;
+                        }
                         if(g_ui_windows[ui].ren)SDL_RenderSetLogicalSize(g_ui_windows[ui].ren,w,h);
                         host_ui_mark_dirty(ui);
                     }
@@ -1057,85 +1062,103 @@ static double host_ui_gradient_t(const NyotaUiBackground *bg,
 
 static int host_ui_render_gradient(HostUiWindow *u) {
     SDL_Surface *surface;
-    SDL_Texture *texture;
     uint32_t x, y;
     if (!u || !u->ren || u->w == 0 || u->h == 0) return -1;
-    surface = SDL_CreateRGBSurfaceWithFormat(0, (int)u->w, (int)u->h, 32, SDL_PIXELFORMAT_RGBA32);
-    if (!surface) return -1;
-    if (SDL_LockSurface(surface) != 0) { SDL_FreeSurface(surface); return -1; }
-    for (y = 0; y < u->h; y++) {
-        uint32_t *row = (uint32_t *)((uint8_t *)surface->pixels + y * surface->pitch);
-        for (x = 0; x < u->w; x++) {
-            uint8_t r, g, b, a;
-            double t = host_ui_gradient_t(&u->background, x, y, u->w, u->h);
-            host_ui_lerp_color(&u->background, t, &r, &g, &b, &a);
-            row[x] = SDL_MapRGBA(surface->format, r, g, b, a);
+
+    if (!u->background_cache) {
+        surface = SDL_CreateRGBSurfaceWithFormat(0, (int)u->w, (int)u->h, 32, SDL_PIXELFORMAT_RGBA32);
+        if (!surface) return -1;
+        if (SDL_LockSurface(surface) != 0) { SDL_FreeSurface(surface); return -1; }
+        for (y = 0; y < u->h; y++) {
+            uint32_t *row = (uint32_t *)((uint8_t *)surface->pixels + y * surface->pitch);
+            for (x = 0; x < u->w; x++) {
+                uint8_t r, g, b, a;
+                double t = host_ui_gradient_t(&u->background, x, y, u->w, u->h);
+                host_ui_lerp_color(&u->background, t, &r, &g, &b, &a);
+                row[x] = SDL_MapRGBA(surface->format, r, g, b, a);
+            }
         }
+        SDL_UnlockSurface(surface);
+        u->background_cache = SDL_CreateTextureFromSurface(u->ren, surface);
+        SDL_FreeSurface(surface);
+        if (!u->background_cache) return -1;
+        SDL_SetTextureBlendMode(u->background_cache, SDL_BLENDMODE_BLEND);
     }
-    SDL_UnlockSurface(surface);
-    texture = SDL_CreateTextureFromSurface(u->ren, surface);
-    SDL_FreeSurface(surface);
-    if (!texture) return -1;
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+
     SDL_SetRenderDrawColor(u->ren, 0, 0, 0, 255);
     SDL_RenderClear(u->ren);
-    SDL_RenderCopy(u->ren, texture, NULL, NULL);
-    SDL_DestroyTexture(texture);
+    SDL_RenderCopy(u->ren, u->background_cache, NULL, NULL);
     return 0;
 }
 
 static int host_ui_render_image(HostUiWindow *u) {
     SDL_Surface *surface;
-    SDL_Texture *texture;
+    SDL_Texture *source = NULL, *saved = NULL;
     int sw, sh, dw, dh;
     SDL_Rect src, dst;
     if (!u || !u->ren || !u->background.image_path[0]) return -1;
-    surface = IMG_Load(u->background.image_path);
-    if (!surface) return -1;
-    sw = surface->w; sh = surface->h;
-    texture = SDL_CreateTextureFromSurface(u->ren, surface);
-    SDL_FreeSurface(surface);
-    if (!texture || sw <= 0 || sh <= 0) { if (texture) SDL_DestroyTexture(texture); return -1; }
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+
+    if (!u->background_cache) {
+        surface = IMG_Load(u->background.image_path);
+        if (!surface) return -1;
+        sw = surface->w; sh = surface->h;
+        source = SDL_CreateTextureFromSurface(u->ren, surface);
+        SDL_FreeSurface(surface);
+        if (!source || sw <= 0 || sh <= 0) { if (source) SDL_DestroyTexture(source); return -1; }
+
+        u->background_cache = SDL_CreateTexture(u->ren, SDL_PIXELFORMAT_RGBA8888,
+                                                SDL_TEXTUREACCESS_TARGET, (int)u->w, (int)u->h);
+        if (!u->background_cache) { SDL_DestroyTexture(source); return -1; }
+        SDL_SetTextureBlendMode(u->background_cache, SDL_BLENDMODE_BLEND);
+
+        saved = SDL_GetRenderTarget(u->ren);
+        if (SDL_SetRenderTarget(u->ren, u->background_cache) != 0) {
+            SDL_DestroyTexture(source);
+            SDL_DestroyTexture(u->background_cache);
+            u->background_cache = NULL;
+            return -1;
+        }
+        SDL_SetRenderDrawColor(u->ren, 0, 0, 0, 255);
+        SDL_RenderClear(u->ren);
+
+        dst.x = 0; dst.y = 0; dst.w = (int)u->w; dst.h = (int)u->h;
+        if (u->background.image_mode == NYOTA_UI_IMG_STRETCH) {
+            SDL_RenderCopy(u->ren, source, NULL, &dst);
+        } else if (u->background.image_mode == NYOTA_UI_IMG_NATIVE) {
+            dst.w = sw; dst.h = sh;
+            SDL_RenderCopy(u->ren, source, NULL, &dst);
+        } else if (u->background.image_mode == NYOTA_UI_IMG_TILE) {
+            int y, x;
+            for (y = 0; y < (int)u->h; y += sh)
+                for (x = 0; x < (int)u->w; x += sw) {
+                    dst.x = x; dst.y = y; dst.w = sw; dst.h = sh;
+                    SDL_RenderCopy(u->ren, source, NULL, &dst);
+                }
+        } else if (u->background.image_mode == NYOTA_UI_IMG_FIT) {
+            if ((int64_t)sw * (int64_t)u->h > (int64_t)sh * (int64_t)u->w) {
+                dw = (int)u->w; dh = (int)((int64_t)sh * u->w / sw);
+            } else {
+                dh = (int)u->h; dw = (int)((int64_t)sw * u->h / sh);
+            }
+            dst.w = dw; dst.h = dh;
+            dst.x = ((int)u->w - dw) / 2; dst.y = ((int)u->h - dh) / 2;
+            SDL_RenderCopy(u->ren, source, NULL, &dst);
+        } else {
+            src.x = 0; src.y = 0; src.w = sw; src.h = sh;
+            if ((int64_t)sw * (int64_t)u->h > (int64_t)sh * (int64_t)u->w) {
+                src.w = (int)((int64_t)sh * u->w / u->h); src.x = (sw - src.w) / 2;
+            } else {
+                src.h = (int)((int64_t)sw * u->h / u->w); src.y = (sh - src.h) / 2;
+            }
+            SDL_RenderCopy(u->ren, source, &src, &dst);
+        }
+        SDL_SetRenderTarget(u->ren, saved);
+        SDL_DestroyTexture(source);
+    }
+
     SDL_SetRenderDrawColor(u->ren, 0, 0, 0, 255);
     SDL_RenderClear(u->ren);
-
-    dst.x = 0; dst.y = 0; dst.w = (int)u->w; dst.h = (int)u->h;
-    if (u->background.image_mode == NYOTA_UI_IMG_STRETCH) {
-        SDL_RenderCopy(u->ren, texture, NULL, &dst);
-    } else if (u->background.image_mode == NYOTA_UI_IMG_NATIVE) {
-        dst.w = sw; dst.h = sh;
-        SDL_RenderCopy(u->ren, texture, NULL, &dst);
-    } else if (u->background.image_mode == NYOTA_UI_IMG_TILE) {
-        int y, x;
-        for (y = 0; y < (int)u->h; y += sh)
-            for (x = 0; x < (int)u->w; x += sw) {
-                dst.x = x; dst.y = y; dst.w = sw; dst.h = sh;
-                SDL_RenderCopy(u->ren, texture, NULL, &dst);
-            }
-    } else if (u->background.image_mode == NYOTA_UI_IMG_FIT) {
-        if ((int64_t)sw * (int64_t)u->h > (int64_t)sh * (int64_t)u->w) {
-            dw = (int)u->w;
-            dh = (int)((int64_t)sh * u->w / sw);
-        } else {
-            dh = (int)u->h;
-            dw = (int)((int64_t)sw * u->h / sh);
-        }
-        dst.w = dw; dst.h = dh;
-        dst.x = ((int)u->w - dw) / 2; dst.y = ((int)u->h - dh) / 2;
-        SDL_RenderCopy(u->ren, texture, NULL, &dst);
-    } else {
-        src.x = 0; src.y = 0; src.w = sw; src.h = sh;
-        if ((int64_t)sw * (int64_t)u->h > (int64_t)sh * (int64_t)u->w) {
-            src.w = (int)((int64_t)sh * u->w / u->h);
-            src.x = (sw - src.w) / 2;
-        } else {
-            src.h = (int)((int64_t)sw * u->h / u->w);
-            src.y = (sh - src.h) / 2;
-        }
-        SDL_RenderCopy(u->ren, texture, &src, &dst);
-    }
-    SDL_DestroyTexture(texture);
+    SDL_RenderCopy(u->ren, u->background_cache, NULL, NULL);
     return 0;
 }
 
@@ -1301,10 +1324,29 @@ static int host_ui_point_in_rounded_ancestor(int idx,double gx,double gy){
 static void host_ui_apply_ancestor_mask(int idx,SDL_Surface *sf,int gx,int gy){
     static const double p[4]={0.125,0.375,0.625,0.875};
     HostUiRoundedClip clips[16];
-    int n,x,y,sx,sy;
+    int n,x,y,sx,sy,i,needs_mask=0;
     if(idx<0||!sf)return;
     n=host_ui_collect_rounded_clips(idx,clips,16);
     if(n<=0)return;
+
+    /* Wiekszosc dzieci panelu nie dotyka jego zaokraglonych rogow.
+       W takim przypadku prostokatny SDL clip juz wystarcza i kosztowna
+       maska 4x4 AA dla kazdego piksela jest zbedna. */
+    for(i=0;i<n;i++){
+        const HostUiRoundedClip *c=&clips[i];
+        int rr=(int)c->radius;
+        int x1=gx, y1=gy, x2=gx+sf->w, y2=gy+sf->h;
+        int left = x1 < c->r.x + rr;
+        int right = x2 > c->r.x + c->r.w - rr;
+        int top = y1 < c->r.y + rr;
+        int bottom = y2 > c->r.y + c->r.h - rr;
+        if(c->tab) {
+            if((left||right) && bottom) { needs_mask=1; break; }
+        } else {
+            if((left||right) && (top||bottom)) { needs_mask=1; break; }
+        }
+    }
+    if(!needs_mask)return;
     if(SDL_LockSurface(sf)!=0)return;
     for(y=0;y<sf->h;y++){
         uint32_t *row=(uint32_t *)((uint8_t *)sf->pixels+y*sf->pitch);
@@ -1414,9 +1456,25 @@ static SDL_Surface *host_ui_border_surface(const NyotaUiControlSpec *s,NyotaColo
     for(y=0;y<s->h;y++){
         uint32_t *row=(uint32_t *)((uint8_t *)sf->pixels+y*sf->pitch);
         for(x=0;x<s->w;x++){
-            uint8_t cov=host_ui_border_coverage(s,(int)x,(int)y,width);
-            uint8_t a=(uint8_t)(((uint32_t)color.a*(uint32_t)cov+8u)/16u);
-            if(a)row[x]=SDL_MapRGBA(sf->format,color.r,color.g,color.b,a);
+            if(s->radius && s->kind!=NYOTA_UI_CTRL_RADIO &&
+               !(s->kind==NYOTA_UI_CTRL_DAREA&&s->shape!=NYOTA_UI_DAREA_RECT)) {
+                uint32_t r=s->radius;
+                int near_corner;
+                if(r>s->w/2)r=s->w/2;
+                if(r>s->h/2)r=s->h/2;
+                near_corner=((x<r||x>=s->w-r) &&
+                             ((s->kind==NYOTA_UI_CTRL_TAB && y>=s->h-r) ||
+                              (s->kind==NYOTA_UI_CTRL_TABS && y<r) ||
+                              (s->kind!=NYOTA_UI_CTRL_TAB && s->kind!=NYOTA_UI_CTRL_TABS &&
+                               (y<r||y>=s->h-r))));
+                if(!near_corner && x>=width && x<s->w-width &&
+                   y>=width && y<s->h-width) continue;
+            }
+            {
+                uint8_t cov=host_ui_border_coverage(s,(int)x,(int)y,width);
+                uint8_t a=(uint8_t)(((uint32_t)color.a*(uint32_t)cov+8u)/16u);
+                if(a)row[x]=SDL_MapRGBA(sf->format,color.r,color.g,color.b,a);
+            }
         }
     }
     SDL_UnlockSurface(sf);
@@ -1496,15 +1554,48 @@ static SDL_Surface *host_ui_control_background_surface(const NyotaUiControlSpec 
 
     if ((s->kind == NYOTA_UI_CTRL_DAREA && s->shape != NYOTA_UI_DAREA_RECT) || s->kind == NYOTA_UI_CTRL_RADIO || s->radius) {
         if (SDL_LockSurface(dst) == 0) {
-            for (y = 0; y < s->h; y++) {
-                uint32_t *row = (uint32_t *)((uint8_t *)dst->pixels + y * dst->pitch);
-                for (x = 0; x < s->w; x++) {
-                    uint8_t cov=host_ui_shape_coverage(s,(int)x,(int)y);
-                    if(cov<16){
-                        uint8_t rr,gg,bb,aa;
-                        SDL_GetRGBA(row[x],dst->format,&rr,&gg,&bb,&aa);
-                        aa=(uint8_t)(((uint32_t)aa*(uint32_t)cov+8u)/16u);
-                        row[x]=SDL_MapRGBA(dst->format,rr,gg,bb,aa);
+            if(s->radius && s->kind != NYOTA_UI_CTRL_RADIO &&
+               !(s->kind == NYOTA_UI_CTRL_DAREA && s->shape != NYOTA_UI_DAREA_RECT)) {
+                uint32_t r=s->radius;
+                uint32_t yy,xx;
+                if(r>s->w/2)r=s->w/2;
+                if(r>s->h/2)r=s->h/2;
+                for(yy=0;yy<r;yy++) {
+                    uint32_t ys[2]={yy,s->h-1-yy};
+                    int ycount=(s->kind==NYOTA_UI_CTRL_TAB||s->kind==NYOTA_UI_CTRL_TABS)?1:2;
+                    int yi;
+                    if(s->kind==NYOTA_UI_CTRL_TAB) ys[0]=s->h-1-yy;
+                    else if(s->kind==NYOTA_UI_CTRL_TABS) ys[0]=yy;
+                    for(yi=0;yi<ycount;yi++) {
+                        uint32_t py=ys[yi];
+                        uint32_t *row=(uint32_t *)((uint8_t *)dst->pixels+py*dst->pitch);
+                        for(xx=0;xx<r;xx++) {
+                            uint32_t xs[2]={xx,s->w-1-xx};
+                            int xi;
+                            for(xi=0;xi<2;xi++) {
+                                uint32_t px=xs[xi];
+                                uint8_t cov=host_ui_shape_coverage(s,(int)px,(int)py);
+                                if(cov<16){
+                                    uint8_t rr,gg,bb,aa;
+                                    SDL_GetRGBA(row[px],dst->format,&rr,&gg,&bb,&aa);
+                                    aa=(uint8_t)(((uint32_t)aa*(uint32_t)cov+8u)/16u);
+                                    row[px]=SDL_MapRGBA(dst->format,rr,gg,bb,aa);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                for (y = 0; y < s->h; y++) {
+                    uint32_t *row = (uint32_t *)((uint8_t *)dst->pixels + y * dst->pitch);
+                    for (x = 0; x < s->w; x++) {
+                        uint8_t cov=host_ui_shape_coverage(s,(int)x,(int)y);
+                        if(cov<16){
+                            uint8_t rr,gg,bb,aa;
+                            SDL_GetRGBA(row[x],dst->format,&rr,&gg,&bb,&aa);
+                            aa=(uint8_t)(((uint32_t)aa*(uint32_t)cov+8u)/16u);
+                            row[x]=SDL_MapRGBA(dst->format,rr,gg,bb,aa);
+                        }
                     }
                 }
             }
@@ -2325,6 +2416,7 @@ static int32_t host_ui_win_create(const char *name, int32_t parent_handle,
     g_ui_windows[slot].w = w;
     g_ui_windows[slot].h = h;
     g_ui_windows[slot].has_background = 0;
+    g_ui_windows[slot].background_cache = NULL;
     g_ui_windows[slot].dirty = 1;
     g_ui_windows[slot].shown = 0;
     return g_ui_windows[slot].handle;
@@ -2353,6 +2445,10 @@ static int32_t host_ui_win_set_background(int32_t handle, const NyotaUiBackgroun
     if (i < 0 || !background) return -1;
     if (background->kind == NYOTA_UI_BG_COLOR &&
         background->colors[0].mode == NYOTA_COLOR_BACKDROP) return -2;
+    if(g_ui_windows[i].background_cache) {
+        SDL_DestroyTexture(g_ui_windows[i].background_cache);
+        g_ui_windows[i].background_cache = NULL;
+    }
     g_ui_windows[i].background = *background;
     g_ui_windows[i].has_background = 1;
     host_ui_mark_dirty(i);
@@ -2370,6 +2466,10 @@ static void host_ui_destroy_index(int idx) {
     for (i = 0; i < HOST_MAX_UI_WINDOWS; i++)
         if (g_ui_windows[i].used && g_ui_windows[i].parent_handle == handle)
             host_ui_destroy_index(i);
+    if (g_ui_windows[idx].background_cache) {
+        SDL_DestroyTexture(g_ui_windows[idx].background_cache);
+        g_ui_windows[idx].background_cache = NULL;
+    }
     if (g_ui_windows[idx].ren) SDL_DestroyRenderer(g_ui_windows[idx].ren);
     if (g_ui_windows[idx].win) SDL_DestroyWindow(g_ui_windows[idx].win);
     memset(&g_ui_windows[idx], 0, sizeof(g_ui_windows[idx]));
