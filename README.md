@@ -92,7 +92,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `NYASM` | ✅ | bezpieczna VM R0-R3 z jawnym INPUT/OUTPUT |
 | Host Linux | 🚧 | terminal + backend SDL2 dla grafiki i FILE/DIR |
 | Host AyoOS | 🚧 | docelowo wspólny `src/nyota.c` dla wszystkich hostów |
-| VS Code | ✅ | Nyota Language Support 0.4.2: kolorowanie + uruchamianie przez `▶` / `Ctrl+F5` + próbki/picker kolorów NyotaUI |
+| VS Code | ✅ | Nyota Language Support 0.5.0: kolorowanie + uruchamianie przez `▶` / `Ctrl+F5` + próbki/picker kolorów NyotaUI |
 
 Szczegółowy stan interpretera znajduje się w [`docs/nyota.md`](docs/nyota.md), a droga do stabilizacji i rozwoju w [`docs/nyota_v05.md`](docs/nyota_v05.md).
 
@@ -259,7 +259,7 @@ Najważniejsze dokumenty projektu:
 
 Po ustabilizowaniu rdzenia Nyota ma rozwijać się także w stronę bogatszych struktur danych, `DATETIME`, relacyjnego `MARK`, dalszego rozwoju `TABLE`, standardowego GUI, dalszego rozwoju sprite'ów, audio oraz dalszej pracy nad hostem Linuksa.
 
-Poza AyoOS działa rozszerzenie **Nyota Language Support 0.4.2** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Wersja 0.4.2 zna pełną składnię v0.5 oraz składnię NyotaUI `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `IMG` i `GRAD`, w tym FILE/DIR, SCREEN, RECORD/WITH, IMPORT, EVERY, obsługę błędów, jawne algorytmy SORT i NYASM. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
+Poza AyoOS działa rozszerzenie **Nyota Language Support 0.5.0** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Wersja 0.5.0 zna pełną składnię v0.5 oraz składnię NyotaUI `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `IMG` i `GRAD`, w tym FILE/DIR, SCREEN, RECORD/WITH, IMPORT, EVERY, obsługę błędów, jawne algorytmy SORT i NYASM. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
 
 Nyota nie ma zastępować C lub Zig w najniższych warstwach systemu. Jej celem jest wygodne tworzenie aplikacji, narzędzi, automatyzacji, grafiki i prostych gier przy zachowaniu własnej, spójnej semantyki.
 
