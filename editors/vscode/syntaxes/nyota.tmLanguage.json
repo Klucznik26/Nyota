@@ -16,6 +16,9 @@
       "include": "#timeLiterals"
     },
     {
+      "include": "#colorLiterals"
+    },
+    {
       "include": "#numbers"
     },
     {
@@ -278,6 +281,18 @@
         {
           "name": "support.function.command.nyota.asm",
           "match": "\\b(?:MOV|ADD|SUB|MUL|DIV|MOD|STORE)\\b"
+        }
+      ]
+    },
+    "colorLiterals": {
+      "patterns": [
+        {
+          "name": "constant.other.color.hex.nyota",
+          "match": "\\b0[xX][0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?\\b"
+        },
+        {
+          "name": "constant.other.color.named.nyota",
+          "match": "\\b(?:BLACK|WHITE|TRANSPARENT|BACKDROP|(?:DARK|LIGHT)?(?:GRAY|RED|RUBY|MAROON|CRIMSON|CORAL|SALMON|ORANGE|AMBER|GOLD|YELLOW|OLIVE|LIME|GREEN|EMERALD|MINT|TEAL|TURQUOISE|CYAN|SKY|AZURE|BLUE|SAPPHIRE|NAVY|INDIGO|VIOLET|PURPLE|MAGENTA|PINK|BROWN|TAN|BEIGE))\\b"
         }
       ]
     }
