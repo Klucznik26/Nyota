@@ -345,6 +345,88 @@ SEP linia.CONFIG:
 
 `EFFECT`: `NORMAL`, `INSET`, `RAISED`, `GRADIENT`. Dla `INSET/RAISED` wymagane jest `THICK >= 2`. Przy `GRADIENT` używa się zwykłego `BG = GRAD(...)`.
 
+## SBAR
+
+`SBAR` jest interaktywnym paskiem przewijania / kontrolką zakresu.
+
+```nyota
+SBAR poziom, panel, [320, 28], [20, 20], MIN=0, MAX=100, VALUE=35, PAGE=20, STEP=5
+```
+
+Najważniejsze właściwości:
+
+- `MIN`, `MAX`, `VALUE` — zakres i bieżąca wartość,
+- `PAGE` — rozmiar strony wpływający na długość przesuwaka,
+- `STEP` — krok klawiatury,
+- `ORIENTATION=HORIZONTAL/VERTICAL`,
+- `CTHUMB` i `CTHUMBOVER` — kolor przesuwaka,
+- `THUMB` — geometria przesuwaka.
+
+Obsługiwane figury przesuwaka:
+
+```text
+RECT
+ROUND
+CIRCLE
+DIAMOND
+TRIANGLE
+PARALLELOGRAM
+```
+
+Przykład:
+
+```nyota
+SBAR pozycja, panel, [360, 30], [20, 60],
+     MIN=0, MAX=1000, VALUE=250, PAGE=100, STEP=10,
+     THUMB=PARALLELOGRAM,
+     CTHUMB=SAPPHIRE,
+     CTHUMBOVER=LIGHTSAPPHIRE
+```
+
+Na hoście POSIX `SBAR` obsługuje kliknięcie toru, przeciąganie przesuwaka, focus klawiatury, strzałki, `PageUp/PageDown`, `Home` i `End`.
+
+Odczyt i ustawienie wartości:
+
+```nyota
+VAR x := SBAR_VALUE(pozycja)
+VAR ok := SBAR_SET(pozycja, 500)
+```
+
+## PBAR
+
+`PBAR` jest paskiem postępu. Wspiera klasyczny ciągły pasek oraz postęp zbudowany z powtarzanych figur.
+
+```nyota
+PBAR postep, panel, [420, 32], [20, 120],
+     MIN=0, MAX=100, VALUE=65,
+     SHAPE=CIRCLE,
+     SEGMENTS=20,
+     SPACING=5,
+     CFILL=EMERALD,
+     CEMPTY=DARKGRAY
+```
+
+`SHAPE` może mieć wartość:
+
+```text
+BAR
+CIRCLE
+TRIANGLE
+SQUARE
+PARALLELOGRAM
+```
+
+Dla `BAR` postęp jest ciągły. Dla pozostałych figur `SEGMENTS` określa liczbę elementów, a `SPACING` odstęp między nimi. `CFILL` określa kolor części wykonanej, a `CEMPTY` kolor elementów jeszcze niewypełnionych.
+
+`ORIENTATION=HORIZONTAL/VERTICAL` działa zarówno dla zwykłego paska, jak i wersji segmentowej. Pionowy `PBAR` wypełnia się od dołu ku górze.
+
+Odczyt i ustawienie wartości:
+
+```nyota
+VAR p := PBAR_VALUE(postep)
+VAR ok := PBAR_SET(postep, 80)
+```
+
 ## SHADOW dziedziczony z WIN
 
 Cień definiuje się wyłącznie w `WIN.CONFIG`; wszystkie kontrolki należące do tego okna dziedziczą tę samą politykę cienia. Nie jest to cień dekoracji systemowego okna `WIN ... ROOT`.
@@ -360,9 +442,7 @@ WIN glowne.CONFIG:
 
 ## RADIUS
 
-`RADIUS` zaokrągla prostokątne tło i border. Obecnie działa dla `PANEL`, `BUTTON`, `COMBO`, prostokątnego `DAREA` i obszaru zawartości `TAB`. `DAREA` z `CIRCLE/ELLIPSE` nie przyjmuje `RADIUS`.
-
-`TAREA` pozostaje osobną kontrolką do zdefiniowania; samo `RADIUS` nie tworzy jej kontraktu.
+`RADIUS` zaokrągla prostokątne tło i border. Działa m.in. dla `PANEL`, `BUTTON`, `COMBO`, `TAREA`, `SBAR`, `PBAR`, prostokątnego `DAREA` i obszaru zawartości `TAB`. `DAREA` z `CIRCLE/ELLIPSE` nie przyjmuje `RADIUS`.
 
 ## TABS / TAB
 
@@ -420,7 +500,7 @@ Dla `TAB` właściwość `RADIUS` dotyczy części zawartości i zaokrągla tylk
 
 ## Stany interaktywne
 
-Kontrolki interaktywne `BUTTON`, `CBOX`, `RADIO`, `COMBO`, `DAREA` i `TAB` mają stan `ENABLED`.
+Kontrolki interaktywne `BUTTON`, `CBOX`, `RADIO`, `COMBO`, `DAREA`, `TAB` i `SBAR` mają stan `ENABLED`.
 
 ```nyota
 BUTTON zapisz, panel, [120, 36], [20, 20], TEXT="Zapisz", ENABLED=FALSE
