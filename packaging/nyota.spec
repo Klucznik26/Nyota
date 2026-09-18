@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        17%{?dist}
+Release:        18%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,12 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-18
+- Add interactive SBAR with horizontal/vertical ranges, mouse drag, keyboard control and selectable thumb geometry.
+- Add PBAR with continuous and segmented progress rendering.
+- PBAR segmented shapes: CIRCLE, TRIANGLE, SQUARE and PARALLELOGRAM.
+- SBAR thumb shapes: RECT, ROUND, CIRCLE, DIAMOND, TRIANGLE and PARALLELOGRAM.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-17
 - Render expanded COMBO dropdowns in a top-level window overlay pass.
 - Give open COMBO popups input priority over controls underneath.
