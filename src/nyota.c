@@ -205,6 +205,10 @@ static int32_t HostUiClockValue(int32_t handle, uint32_t index, int32_t *value) 
     return -1;
 }
 
+/* NyotaUI helpers sa zdefiniowane nizej, ale evaluator korzysta z nich wczesniej. */
+static int UiItemText(const char *items,uint32_t wanted,char *out,uint32_t cap);
+static int32_t UiWrapSigned(int32_t v,int32_t minv,int32_t maxv);
+
 static int32_t HostSpriteLoad(const char *path) {
     if (g_host && g_host->gfx_sprite_load) return g_host->gfx_sprite_load(path);
     return -1;
@@ -5631,13 +5635,19 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
     s->clock_blur_count = 1;
     s->clock_min_count = 1;
     s->clock_max_count = 1;
-    s->clock_needle_shape[0] = NYOTA_UI_NEEDLE_LINE;
-    UiColorSolid(&s->clock_needle_color[0], 235, 74, 86, 255);
-    s->clock_needle_width[0] = 3;
-    s->clock_needle_len[0] = 82;
-    s->clock_needle_blur[0] = 0;
-    s->clock_needle_min[0] = 0;
-    s->clock_needle_max[0] = 100;
+    {
+        uint32_t ci;
+        for(ci=0;ci<NYOTA_UI_CLOCK_MAX_NEEDLES;ci++){
+            s->clock_needle_shape[ci] = NYOTA_UI_NEEDLE_LINE;
+            UiColorSolid(&s->clock_needle_color[ci], 235, 74, 86, 255);
+            s->clock_needle_width[ci] = 3;
+            s->clock_needle_len[ci] = 82;
+            s->clock_needle_blur[ci] = 0;
+            s->clock_needle_min[ci] = 0;
+            s->clock_needle_max[ci] = 100;
+            s->clock_values[ci] = 0;
+        }
+    }
     s->dial_blur = 0;
     s->center_dot = 1;
     UiColorSolid(&s->center_color, 235, 240, 248, 255);
@@ -5779,8 +5789,7 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
         s->radius = 6;
         s->multi = 0;
     } else if (kind == NYOTA_UI_CTRL_SPLITTER) {
-        UiBackgroundBlack(&s->background);
-        UiColorSolid(&s->background.colors[0], 62, 72, 86, 255);
+        UiBackgroundTransparent(&s->background);
         s->border = 0;
         s->radius = 2;
         s->range_min = 0;
@@ -5938,7 +5947,7 @@ static int UiControlPropertyAllowed(uint8_t k,const char *p){
     if(k==NYOTA_UI_CTRL_LISTVIEW) return NStrEq(p,"ITEMS")||NStrEq(p,"SELECTED")||NStrEq(p,"MULTI")||NStrEq(p,"ROWHEIGHT")||NStrEq(p,"BG")||NStrEq(p,"CTEXT")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"BOLD")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"PADX")||NStrEq(p,"PADY")||NStrEq(p,"BGSELECT")||NStrEq(p,"CSELECT")||NStrEq(p,"BGHOVER")||NStrEq(p,"CHOVER");
     if(k==NYOTA_UI_CTRL_TREEVIEW) return UiControlPropertyAllowed(NYOTA_UI_CTRL_LISTVIEW,p)||NStrEq(p,"INDENT")||NStrEq(p,"SHOWLINES");
     if(k==NYOTA_UI_CTRL_SPLITTER) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"ORIENTATION")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"VALUE")||NStrEq(p,"STEP")||NStrEq(p,"THICK")||NStrEq(p,"CSEP");
-    if(k==NYOTA_UI_CTRL_SCALE) return NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"ENABLED")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"VALUE")||NStrEq(p,"STEP")||NStrEq(p,"SHAPE")||NStrEq(p,"RADIUS")||NStrEq(p,"STARTANGLE")||NStrEq(p,"ENDANGLE")||NStrEq(p,"WRAP")||NStrEq(p,"INTERACTIVE")||NStrEq(p,"TRACKWIDTH")||NStrEq(p,"TRACKFILL")||NStrEq(p,"TRACKGLOW")||NStrEq(p,"TRACKBLUR")||NStrEq(p,"TRACKSTYLE")||NStrEq(p,"TRACKGAP")||NStrEq(p,"THUMB")||NStrEq(p,"THUMBSIZE")||NStrEq(p,"THUMBWIDTH")||NStrEq(p,"THUMBFILL")||NStrEq(p,"THUMBBORDER")||NStrEq(p,"CTHUMBBORDER")||NStrEq(p,"THUMBBWIDTH")||NStrEq(p,"THUMBGLOW")||NStrEq(p,"THUMBBLUR")||NStrEq(p,"THUMBROTATE")||NStrEq(p,"THUMBALIGN")||NStrEq(p,"MAJORSTEP")||NStrEq(p,"MINORSTEP")||NStrEq(p,"TICKSTYLE")||NStrEq(p,"CTICK")||NStrEq(p,"CMINORTICK")||NStrEq(p,"TICKLEN")||NStrEq(p,"MINORTICKLEN")||NStrEq(p,"TICKWIDTH")||NStrEq(p,"TICKBLUR")||NStrEq(p,"SHOWLABELS")||NStrEq(p,"LABELSTEP")||NStrEq(p,"LABELOFFSET");
+    if(k==NYOTA_UI_CTRL_SCALE) return NStrEq(p,"ORIENTATION")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"ENABLED")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"VALUE")||NStrEq(p,"STEP")||NStrEq(p,"SHAPE")||NStrEq(p,"RADIUS")||NStrEq(p,"STARTANGLE")||NStrEq(p,"ENDANGLE")||NStrEq(p,"WRAP")||NStrEq(p,"INTERACTIVE")||NStrEq(p,"TRACKWIDTH")||NStrEq(p,"TRACKFILL")||NStrEq(p,"TRACKGLOW")||NStrEq(p,"TRACKBLUR")||NStrEq(p,"TRACKSTYLE")||NStrEq(p,"TRACKGAP")||NStrEq(p,"THUMB")||NStrEq(p,"THUMBSIZE")||NStrEq(p,"THUMBWIDTH")||NStrEq(p,"THUMBFILL")||NStrEq(p,"THUMBBORDER")||NStrEq(p,"CTHUMBBORDER")||NStrEq(p,"THUMBBWIDTH")||NStrEq(p,"THUMBGLOW")||NStrEq(p,"THUMBBLUR")||NStrEq(p,"THUMBROTATE")||NStrEq(p,"THUMBALIGN")||NStrEq(p,"MAJORSTEP")||NStrEq(p,"MINORSTEP")||NStrEq(p,"TICKSTYLE")||NStrEq(p,"CTICK")||NStrEq(p,"CMINORTICK")||NStrEq(p,"TICKLEN")||NStrEq(p,"MINORTICKLEN")||NStrEq(p,"TICKWIDTH")||NStrEq(p,"TICKBLUR")||NStrEq(p,"SHOWLABELS")||NStrEq(p,"LABELSTEP")||NStrEq(p,"LABELOFFSET");
     if(k==NYOTA_UI_CTRL_CLOCK) return NStrEq(p,"TEXT")||NStrEq(p,"UNIT")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"ENABLED")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"VALUE")||NStrEq(p,"SHAPE")||NStrEq(p,"RADIUS")||NStrEq(p,"STARTANGLE")||NStrEq(p,"ENDANGLE")||NStrEq(p,"MAJORSTEP")||NStrEq(p,"MINORSTEP")||NStrEq(p,"TICKSTYLE")||NStrEq(p,"CTICK")||NStrEq(p,"CMINORTICK")||NStrEq(p,"TICKLEN")||NStrEq(p,"MINORTICKLEN")||NStrEq(p,"TICKWIDTH")||NStrEq(p,"TICKBLUR")||NStrEq(p,"SHOWLABELS")||NStrEq(p,"LABELSTEP")||NStrEq(p,"LABELOFFSET")||NStrEq(p,"NEEDLES")||NStrEq(p,"VALUES")||NStrEq(p,"NEEDLE")||NStrEq(p,"NEEDLECOLORS")||NStrEq(p,"NEEDLESHAPES")||NStrEq(p,"NEEDLEWIDTHS")||NStrEq(p,"NEEDLELENS")||NStrEq(p,"NEEDLEBLURS")||NStrEq(p,"NEEDLEMINS")||NStrEq(p,"NEEDLEMAXS")||NStrEq(p,"DIALBLUR")||NStrEq(p,"CENTERDOT")||NStrEq(p,"CCENTER")||NStrEq(p,"CENTERSIZE")||NStrEq(p,"CENTERBLUR")||NStrEq(p,"SHOWVALUE")||NStrEq(p,"ZONES");
     return 0;
 }
