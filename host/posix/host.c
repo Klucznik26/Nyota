@@ -118,6 +118,11 @@ static uint32_t host_ui_combo_item_count(const HostUiControl *ctl);
 static NyotaColor host_ui_tint_color(NyotaColor c,int delta);
 static uint32_t host_ui_tarea_caret_from_point(HostUiControl *ctl,SDL_Rect r,int mx,int my);
 static void host_ui_tarea_caret_visual(HostUiControl *ctl,SDL_Rect r,int *out_x,int *out_row);
+static int host_ui_splitter_bar_rect(int idx,SDL_Rect *bar);
+static uint32_t host_ui_splitter_value_from_pointer(int idx,int x,int y);
+static int32_t host_ui_scale_value_from_pointer(int idx,int mx,int my);
+static int host_ui_tree_visible_row_to_index(const HostUiControl *ctl,uint32_t row,uint32_t *out);
+static int host_ui_tree_has_child(const HostUiControl *ctl,uint32_t index);
 static int g_ui_draw_clip_idx = -1;
 static uint8_t g_ui_initializing = 1;
 
@@ -772,6 +777,55 @@ static void host_pump(void) {
                         }
                         changed=1;break;
                     }
+                    if(ctl->spec.kind==NYOTA_UI_CTRL_SPINBOX&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                        SDL_Rect sr;int32_t nv=ctl->spec.signed_value;host_ui_set_focus(ui,i);
+                        if(host_ui_control_rect_index(i,&sr)){
+                            int bw=sr.h>30?30:sr.h;
+                            if(e.button.x>=sr.x+sr.w-bw){
+                                if(e.button.y<sr.y+sr.h/2)nv=host_ui_signed_clamp(&ctl->spec,(int64_t)nv+ctl->spec.signed_step);
+                                else nv=host_ui_signed_clamp(&ctl->spec,(int64_t)nv-ctl->spec.signed_step);
+                                if(nv!=ctl->spec.signed_value){ctl->spec.signed_value=nv;ctl->changed=1;}
+                            }
+                        }
+                        ctl->pressed=1;changed=1;break;
+                    }
+                    if((ctl->spec.kind==NYOTA_UI_CTRL_LISTVIEW||ctl->spec.kind==NYOTA_UI_CTRL_TREEVIEW)&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                        SDL_Rect lr;uint32_t ix=0;int row;host_ui_set_focus(ui,i);
+                        if(host_ui_control_rect_index(i,&lr)){
+                            row=(e.button.y-lr.y-1)/(int)(ctl->spec.row_height?ctl->spec.row_height:28);
+                            if(row>=0&&((ctl->spec.kind==NYOTA_UI_CTRL_TREEVIEW&&host_ui_tree_visible_row_to_index(ctl,(uint32_t)row,&ix))||
+                               (ctl->spec.kind==NYOTA_UI_CTRL_LISTVIEW&&(ix=(uint32_t)row)<host_ui_combo_item_count(ctl)))){
+                                if(ctl->spec.kind==NYOTA_UI_CTRL_TREEVIEW&&host_ui_tree_has_child(ctl,ix)){
+                                    char it[NYOTA_UI_TEXT_MAX];uint32_t depth=0;
+                                    if(host_ui_item_at(ctl->spec.items,ix,it,sizeof(it))){
+                                        depth=host_ui_tree_depth_text(it);
+                                        if(e.button.x<lr.x+18+(int)(depth*ctl->spec.tree_indent)){
+                                            if(ix<64)ctl->tree_expanded_mask^=(1ULL<<ix);
+                                            changed=1;break;
+                                        }
+                                    }
+                                }
+                                if(ctl->spec.multi&&ix<64)ctl->list_selected_mask^=(1ULL<<ix);
+                                else ctl->list_selected_mask=ix<64?(1ULL<<ix):0;
+                                if(ctl->spec.selected!=ix){ctl->spec.selected=ix;ctl->changed=1;}
+                                else if(ctl->spec.multi)ctl->changed=1;
+                                changed=1;
+                            }
+                        }
+                        break;
+                    }
+                    if(ctl->spec.kind==NYOTA_UI_CTRL_SPLITTER&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                        uint32_t nv;host_ui_set_focus(ui,i);ctl->range_dragging=1;ctl->pressed=1;
+                        nv=host_ui_splitter_value_from_pointer(i,e.button.x,e.button.y);
+                        if(nv!=ctl->spec.range_value){ctl->spec.range_value=nv;ctl->changed=1;}
+                        changed=1;break;
+                    }
+                    if(ctl->spec.kind==NYOTA_UI_CTRL_SCALE&&ctl->spec.scale_interactive&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                        int32_t nv;host_ui_set_focus(ui,i);ctl->scale_dragging=1;ctl->pressed=1;
+                        nv=host_ui_scale_value_from_pointer(i,e.button.x,e.button.y);
+                        if(nv!=ctl->spec.signed_value){ctl->spec.signed_value=nv;ctl->changed=1;}
+                        changed=1;break;
+                    }
                     if((ctl->spec.kind==NYOTA_UI_CTRL_CBOX||ctl->spec.kind==NYOTA_UI_CTRL_RADIO)&&host_ui_point_in_control(i,e.button.x,e.button.y)){
                         host_ui_set_focus(ui,i);
                         ctl->pressed=1;
@@ -782,7 +836,7 @@ static void host_pump(void) {
                         }
                         changed=1;break;
                     }
-                    if(ctl->spec.kind==NYOTA_UI_CTRL_TAREA&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                    if((ctl->spec.kind==NYOTA_UI_CTRL_TAREA||ctl->spec.kind==NYOTA_UI_CTRL_TBOX)&&host_ui_point_in_control(i,e.button.x,e.button.y)){
                         SDL_Rect tr;
                         host_ui_set_focus(ui,i);
                         if(host_ui_control_rect_index(i,&tr))
@@ -808,6 +862,7 @@ static void host_pump(void) {
                     if(ctl->used&&ctl->window_handle==g_ui_windows[ui].handle){
                         if(ctl->pressed){ctl->pressed=0;changed=1;}
                         if(ctl->range_dragging){ctl->range_dragging=0;changed=1;}
+                        if(ctl->scale_dragging){ctl->scale_dragging=0;changed=1;}
                     }
                 }
                 if(changed)host_ui_mark_dirty(ui);
