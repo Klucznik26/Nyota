@@ -1477,13 +1477,9 @@ EGG 300, 300, 40, 60, 45, 255, 200, 100
 
 ## 46. LOAD / BANK
 
-Zasoby można ładować do banków RAM.
+`LOAD ... INTO BANK ...` **nie jest obecnie zaimplementowane w interpreterze v0.5**. Pozostaje pomysłem/elementem historycznej specyfikacji i nie należy używać tej składni w programach przeznaczonych dla bieżącego `src/nyota.c`.
 
-```nyota
-LOAD "ikona.ayoprv" INTO BANK 1
-```
-
-Banki służą do przechowywania grafik, dźwięków i danych w RAM.
+Jeżeli mechanizm banków pamięci wróci do języka, jego kontrakt musi zostać ponownie zatwierdzony i objęty testami regresyjnymi przed przeniesieniem do bieżącej specyfikacji.
 
 ---
 
