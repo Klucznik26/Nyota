@@ -6392,7 +6392,7 @@ static int UiValidateControlSpec(const NyotaUiControlSpec *s){
     if(s->kind==NYOTA_UI_CTRL_TBOX||s->kind==NYOTA_UI_CTRL_INPUT){
         if(strlen(s->text)>s->max_length){OutError("TBOX/INPUT: TEXT przekracza MAXLEN");return 0;}
         if(strchr(s->text,'\n')||strchr(s->text,'\r')){OutError("TBOX/INPUT: TEXT musi byc jednowierszowy");return 0;}
-        if(s->kind==NYOTA_UI_CTRL_INPUT&&(s->icon_pos==NYOTA_UI_ICON_TOP||s->icon_pos==NYOTA_UI_ICON_BOTTOM)){OutError("INPUT ICONPOS wspiera LEFT/RIGHT/CENTER");return 0;}
+        if(s->kind==NYOTA_UI_CTRL_INPUT&&s->icon_path[0]&&s->icon_pos!=NYOTA_UI_ICON_LEFT&&s->icon_pos!=NYOTA_UI_ICON_RIGHT){OutError("INPUT ICONPOS wspiera LEFT/RIGHT");return 0;}
     }
     if(s->kind==NYOTA_UI_CTRL_ICONBUTTON&&s->checked&&!s->toggle){OutError("ICONBUTTON VALUE=TRUE wymaga TOGGLE=TRUE");return 0;}
     if(s->kind==NYOTA_UI_CTRL_SWITCH&&s->switch_thumb_size<4){OutError("SWITCH THUMBSIZE jest za maly");return 0;}
