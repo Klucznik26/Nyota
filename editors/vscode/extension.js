@@ -20,7 +20,11 @@ const AUTO_UPPERCASE_COMMANDS = new Map([
     ['treeview', 'TREEVIEW'],
     ['splitter', 'SPLITTER'],
     ['scale', 'SCALE'],
-    ['clock', 'CLOCK']
+    ['clock', 'CLOCK'],
+    ['iconbutton', 'ICONBUTTON'],
+    ['switch', 'SWITCH'],
+    ['frame', 'FRAME'],
+    ['input', 'INPUT']
 ]);
 
 let applyingAutoUppercase = false;
