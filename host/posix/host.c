@@ -3162,6 +3162,47 @@ static int host_ui_tree_visible_row_to_index(const HostUiControl *ctl,uint32_t r
     return 0;
 }
 
+static void host_ui_tree_styled_line(SDL_Renderer *ren,int idx,HostUiControl *ctl,int x0,int y0,int x1,int y1){
+    int dash=ctl->spec.tree_line_style==NYOTA_UI_TREE_LINE_DASH?5:(ctl->spec.tree_line_style==NYOTA_UI_TREE_LINE_DOT?1:0);
+    NyotaColor lc=ctl->spec.border_color;int dx,dy,steps,k;
+    if(!ctl->spec.show_lines||ctl->spec.tree_line_style==NYOTA_UI_TREE_LINE_NONE)return;
+    lc.a=120;SDL_SetRenderDrawColor(ren,lc.r,lc.g,lc.b,lc.a);
+    if(ctl->spec.tree_line_style==NYOTA_UI_TREE_LINE_SOLID){host_ui_draw_line_masked(ren,idx,x0,y0,x1,y1);return;}
+    dx=x1-x0;dy=y1-y0;steps=abs(dx)>abs(dy)?abs(dx):abs(dy);if(steps<1)steps=1;
+    for(k=0;k<=steps;k++){
+        int cycle=dash==1?4:9;if((k%cycle)<dash){
+            int x=x0+(int)((int64_t)dx*k/steps),y=y0+(int)((int64_t)dy*k/steps);
+            if(host_ui_point_in_rounded_ancestor(idx,(double)x+0.5,(double)y+0.5))SDL_RenderDrawPoint(ren,x,y);
+        }
+    }
+}
+
+static void host_ui_tree_draw_expander(SDL_Renderer *ren,int idx,HostUiControl *ctl,int cx,int cy,int open,NyotaColor c){
+    SDL_SetRenderDrawColor(ren,c.r,c.g,c.b,c.a);
+    if(ctl->spec.tree_expander_style==NYOTA_UI_TREE_EXPANDER_PLUS){
+        host_ui_draw_line_masked(ren,idx,cx-4,cy,cx+4,cy);
+        if(!open)host_ui_draw_line_masked(ren,idx,cx,cy-4,cx,cy+4);
+    }else if(ctl->spec.tree_expander_style==NYOTA_UI_TREE_EXPANDER_TRIANGLE){
+        if(open){
+            host_ui_draw_line_masked(ren,idx,cx-4,cy-2,cx,cy+3);
+            host_ui_draw_line_masked(ren,idx,cx,cy+3,cx+4,cy-2);
+            host_ui_draw_line_masked(ren,idx,cx+4,cy-2,cx-4,cy-2);
+        }else{
+            host_ui_draw_line_masked(ren,idx,cx-2,cy-4,cx+3,cy);
+            host_ui_draw_line_masked(ren,idx,cx+3,cy,cx-2,cy+4);
+            host_ui_draw_line_masked(ren,idx,cx-2,cy+4,cx-2,cy-4);
+        }
+    }else{
+        if(open){
+            host_ui_draw_line_masked(ren,idx,cx-4,cy-2,cx,cy+2);
+            host_ui_draw_line_masked(ren,idx,cx,cy+2,cx+4,cy-2);
+        }else{
+            host_ui_draw_line_masked(ren,idx,cx-2,cy-4,cx+2,cy);
+            host_ui_draw_line_masked(ren,idx,cx+2,cy,cx-2,cy+4);
+        }
+    }
+}
+
 static void host_ui_draw_listview(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_Rect r,int tree){
     uint32_t count=host_ui_combo_item_count(ctl),i,vr=0;int rowh=(int)ctl->spec.row_height;
     if(rowh<12)rowh=12;
@@ -3178,21 +3219,28 @@ static void host_ui_draw_listview(SDL_Renderer *ren,int idx,HostUiControl *ctl,S
         if(host_ui_item_at(ctl->spec.items,i,item,sizeof(item))){
             SDL_Rect tr=row;
             if(tree){
+                int base,cy,branch,open,iconSize;SDL_Texture *it=NULL;SDL_Rect ir;uint32_t d;
                 depth=host_ui_tree_depth_text(item);label=host_ui_tree_leaf(item);
-                tr.x+=(int)(depth*ctl->spec.tree_indent)+18;tr.w-=(int)(depth*ctl->spec.tree_indent)+18;
-                if(ctl->spec.show_lines&&depth){
-                    int lx=row.x+8+(int)(depth*ctl->spec.tree_indent);
-                    SDL_SetRenderDrawColor(ren,ctl->spec.border_color.r,ctl->spec.border_color.g,ctl->spec.border_color.b,110);
-                    host_ui_draw_line_masked(ren,idx,lx,row.y,lx,row.y+row.h-1);
+                base=row.x+10+(int)(depth*ctl->spec.tree_indent);cy=row.y+row.h/2;
+                branch=host_ui_tree_has_child(ctl,i);open=(i<64&&(ctl->tree_expanded_mask&(1ULL<<i)))?1:0;
+                for(d=0;d<depth;d++){
+                    int lx=row.x+10+(int)(d*ctl->spec.tree_indent);
+                    host_ui_tree_styled_line(ren,idx,ctl,lx,row.y,lx,row.y+row.h-1);
                 }
-                if(host_ui_tree_has_child(ctl,i)){
-                    int ax=row.x+8+(int)(depth*ctl->spec.tree_indent),cy=row.y+row.h/2;
-                    SDL_SetRenderDrawColor(ren,tc.r,tc.g,tc.b,tc.a);
-                    host_ui_draw_line_masked(ren,idx,ax-4,cy,ax+4,cy);
-                    if(!(ctl->tree_expanded_mask&(1ULL<<i)))host_ui_draw_line_masked(ren,idx,ax,cy-4,ax,cy+4);
-                }
+                if(depth)host_ui_tree_styled_line(ren,idx,ctl,base-(int)ctl->spec.tree_indent,row.y+row.h/2,base-6,row.y+row.h/2);
+                if(branch)host_ui_tree_draw_expander(ren,idx,ctl,base,cy,open,tc);
+                iconSize=row.h-8;if(iconSize>20)iconSize=20;if(iconSize<8)iconSize=8;
+                if(branch&&open&&ctl->spec.tree_icon_open[0])it=host_ui_texture_from_path(ren,&ctl->tree_open_cache,ctl->spec.tree_icon_open);
+                else if(branch&&ctl->spec.tree_icon_closed[0])it=host_ui_texture_from_path(ren,&ctl->tree_closed_cache,ctl->spec.tree_icon_closed);
+                else if(!branch&&ctl->spec.tree_icon_leaf[0])it=host_ui_texture_from_path(ren,&ctl->tree_leaf_cache,ctl->spec.tree_icon_leaf);
+                tr.x=base+12;tr.w=row.x+row.w-tr.x;
+                if(it){
+                    ir=(SDL_Rect){tr.x,row.y+(row.h-iconSize)/2,iconSize,iconSize};
+                    host_ui_draw_texture_fit(ren,it,ir,ctl->spec.enabled?255:120);
+                    tr.x+=iconSize+(int)ctl->spec.tree_icon_spacing;tr.w=row.x+row.w-tr.x;
+                }else tr.x+=4;
             }else label=item;
-            {NyotaUiControlSpec ts=ctl->spec;strncpy(ts.text,label,sizeof(ts.text)-1);ts.text[sizeof(ts.text)-1]='\0';ts.halign=NYOTA_UI_ALIGN_LEFT;ts.valign=NYOTA_UI_VALIGN_MIDDLE;ts.text_color=tc;host_ui_draw_text(ren,&ts,tr);}
+            {NyotaUiControlSpec ts=ctl->spec;strncpy(ts.text,label,sizeof(ts.text)-1);ts.text[sizeof(ts.text)-1]='\0';ts.halign=NYOTA_UI_ALIGN_LEFT;ts.valign=NYOTA_UI_VALIGN_MIDDLE;ts.text_color=tc;ts.pad_x=6;host_ui_draw_text(ren,&ts,tr);}
         }
         vr++;
     }
