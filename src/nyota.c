@@ -313,6 +313,16 @@ static uint32_t    g_button_count = 0;
 static NyotaSprite g_sprites[MAX_SPRITES];
 static uint32_t    g_sprite_count = 0;
 
+#define MAX_EVERY_EVENTS 16
+typedef struct {
+    char proc_name[64];
+    uint64_t interval_ticks;
+    uint64_t next_tick;
+    uint8_t active;
+} NyotaEveryEvent;
+static NyotaEveryEvent g_every[MAX_EVERY_EVENTS];
+static uint8_t g_scheduler_running = 0;
+
 // TinyML: Mikro-Sieć Neuronowa (Perceptron bez FPU)
 #define MAX_NN 4
 #define MAX_NN_WEIGHTS 16
@@ -5107,6 +5117,30 @@ static int ValidateSourceLayout(void) {
     return 1;
 }
 
+static NyotaProc *FindProcByName(const char *name) {
+    uint32_t i;
+    for (i = 0; i < g_proc_count; i++)
+        if (NStrEq(g_procs[i].name, name)) return &g_procs[i];
+    return 0;
+}
+
+static void SchedulerPoll(void) {
+    uint64_t now;
+    uint32_t i;
+    if (g_scheduler_running) return;
+    now = HostTicks();
+    for (i = 0; i < MAX_EVERY_EVENTS; i++) {
+        NyotaEveryEvent *e = &g_every[i];
+        if (!e->active || now < e->next_tick) continue;
+        /* Jedno wywołanie na punkt schedulera. Jeśli program był zajęty dłużej
+         * niż interwał, nie tworzymy lawiny zaległych callbacków. */
+        e->next_tick = now + e->interval_ticks;
+        g_scheduler_running = 1;
+        CallNamed(e->proc_name, "()", 0);
+        g_scheduler_running = 0;
+    }
+}
+
 // ============================================================
 // WYKONANIE BLOKU LINII
 // ============================================================
@@ -6885,10 +6919,62 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         return;
     }
 
+    // --- EVERY ms CALL procedura ---
+    if (NStartsWith(line, "EVERY")) {
+        const char *p = NTrim(line + 5);
+        const char *callp = 0;
+        char interval_expr[128], pname[64];
+        uint32_t k, len, pn;
+        NyotaVal iv;
+        NyotaProc *proc;
+        uint64_t ticks;
+        int slot = -1;
+        for (k = 0; p[k]; k++) {
+            if (NStrEqN(p + k, " CALL ", 6)) { callp = p + k; break; }
+        }
+        if (!callp) { OutError("EVERY: oczekiwano EVERY ms CALL Procedura"); return; }
+        len = (uint32_t)(callp - p);
+        if (len == 0 || len >= sizeof(interval_expr)) { OutError("EVERY: zly interwal"); return; }
+        for (k = 0; k < len; k++) interval_expr[k] = p[k];
+        interval_expr[len] = '\0'; NRTrim(interval_expr);
+        iv = Eval(interval_expr);
+        if (iv.type != TYPE_INT || iv.i <= 0) { OutError("EVERY: interwal musi byc dodatnim INTEGER w ms"); return; }
+        p = NTrim(callp + 6);
+        pn = ParseIdent(p, pname, sizeof(pname));
+        if (!pname[0] || *NTrim(p + pn)) { OutError("EVERY: brak poprawnej nazwy procedury"); return; }
+        proc = FindProcByName(pname);
+        if (!proc || proc->is_function || proc->param_count != 0) {
+            OutError("EVERY wymaga istniejacej PROCEDURE bez parametrow");
+            return;
+        }
+        ticks = ((uint64_t)iv.i + 9ULL) / 10ULL;
+        if (ticks < 1) ticks = 1;
+        for (k = 0; k < MAX_EVERY_EVENTS; k++) {
+            if (g_every[k].active && NStrEq(g_every[k].proc_name, pname)) { slot = (int)k; break; }
+            if (slot < 0 && !g_every[k].active) slot = (int)k;
+        }
+        if (slot < 0) { OutError("EVERY: przekroczono limit 16 zdarzen"); return; }
+        NStrCopy(g_every[slot].proc_name, pname, sizeof(g_every[slot].proc_name));
+        g_every[slot].interval_ticks = ticks;
+        g_every[slot].next_tick = HostTicks() + ticks;
+        g_every[slot].active = 1;
+        return;
+    }
+
     // --- CANCEL EVERY procedura ---
     if (NStartsWith(line, "CANCEL EVERY")) {
-        // Miejsce pod zaimplementowanie usuwania procedury ze schedulera
-        return;
+        const char *p = NTrim(line + 12);
+        char pname[64];
+        uint32_t pn = ParseIdent(p, pname, sizeof(pname));
+        uint32_t i;
+        if (!pname[0] || *NTrim(p + pn)) { OutError("CANCEL EVERY: brak nazwy procedury"); return; }
+        for (i = 0; i < MAX_EVERY_EVENTS; i++) {
+            if (g_every[i].active && NStrEq(g_every[i].proc_name, pname)) {
+                g_every[i].active = 0;
+                return;
+            }
+        }
+        return; /* anulowanie nieaktywnego zdarzenia jest idempotentne */
     }
 
     // --- STATE_CREATE id ---
@@ -6988,6 +7074,7 @@ static void ExecLines(uint32_t from, uint32_t to, uint32_t block_indent) {
         if (g_exit_flag || g_return_flag || g_continue_flag) break;
         uint32_t saved = g_cur_line;
         ExecLine(i, block_indent);
+        SchedulerPoll();
         // ExecLine może zmienić g_cur_line (np. po IF lub FOR)
         if (g_cur_line != saved && g_cur_line > i)
             i = g_cur_line;
@@ -7314,8 +7401,10 @@ static void NyotaEmbedReset(void) {
     g_table_count = 0;
     g_button_count = 0;
     g_is_graphics = 0;
+    g_scheduler_running = 0;
     {
         int i;
+        for (i = 0; i < MAX_EVERY_EVENTS; i++) g_every[i].active = 0;
         for (i = 0; i < MAX_NN; i++) g_nn[i].active = 0;
         for (i = 0; i < MAX_STATES; i++) g_states_active[i] = 0;
     }
@@ -7461,6 +7550,8 @@ void _start(AyoAPI *api) {
     g_list_pool_used = 0;
     g_table_count = 0;
     g_button_count = 0;
+    g_scheduler_running = 0;
+    for (int i = 0; i < MAX_EVERY_EVENTS; i++) g_every[i].active = 0;
     for (int i = 0; i < MAX_NN; i++) g_nn[i].active = 0;
     for (int i = 0; i < MAX_STATES; i++) g_states_active[i] = 0;
 
