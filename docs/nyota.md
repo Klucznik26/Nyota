@@ -49,7 +49,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">TIME: TIME(), TIME(HH.MM.SS), HOUR/MINUTE/SECOND, H/M/S, TIME-TIME, porównania i SORT wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">TABLE: nazwana kontrolka prezentacji danych; kolumny i szerokości, czcionka/rozmiar, kolor tekstu, opcjonalne źródło LIST/TUPLE/MARK oraz TABLE_DATA wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">BUTTON: nazwana kontrolka GUI z geometrią, tekstem, czcionką/rozmiarem, kolorami tekstu/tła i BUTTON_CLICKED() wykonane 2026-09-17</span>
-- <span style="color: #006A4E;">SPRITE: nazwany obiekt graficzny, pozycja/ruch/widoczność, jawne rysowanie i kolizja prostokątna wykonane 2026-09-18</span>
+- <span style="color: #006A4E;">SPRITE: nazwany obiekt graficzny, pozycja/ruch/widoczność, animacja klatkowa, jawne rysowanie i kolizja prostokątna wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>
@@ -1260,6 +1260,41 @@ VAR w := SPRITE_W(gracz)
 VAR h := SPRITE_H(gracz)
 VAR pokazany := SPRITE_VISIBLE(gracz)
 ```
+
+### Animacja klatkowa
+
+Animacja korzysta z poziomego sprite sheetu z klatkami o równej szerokości.
+Liczbę klatek i czas jednej klatki w milisekundach ustala:
+
+```nyota
+SPRITE_ANIM gracz, 6, 100
+```
+
+Po `SPRITE_ANIM` animacja startuje od klatki `0` i domyślnie zapętla się.
+Sterowanie:
+
+```nyota
+SPRITE_PLAY gracz
+SPRITE_STOP gracz
+SPRITE_FRAME gracz, 3
+```
+
+`SPRITE_FRAME` ustawia konkretną klatkę i zatrzymuje automatyczne odtwarzanie.
+Indeksy klatek zaczynają się od `0`. Funkcje:
+
+```nyota
+VAR klatka := SPRITE_FRAME(gracz)
+VAR gra := SPRITE_PLAYING(gracz)
+```
+
+`SPRITE_FRAME()` zwraca bieżący indeks jako `INTEGER`, a
+`SPRITE_PLAYING()` zwraca `BOOLEAN`. Klatka jest aktualizowana na podstawie
+zegara hosta; `SPRITE_DRAW` rysuje aktualną klatkę. Bieżąca implementacja
+dopuszcza `1..256` klatek i czas klatki `1..60000 ms`.
+
+Backend POSIX/SDL2 wycina klatki poziomo z jednego BMP. Kontrakt NyotaHost
+udostępnia osobny callback rysowania klatki, więc host AyoOS może użyć własnego
+formatu obrazu bez zmiany składni języka.
 
 Kolizja prostokątów AABB:
 
