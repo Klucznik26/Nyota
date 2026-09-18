@@ -31,6 +31,7 @@ test-graph: nyota
 	@SDL_VIDEODRIVER=dummy NYOTA_NO_WAIT=1 ./nyota tests/graph_box.nyo
 	@SDL_VIDEODRIVER=dummy NYOTA_NO_WAIT=1 ./nyota tests/graph_print_forbidden.nyo | grep -q BLAD
 	@SDL_VIDEODRIVER=dummy NYOTA_NO_WAIT=1 ./nyota tests/win_extra_controls.nyo | grep -q EXTRA_UI_OK
+	@SDL_VIDEODRIVER=dummy NYOTA_NO_WAIT=1 ./nyota tests/win_modern_controls.nyo | grep -q MODERN_UI_OK
 
 install: nyota
 	install -d "$(DESTDIR)$(PREFIX)/bin"
