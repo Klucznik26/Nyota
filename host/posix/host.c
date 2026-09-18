@@ -454,6 +454,11 @@ static uint32_t host_ui_sbar_value_from_pointer(int idx,int x,int y){
     uint32_t span;
     if(!host_ui_control_rect_index(idx,&r)||!host_ui_sbar_thumb_rect(idx,&thumb)||
        ctl->spec.range_max<=ctl->spec.range_min)return ctl->spec.range_value;
+    if(ctl->spec.border&&ctl->spec.border_width){
+        int pad=(int)ctl->spec.border_width;
+        r.x+=pad;r.y+=pad;r.w-=2*pad;r.h-=2*pad;
+        if(r.w<=0||r.h<=0)return ctl->spec.range_value;
+    }
     span=ctl->spec.range_max-ctl->spec.range_min;
     track=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?r.h:r.w;
     len=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?thumb.h:thumb.w;
