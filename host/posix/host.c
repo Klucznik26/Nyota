@@ -558,20 +558,41 @@ static uint32_t host_ui_utf8_next(const char *s,uint32_t pos){
     while(pos<n&&(((unsigned char)s[pos]&0xC0u)==0x80u))pos++;
     return pos;
 }
+static int host_ui_input_partial_valid(const HostUiControl *ctl,const char *s){
+    const char *p;
+    if(!ctl||!s)return 0;
+    if(ctl->spec.kind!=NYOTA_UI_CTRL_INPUT)return 1;
+    if(ctl->spec.input_type==NYOTA_UI_INPUT_NUMBER){
+        p=s;if(*p=='-'||*p=='+')p++;if(!*p)return 1;
+        while(*p){if(*p<'0'||*p>'9')return 0;p++;}return 1;
+    }
+    if(ctl->spec.input_type==NYOTA_UI_INPUT_EMAIL){
+        p=s;while(*p){if(*p==' '||*p=='\t'||*p=='\n'||*p=='\r')return 0;p++;}return 1;
+    }
+    return strchr(s,'\n')==NULL&&strchr(s,'\r')==NULL;
+}
 static int host_ui_tarea_insert(HostUiControl *ctl,const char *text){
     size_t len,add,limit;
-    if(!ctl||!text||(ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX)||ctl->spec.readonly)return 0;
-    if(ctl->spec.kind==NYOTA_UI_CTRL_TBOX&&(strchr(text,'\n')||strchr(text,'\r')))return 0;
-    len=strlen(ctl->spec.text);add=strlen(text);limit=ctl->spec.kind==NYOTA_UI_CTRL_TBOX?ctl->spec.max_length:sizeof(ctl->spec.text)-1;
+    if(!ctl||!text||(ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX&&ctl->spec.kind!=NYOTA_UI_CTRL_INPUT)||ctl->spec.readonly)return 0;
+    if((ctl->spec.kind==NYOTA_UI_CTRL_TBOX||ctl->spec.kind==NYOTA_UI_CTRL_INPUT)&&(strchr(text,'\n')||strchr(text,'\r')))return 0;
+    len=strlen(ctl->spec.text);add=strlen(text);limit=(ctl->spec.kind==NYOTA_UI_CTRL_TBOX||ctl->spec.kind==NYOTA_UI_CTRL_INPUT)?ctl->spec.max_length:sizeof(ctl->spec.text)-1;
     if(len+add>limit||len+add>=sizeof(ctl->spec.text))return 0;
     if(ctl->caret>len)ctl->caret=(uint32_t)len;
+    if(ctl->spec.kind==NYOTA_UI_CTRL_INPUT){
+        char tmp[NYOTA_UI_TEXT_MAX];
+        if(len+add>=sizeof(tmp))return 0;
+        memcpy(tmp,ctl->spec.text,ctl->caret);
+        memcpy(tmp+ctl->caret,text,add);
+        memcpy(tmp+ctl->caret+add,ctl->spec.text+ctl->caret,len-ctl->caret+1);
+        if(!host_ui_input_partial_valid(ctl,tmp))return 0;
+    }
     memmove(ctl->spec.text+ctl->caret+add,ctl->spec.text+ctl->caret,len-ctl->caret+1);
     memcpy(ctl->spec.text+ctl->caret,text,add);
     ctl->caret+=(uint32_t)add;ctl->text_changed=1;return 1;
 }
 static int host_ui_tarea_backspace(HostUiControl *ctl){
     uint32_t p;size_t len;
-    if(!ctl||(ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX)||ctl->spec.readonly||!ctl->caret)return 0;
+    if(!ctl||(ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX&&ctl->spec.kind!=NYOTA_UI_CTRL_INPUT)||ctl->spec.readonly||!ctl->caret)return 0;
     len=strlen(ctl->spec.text);if(ctl->caret>len)ctl->caret=(uint32_t)len;
     p=host_ui_utf8_prev(ctl->spec.text,ctl->caret);
     memmove(ctl->spec.text+p,ctl->spec.text+ctl->caret,len-ctl->caret+1);
@@ -579,7 +600,7 @@ static int host_ui_tarea_backspace(HostUiControl *ctl){
 }
 static int host_ui_tarea_delete(HostUiControl *ctl){
     uint32_t n;size_t len;
-    if(!ctl||(ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX)||ctl->spec.readonly)return 0;
+    if(!ctl||(ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX&&ctl->spec.kind!=NYOTA_UI_CTRL_INPUT)||ctl->spec.readonly)return 0;
     len=strlen(ctl->spec.text);if(ctl->caret>=len)return 0;
     n=host_ui_utf8_next(ctl->spec.text,ctl->caret);
     memmove(ctl->spec.text+ctl->caret,ctl->spec.text+n,len-n+1);
@@ -1029,7 +1050,7 @@ static void host_pump(void) {
                 for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
                     HostUiControl *ctl=&g_host_ui_controls[i];
                     if(!ctl->used||ctl->window_handle!=g_ui_windows[ui].handle||!ctl->focused||
-                       (ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX)||!ctl->spec.enabled)continue;
+                       (ctl->spec.kind!=NYOTA_UI_CTRL_TAREA&&ctl->spec.kind!=NYOTA_UI_CTRL_TBOX&&ctl->spec.kind!=NYOTA_UI_CTRL_INPUT)||!ctl->spec.enabled)continue;
                     if(k==SDLK_LEFT){ctl->caret=host_ui_utf8_prev(ctl->spec.text,ctl->caret);handled=1;}
                     else if(k==SDLK_RIGHT){ctl->caret=host_ui_utf8_next(ctl->spec.text,ctl->caret);handled=1;}
                     else if((k==SDLK_UP||k==SDLK_DOWN)&&ctl->spec.kind==NYOTA_UI_CTRL_TAREA){
@@ -3863,15 +3884,16 @@ static int32_t host_ui_combo_set_index(int32_t handle,uint32_t index){int i=host
 static int32_t host_ui_tarea_get_text(int32_t handle,char *out,uint32_t cap,uint32_t *out_size){
     int i=host_ui_control_index_by_handle(handle);size_t n;
     if(out_size)*out_size=0;
-    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TBOX)||!out||!cap)return -1;
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_INPUT)||!out||!cap)return -1;
     host_pump();n=strlen(g_host_ui_controls[i].spec.text);if(n+1>cap)return -2;
     memcpy(out,g_host_ui_controls[i].spec.text,n+1);if(out_size)*out_size=(uint32_t)n;return 0;
 }
 static int32_t host_ui_tarea_set_text(int32_t handle,const char *text){
     int i=host_ui_control_index_by_handle(handle),wi;
-    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TBOX)||!text)return -1;
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_INPUT)||!text)return -1;
     if(strlen(text)>=sizeof(g_host_ui_controls[i].spec.text))return -2;
-    if(g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_TBOX&&(strlen(text)>g_host_ui_controls[i].spec.max_length||strchr(text,'\n')||strchr(text,'\r')))return -2;
+    if((g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_TBOX||g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_INPUT)&&(strlen(text)>g_host_ui_controls[i].spec.max_length||strchr(text,'\n')||strchr(text,'\r')))return -2;
+    if(g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_INPUT&&text[0]&&!host_ui_input_partial_valid(&g_host_ui_controls[i],text))return -2;
     strncpy(g_host_ui_controls[i].spec.text,text,sizeof(g_host_ui_controls[i].spec.text)-1);
     g_host_ui_controls[i].spec.text[sizeof(g_host_ui_controls[i].spec.text)-1]='\0';
     g_host_ui_controls[i].caret=(uint32_t)strlen(g_host_ui_controls[i].spec.text);
@@ -3882,7 +3904,7 @@ static int32_t host_ui_tarea_set_text(int32_t handle,const char *text){
 }
 static int32_t host_ui_tarea_changed(int32_t handle){
     int i=host_ui_control_index_by_handle(handle);int32_t v;
-    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TBOX))return -1;
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TAREA&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_INPUT))return -1;
     host_pump();v=g_host_ui_controls[i].text_changed?1:0;g_host_ui_controls[i].text_changed=0;return v;
 }
 
