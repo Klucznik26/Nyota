@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera -0.500
+BEGIN
+VAR x := -0.5
+PRINT x
+END
