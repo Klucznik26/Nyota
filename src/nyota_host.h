@@ -30,6 +30,13 @@ typedef struct NyotaHost {
     void (*gfx_text)(uint32_t x, uint32_t y, const char *text,
                      uint8_t r, uint8_t g, uint8_t b, uint32_t scale);
     void (*gfx_mode)(uint32_t w, uint32_t h);
+
+    /* Sprite backend. Language-level SPRITE is named state in Nyota;
+     * host owns only the loaded image resource and drawing. */
+    int32_t (*gfx_sprite_load)(const char *path);
+    void (*gfx_sprite_free)(int32_t handle);
+    void (*gfx_sprite_draw)(int32_t handle, int32_t x, int32_t y,
+                            uint32_t w, uint32_t h);
 } NyotaHost;
 
 void NyotaSetHost(NyotaHost *h);

@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+GRAPH 1
+SPRITE_DRAW nie_ma
+END

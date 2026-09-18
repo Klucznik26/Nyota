@@ -1,0 +1,18 @@
+# Oczekiwane: OK
+BEGIN
+GRAPH 1
+SPRITE a, "tests/assets/sprite_test.bmp", 0, 0, 10, 10
+SPRITE b, "tests/assets/sprite_test.bmp", 9, 9, 10, 10
+IF NOT SPRITE_HIT(a, b):
+    PRNIT "hit"
+SPRITE_POS b, 10, 10
+IF SPRITE_HIT(a, b):
+    PRNIT "edge"
+SPRITE_POS b, 50, 50
+IF SPRITE_HIT(a, b):
+    PRNIT "far"
+SPRITE_HIDE a
+SPRITE_POS b, 5, 5
+IF NOT SPRITE_HIT(a, b):
+    PRNIT "visibility-must-not-disable-hit"
+END

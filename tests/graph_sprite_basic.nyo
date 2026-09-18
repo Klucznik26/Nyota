@@ -1,0 +1,29 @@
+# Oczekiwane: OK
+BEGIN
+GRAPH 1
+SPRITE gracz, "tests/assets/sprite_test.bmp", 10, 20, 16, 18
+IF SPRITE_X(gracz) <> 10:
+    PRNIT "x"
+IF SPRITE_Y(gracz) <> 20:
+    PRNIT "y"
+IF SPRITE_W(gracz) <> 16:
+    PRNIT "w"
+IF SPRITE_H(gracz) <> 18:
+    PRNIT "h"
+SPRITE_MOVE gracz, 5, -2
+IF SPRITE_X(gracz) <> 15:
+    PRNIT "move-x"
+IF SPRITE_Y(gracz) <> 18:
+    PRNIT "move-y"
+SPRITE_POS gracz, 100, 110
+SPRITE_DRAW gracz
+SPRITE_HIDE gracz
+IF SPRITE_VISIBLE(gracz):
+    PRNIT "hide"
+SPRITE_DRAW gracz
+SPRITE_SHOW gracz
+IF NOT SPRITE_VISIBLE(gracz):
+    PRNIT "show"
+SPRITE_DRAW gracz
+SPRITE_DELETE gracz
+END

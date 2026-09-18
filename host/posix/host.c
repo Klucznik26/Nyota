@@ -28,6 +28,9 @@ static int g_dirty;
 static const char *g_input_feed;
 static int g_input_pos;
 
+#define HOST_MAX_SPRITES 64
+static SDL_Texture *g_sprite_tex[HOST_MAX_SPRITES];
+
 static void posix_emit(char c) {
     fputc(c, stdout);
     if (c == '\n') fflush(stdout);
@@ -157,6 +160,53 @@ static void host_text(uint32_t x, uint32_t y, const char *text,
     g_dirty = 1;
 }
 
+
+static int32_t host_sprite_load(const char *path) {
+    SDL_Surface *surface;
+    SDL_Texture *tex;
+    int i;
+    if (!path || !path[0]) return -1;
+    gfx_ensure();
+    if (!g_gfx || !g_ren) return -1;
+    surface = SDL_LoadBMP(path);
+    if (!surface) return -1;
+    tex = SDL_CreateTextureFromSurface(g_ren, surface);
+    SDL_FreeSurface(surface);
+    if (!tex) return -1;
+    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+    for (i = 0; i < HOST_MAX_SPRITES; i++) {
+        if (!g_sprite_tex[i]) {
+            g_sprite_tex[i] = tex;
+            return (int32_t)(i + 1);
+        }
+    }
+    SDL_DestroyTexture(tex);
+    return -1;
+}
+
+static void host_sprite_free(int32_t handle) {
+    int idx = (int)handle - 1;
+    if (idx < 0 || idx >= HOST_MAX_SPRITES) return;
+    if (g_sprite_tex[idx]) {
+        SDL_DestroyTexture(g_sprite_tex[idx]);
+        g_sprite_tex[idx] = 0;
+    }
+}
+
+static void host_sprite_draw(int32_t handle, int32_t x, int32_t y,
+                             uint32_t w, uint32_t h) {
+    SDL_Rect dst;
+    int idx = (int)handle - 1;
+    if (!g_gfx || !g_ren || idx < 0 || idx >= HOST_MAX_SPRITES ||
+        !g_sprite_tex[idx] || w == 0 || h == 0) return;
+    dst.x = (int)x;
+    dst.y = (int)y;
+    dst.w = (int)w;
+    dst.h = (int)h;
+    SDL_RenderCopy(g_ren, g_sprite_tex[idx], 0, &dst);
+    g_dirty = 1;
+}
+
 static uint8_t key_to_scancode(SDL_Keycode k) {
     if (k == SDLK_RETURN) return 0x1C;
     if (k == SDLK_BACKSPACE) return 0x0E;
@@ -261,6 +311,13 @@ static uint8_t host_pointer_state(int32_t *x, int32_t *y) {
 
 static void host_exit(void) {
     if (g_gfx) {
+        int i;
+        for (i = 0; i < HOST_MAX_SPRITES; i++) {
+            if (g_sprite_tex[i]) {
+                SDL_DestroyTexture(g_sprite_tex[i]);
+                g_sprite_tex[i] = 0;
+            }
+        }
         SDL_DestroyRenderer(g_ren);
         SDL_DestroyWindow(g_win);
         SDL_Quit();
@@ -315,6 +372,9 @@ int main(int argc, char **argv) {
     g_nyhost.gfx_rect = host_rect;
     g_nyhost.gfx_text = host_text;
     g_nyhost.gfx_mode = host_setres;
+    g_nyhost.gfx_sprite_load = host_sprite_load;
+    g_nyhost.gfx_sprite_free = host_sprite_free;
+    g_nyhost.gfx_sprite_draw = host_sprite_draw;
     NyotaSetHost(&g_nyhost);
     g_input_feed = getenv("NYOTA_INPUT");
     g_input_pos = 0;

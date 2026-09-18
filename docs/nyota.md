@@ -49,6 +49,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">TIME: TIME(), TIME(HH.MM.SS), HOUR/MINUTE/SECOND, H/M/S, TIME-TIME, porównania i SORT wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">TABLE: nazwana kontrolka prezentacji danych; kolumny i szerokości, czcionka/rozmiar, kolor tekstu, opcjonalne źródło LIST/TUPLE/MARK oraz TABLE_DATA wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">BUTTON: nazwana kontrolka GUI z geometrią, tekstem, czcionką/rozmiarem, kolorami tekstu/tła i BUTTON_CLICKED() wykonane 2026-09-17</span>
+- <span style="color: #006A4E;">SPRITE: nazwany obiekt graficzny, pozycja/ruch/widoczność, jawne rysowanie i kolizja prostokątna wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>
@@ -1207,6 +1208,68 @@ już go udostępnia. Powiązanie wskaźnika AyoOS wymaga odpowiedniego callbacku
 Parametr `font` jest częścią definicji kontrolki. Bieżący prymityw tekstowy hosta
 wybiera fizyczną czcionkę po stronie backendu; nazwana obsługa fontów będzie
 rozszerzeniem kontraktu hosta, bez zmiany składni `BUTTON`.
+
+---
+
+## 43b. SPRITE
+
+`SPRITE` jest nazwanym obiektem graficznym. Nie jest typem zmiennej Nyoty.
+
+Definicja zasobu i początkowej geometrii:
+
+```nyota
+SPRITE gracz, "gfx/gracz.bmp", 100, 120, 32, 32
+```
+
+Składnia:
+
+```text
+SPRITE nazwa, obraz, x, y, szerokosc, wysokosc
+```
+
+`SPRITE` wymaga wcześniejszego `GRAPH`. Nazwa jest logicznym identyfikatorem,
+tak jak dla `BUTTON` i `TABLE`. Bieżący backend POSIX/SDL2 ładuje obrazy BMP
+przez `SDL_LoadBMP`; kontrakt NyotaHost nie narzuca formatu innym hostom.
+
+Zmiana stanu:
+
+```nyota
+SPRITE_POS gracz, 200, 150
+SPRITE_MOVE gracz, 5, -2
+SPRITE_HIDE gracz
+SPRITE_SHOW gracz
+SPRITE_DELETE gracz
+```
+
+Rysowanie jest jawne:
+
+```nyota
+SPRITE_DRAW gracz
+```
+
+To świadoma reguła bieżącego, natychmiastowego modelu grafiki Nyoty.
+`SPRITE_MOVE` i `SPRITE_POS` nie czyszczą starej klatki i nie rysują automatycznie.
+W pętli gry program zwykle wykonuje `CLEAR`, rysuje tło i potem `SPRITE_DRAW`.
+
+Funkcje stanu:
+
+```nyota
+VAR x := SPRITE_X(gracz)
+VAR y := SPRITE_Y(gracz)
+VAR w := SPRITE_W(gracz)
+VAR h := SPRITE_H(gracz)
+VAR pokazany := SPRITE_VISIBLE(gracz)
+```
+
+Kolizja prostokątów AABB:
+
+```nyota
+IF SPRITE_HIT(gracz, przeciwnik):
+    # reakcja programu
+```
+
+`SPRITE_HIT()` używa zapisanej geometrii `x/y/w/h`. Widoczność nie zmienia
+geometrii kolizji. Funkcje przyjmują nazwę SPRITE jako identyfikator albo STRING.
 
 ---
 
