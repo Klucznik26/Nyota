@@ -1,0 +1,48 @@
+name: Temporary SPRITE animation validation
+
+on:
+  push:
+    branches:
+      - sprite-animation
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-commit:
+    if: ${{ !contains(github.event.head_commit.message, '[sprite-anim-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: sprite-animation
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libsdl2-dev
+
+      - name: Apply SPRITE animation upgrade
+        run: python3 scripts/apply_sprite_animation.py
+
+      - name: Build interpreter
+        run: |
+          make clean
+          make
+
+      - name: Run regression tests
+        run: make test
+
+      - name: Run headless graphics tests
+        run: make test-graph
+
+      - name: Commit validated animation implementation
+        run: |
+          git config user.name "Nyota CI"
+          git config user.email "actions@users.noreply.github.com"
+          rm -f scripts/apply_sprite_animation.py .github/workflows/tmp-sprite-animation.yml
+          git add -A
+          git commit -m "SPRITE: frame animation, playback control and tests [sprite-anim-applied]"
+          git push origin HEAD:sprite-animation
