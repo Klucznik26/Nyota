@@ -15,6 +15,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libsdl2-dev
+      - name: Validate VS Code language extension
+        run: |
+          python3 -m json.tool editors/vscode/package.json >/dev/null
+          python3 -m json.tool editors/vscode/language-configuration.json >/dev/null
+          python3 -m json.tool editors/vscode/syntaxes/nyota.tmLanguage.json >/dev/null
       - name: Build
         run: make
       - name: Regression tests
