@@ -484,7 +484,17 @@ static void host_pump(void) {
         if (e.type == SDL_MOUSEMOTION) {
             int ui = host_ui_index_by_window_id(e.motion.windowID);
             if (ui >= 0) {
-                int changed = 0, i;
+                int changed = 0, i, popup_owner = -1;
+                for (i = HOST_MAX_UI_CONTROLS - 1; i >= 0; i--) {
+                    int32_t row = -1;
+                    HostUiControl *pc = &g_host_ui_controls[i];
+                    if (!pc->used || pc->window_handle != g_ui_windows[ui].handle ||
+                        pc->spec.kind != NYOTA_UI_CTRL_COMBO || !pc->combo_open) continue;
+                    if (host_ui_combo_popup_hit(i, e.motion.x, e.motion.y, &row)) {
+                        popup_owner = i;
+                        break;
+                    }
+                }
                 for (i = 0; i < HOST_MAX_UI_CONTROLS; i++) {
                     HostUiControl *ctl = &g_host_ui_controls[i];
                     uint8_t over = 0;
@@ -507,6 +517,7 @@ static void host_pump(void) {
                                ctl->spec.kind == NYOTA_UI_CTRL_TAREA) {
                         over = (uint8_t)host_ui_point_in_control(i,e.motion.x,e.motion.y);
                     }
+                    if (popup_owner >= 0 && i != popup_owner) over = 0;
                     if (over != ctl->hover) { ctl->hover = over; changed = 1; }
 
                     if (ctl->spec.kind == NYOTA_UI_CTRL_COMBO && ctl->combo_open) {
@@ -529,7 +540,49 @@ static void host_pump(void) {
         if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
             int ui=host_ui_index_by_window_id(e.button.windowID);
             if(ui>=0){
-                int i,changed=0;
+                int i,changed=0,popup_consumed=0,base_open_combo=-1;
+
+                /* Popup COMBO ma pierwszenstwo przed wszystkimi kontrolkami pod nim. */
+                for(i=HOST_MAX_UI_CONTROLS-1;i>=0;i--){
+                    HostUiControl *ctl=&g_host_ui_controls[i];
+                    int32_t row=-1;
+                    if(!ctl->used||ctl->window_handle!=g_ui_windows[ui].handle||
+                       ctl->spec.kind!=NYOTA_UI_CTRL_COMBO||!ctl->combo_open)continue;
+                    if(host_ui_combo_popup_hit(i,e.button.x,e.button.y,&row)){
+                        if(row>=0)ctl->spec.selected=(uint32_t)row;
+                        ctl->combo_open=0;
+                        ctl->combo_hover=-1;
+                        host_ui_set_focus(ui,i);
+                        changed=1;
+                        popup_consumed=1;
+                        break;
+                    }
+                }
+                if(popup_consumed){
+                    host_ui_mark_dirty(ui);
+                    continue;
+                }
+
+                /* Klik poza popupem zamyka inne listy. Klik w baze otwartego
+                   COMBO zostawiamy dla zwyklego toggle ponizej. */
+                for(i=HOST_MAX_UI_CONTROLS-1;i>=0;i--){
+                    HostUiControl *ctl=&g_host_ui_controls[i];
+                    if(!ctl->used||ctl->window_handle!=g_ui_windows[ui].handle||
+                       ctl->spec.kind!=NYOTA_UI_CTRL_COMBO||!ctl->combo_open)continue;
+                    if(host_ui_point_in_control(i,e.button.x,e.button.y)){
+                        base_open_combo=i;
+                        break;
+                    }
+                }
+                for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
+                    HostUiControl *ctl=&g_host_ui_controls[i];
+                    if(!ctl->used||ctl->window_handle!=g_ui_windows[ui].handle||
+                       ctl->spec.kind!=NYOTA_UI_CTRL_COMBO||!ctl->combo_open||i==base_open_combo)continue;
+                    ctl->combo_open=0;
+                    ctl->combo_hover=-1;
+                    changed=1;
+                }
+
                 for(i=HOST_MAX_UI_CONTROLS-1;i>=0;i--){
                     HostUiControl *ctl=&g_host_ui_controls[i];
                     int hit=0;
@@ -549,15 +602,20 @@ static void host_pump(void) {
                     if(ctl->spec.kind==NYOTA_UI_CTRL_COMBO){
                         SDL_Rect r;
                         if(!host_ui_control_rect_index(i,&r))continue;
-                        if(ctl->combo_open && e.button.x>=r.x&&e.button.x<r.x+r.w&&e.button.y>=r.y+r.h){
-                            int row=(e.button.y-(r.y+r.h))/r.h; uint32_t count=0,k;
-                            for(k=0;ctl->spec.items[k];k++)if(ctl->spec.items[k]=='\n')count++;
-                            if(row>=0&&(uint32_t)row<count&&(uint32_t)row<ctl->spec.max_visible)ctl->spec.selected=(uint32_t)row;
-                            ctl->combo_open=0;ctl->combo_hover=-1;changed=1;break;
-                        }
                         if(host_ui_point_in_control(i,e.button.x,e.button.y)){
+                            int j;
                             host_ui_set_focus(ui,i);
-                            ctl->pressed=1;ctl->combo_open=(uint8_t)!ctl->combo_open;ctl->combo_hover=-1;changed=1;break;
+                            for(j=0;j<HOST_MAX_UI_CONTROLS;j++)
+                                if(j!=i&&g_host_ui_controls[j].used&&
+                                   g_host_ui_controls[j].window_handle==ctl->window_handle&&
+                                   g_host_ui_controls[j].spec.kind==NYOTA_UI_CTRL_COMBO){
+                                    g_host_ui_controls[j].combo_open=0;
+                                    g_host_ui_controls[j].combo_hover=-1;
+                                }
+                            ctl->pressed=1;
+                            ctl->combo_open=(uint8_t)!ctl->combo_open;
+                            ctl->combo_hover=-1;
+                            changed=1;break;
                         }
                     }
                     if((ctl->spec.kind==NYOTA_UI_CTRL_CBOX||ctl->spec.kind==NYOTA_UI_CTRL_RADIO)&&host_ui_point_in_control(i,e.button.x,e.button.y)){
@@ -2152,10 +2210,6 @@ static void host_ui_draw_control_index(int idx) {
         if(host_ui_item_at(ctl->spec.items,ctl->spec.selected,item,sizeof(item)))host_ui_draw_simple_text(u->ren,item,tc,txr,ctl->spec.font_size);}
         {NyotaColor ac=ctl->spec.enabled?ctl->spec.arrow_color:host_ui_tint_color(ctl->spec.arrow_color,-72);
         SDL_SetRenderDrawColor(u->ren,ac.r,ac.g,ac.b,ac.a);}int cx=r.x+r.w-r.h/2,cy=r.y+r.h/2;host_ui_draw_line_masked(u->ren,idx,cx-5,cy-2,cx,cy+3);host_ui_draw_line_masked(u->ren,idx,cx,cy+3,cx+5,cy-2);
-        if(ctl->combo_open){
-            uint32_t count=0,k,vis;for(k=0;ctl->spec.items[k];k++)if(ctl->spec.items[k]=='\n')count++;vis=count<ctl->spec.max_visible?count:ctl->spec.max_visible;
-            for(k=0;k<vis;k++){SDL_Rect row={r.x,r.y+r.h+(int)k*r.h,r.w,r.h};const NyotaUiBackground *rb=&ctl->spec.drop_background;NyotaColor tc=ctl->spec.drop_text_color;if(k==ctl->spec.selected){rb=&ctl->spec.selected_background;tc=ctl->spec.selected_text_color;}if(ctl->spec.hover_enabled&&(int32_t)k==ctl->combo_hover){rb=&ctl->spec.hover_background;tc=ctl->spec.hover_text_color;}NyotaUiControlSpec rs=ctl->spec;rs.w=(uint32_t)row.w;rs.h=(uint32_t)row.h;surface=host_ui_control_background_surface(&rs,rb);if(surface){tex=SDL_CreateTextureFromSurface(u->ren,surface);SDL_FreeSurface(surface);if(tex){SDL_SetTextureBlendMode(tex,SDL_BLENDMODE_BLEND);SDL_RenderCopy(u->ren,tex,NULL,&row);SDL_DestroyTexture(tex);}}if(host_ui_item_at(ctl->spec.items,k,item,sizeof(item)))host_ui_draw_simple_text(u->ren,item,tc,row,ctl->spec.font_size);}
-        }
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_TAREA){
         NyotaUiControlSpec saved=ctl->spec;
         if(!ctl->spec.enabled)ctl->spec.text_color=host_ui_tint_color(ctl->spec.text_color,-72);
@@ -2171,6 +2225,111 @@ static void host_ui_draw_control_index(int idx) {
     SDL_RenderSetClipRect(u->ren,NULL);
 }
 
+static uint32_t host_ui_combo_item_count(const HostUiControl *ctl){
+    uint32_t n=0,k;
+    if(!ctl)return 0;
+    for(k=0;ctl->spec.items[k];k++)if(ctl->spec.items[k]=='\n')n++;
+    return n;
+}
+
+static int host_ui_combo_popup_hit(int idx,int x,int y,int32_t *row_out){
+    HostUiControl *ctl;
+    SDL_Rect r;
+    uint32_t count,vis;
+    int row;
+    if(row_out)*row_out=-1;
+    if(idx<0||idx>=HOST_MAX_UI_CONTROLS)return 0;
+    ctl=&g_host_ui_controls[idx];
+    if(!ctl->used||ctl->spec.kind!=NYOTA_UI_CTRL_COMBO||!ctl->combo_open||
+       !ctl->spec.enabled||!host_ui_control_visible_index(idx))return 0;
+    if(!host_ui_control_rect_index(idx,&r)||r.h<=0)return 0;
+    count=host_ui_combo_item_count(ctl);
+    vis=count<ctl->spec.max_visible?count:ctl->spec.max_visible;
+    if(!vis)return 0;
+    if(x<r.x||x>=r.x+r.w||y<r.y+r.h||y>=r.y+r.h+(int)vis*r.h)return 0;
+    row=(y-(r.y+r.h))/r.h;
+    if(row<0||(uint32_t)row>=vis)return 0;
+    if(row_out)*row_out=row;
+    return 1;
+}
+
+/* Rozwiniete COMBO jest popupem okna: nie dziedziczy Z-order ani clippingu
+   rodzica. Rysujemy je po wszystkich zwyklych kontrolkach. */
+static void host_ui_draw_combo_popup(int idx){
+    HostUiControl *ctl;
+    HostUiWindow *u;
+    SDL_Rect r,winclip;
+    SDL_Surface *surface;
+    SDL_Texture *tex;
+    uint32_t count,k,vis;
+    int wi;
+    char item[NYOTA_UI_TEXT_MAX];
+
+    if(idx<0||idx>=HOST_MAX_UI_CONTROLS)return;
+    ctl=&g_host_ui_controls[idx];
+    if(!ctl->used||ctl->spec.kind!=NYOTA_UI_CTRL_COMBO||!ctl->combo_open||
+       !ctl->spec.enabled||!host_ui_control_visible_index(idx))return;
+    wi=host_ui_index_by_handle(ctl->window_handle);
+    if(wi<0||!(u=&g_ui_windows[wi])->ren||!host_ui_control_rect_index(idx,&r))return;
+
+    count=host_ui_combo_item_count(ctl);
+    vis=count<ctl->spec.max_visible?count:ctl->spec.max_visible;
+    if(!vis)return;
+
+    winclip.x=0;winclip.y=0;winclip.w=(int)u->w;winclip.h=(int)u->h;
+    SDL_RenderSetClipRect(u->ren,&winclip);
+    g_ui_draw_clip_idx=-1;
+
+    for(k=0;k<vis;k++){
+        SDL_Rect row={r.x,r.y+r.h+(int)k*r.h,r.w,r.h};
+        const NyotaUiBackground *rb=&ctl->spec.drop_background;
+        NyotaColor tc=ctl->spec.drop_text_color;
+        NyotaUiControlSpec rs=ctl->spec;
+
+        if(k==ctl->spec.selected){
+            rb=&ctl->spec.selected_background;
+            tc=ctl->spec.selected_text_color;
+        }
+        if(ctl->spec.hover_enabled&&(int32_t)k==ctl->combo_hover){
+            rb=&ctl->spec.hover_background;
+            tc=ctl->spec.hover_text_color;
+        }
+
+        rs.w=(uint32_t)row.w;
+        rs.h=(uint32_t)row.h;
+        rs.radius=0; /* popup jest jedna warstwa; wiersze nie wycinaja sie nawzajem */
+        surface=host_ui_control_background_surface(&rs,rb);
+        if(surface){
+            tex=SDL_CreateTextureFromSurface(u->ren,surface);
+            SDL_FreeSurface(surface);
+            if(tex){
+                SDL_SetTextureBlendMode(tex,SDL_BLENDMODE_BLEND);
+                SDL_RenderCopy(u->ren,tex,NULL,&row);
+                SDL_DestroyTexture(tex);
+            }
+        }
+        if(host_ui_item_at(ctl->spec.items,k,item,sizeof(item)))
+            host_ui_draw_simple_text(u->ren,item,tc,row,ctl->spec.font_size);
+    }
+
+    /* Obramowanie calego popupu daje wizualne odciecie od kontrolek pod nim. */
+    if(ctl->spec.border&&ctl->spec.border_color.mode!=NYOTA_COLOR_TRANSPARENT){
+        SDL_Rect pr={r.x,r.y+r.h,r.w,(int)vis*r.h};
+        uint32_t bw=ctl->spec.border_width?ctl->spec.border_width:1;
+        uint32_t b;
+        SDL_SetRenderDrawBlendMode(u->ren,SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(u->ren,ctl->spec.border_color.r,ctl->spec.border_color.g,
+                               ctl->spec.border_color.b,ctl->spec.border_color.a);
+        for(b=0;b<bw;b++){
+            SDL_Rect q={pr.x+(int)b,pr.y+(int)b,pr.w-(int)(2*b),pr.h-(int)(2*b)};
+            if(q.w<=1||q.h<=1)break;
+            SDL_RenderDrawRect(u->ren,&q);
+        }
+    }
+
+    SDL_RenderSetClipRect(u->ren,NULL);
+}
+
 static void host_ui_redraw_controls(int window_index) {
     int i;
     HostUiWindow *u;
@@ -2179,6 +2338,13 @@ static void host_ui_redraw_controls(int window_index) {
     for(i=0;i<HOST_MAX_UI_CONTROLS;i++)
         if(g_host_ui_controls[i].used&&g_host_ui_controls[i].window_handle==u->handle)
             host_ui_draw_control_index(i);
+
+    /* Overlay pass: dropdowny COMBO sa zawsze najwyzsza warstwa UI. */
+    for(i=0;i<HOST_MAX_UI_CONTROLS;i++)
+        if(g_host_ui_controls[i].used&&g_host_ui_controls[i].window_handle==u->handle&&
+           g_host_ui_controls[i].spec.kind==NYOTA_UI_CTRL_COMBO&&g_host_ui_controls[i].combo_open)
+            host_ui_draw_combo_popup(i);
+
     if(u->ren) SDL_RenderPresent(u->ren);
 }
 
