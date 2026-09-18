@@ -81,6 +81,11 @@ typedef struct {
     int32_t range_drag_offset;
     uint32_t caret;
     uint8_t text_changed;
+    SDL_Texture *eq_barbg_cache;
+    SDL_Texture *eq_fill_cache;
+    SDL_Texture *eq_glow_cache;
+    uint32_t eq_cache_w;
+    uint32_t eq_cache_h;
     char drop_items[NYOTA_UI_DROP_MAX];
 } HostUiControl;
 
@@ -102,6 +107,7 @@ static void host_ui_redraw_controls(int window_index);
 static void host_ui_mark_dirty(int window_index);
 static void host_ui_flush_dirty(void);
 static void host_ui_finish_initial_build(void);
+static void host_ui_clear_eq_cache(HostUiControl *ctl);
 static int host_ui_combo_popup_hit(int idx,int x,int y,int32_t *row_out);
 static NyotaColor host_ui_tint_color(NyotaColor c,int delta);
 static uint32_t host_ui_tarea_caret_from_point(HostUiControl *ctl,SDL_Rect r,int mx,int my);
@@ -324,7 +330,8 @@ static int host_ui_control_focusable(const HostUiControl *ctl) {
            ctl->spec.kind == NYOTA_UI_CTRL_DAREA ||
            ctl->spec.kind == NYOTA_UI_CTRL_TAB ||
            ctl->spec.kind == NYOTA_UI_CTRL_TAREA ||
-           ctl->spec.kind == NYOTA_UI_CTRL_SBAR;
+           ctl->spec.kind == NYOTA_UI_CTRL_SBAR ||
+           ctl->spec.kind == NYOTA_UI_CTRL_SLIDER;
 }
 
 static void host_ui_set_focus(int window_index, int wanted) {
@@ -398,7 +405,7 @@ static int host_ui_point_in_control(int idx, int x, int y) {
     while (p >= 0) {
         HostUiControl *pc = &g_host_ui_controls[p];
         SDL_Rect pr;
-        if (pc->spec.kind == NYOTA_UI_CTRL_PANEL && pc->spec.clip) {
+        if ((pc->spec.kind == NYOTA_UI_CTRL_PANEL || pc->spec.kind == NYOTA_UI_CTRL_TAB || pc->spec.kind == NYOTA_UI_CTRL_STATBAR || pc->spec.kind == NYOTA_UI_CTRL_TOOLBAR) && pc->spec.clip) {
             if (!host_ui_control_rect_index(p, &pr) ||
                 x < pr.x || y < pr.y || x >= pr.x + pr.w || y >= pr.y + pr.h) return 0;
         }
@@ -414,14 +421,14 @@ static uint32_t host_ui_range_clamp(const NyotaUiControlSpec *s,int64_t v){
     return (uint32_t)v;
 }
 
-static int host_ui_sbar_thumb_rect(int idx,SDL_Rect *out){
+static int host_ui_range_thumb_rect(int idx,SDL_Rect *out){
     HostUiControl *ctl;
     SDL_Rect r;
     uint32_t span,page;
     int track,cross,len,avail,pos;
     if(!out||idx<0||idx>=HOST_MAX_UI_CONTROLS)return 0;
     ctl=&g_host_ui_controls[idx];
-    if(!ctl->used||ctl->spec.kind!=NYOTA_UI_CTRL_SBAR||
+    if(!ctl->used||(ctl->spec.kind!=NYOTA_UI_CTRL_SBAR&&ctl->spec.kind!=NYOTA_UI_CTRL_SLIDER)||
        !host_ui_control_rect_index(idx,&r)||ctl->spec.range_max<=ctl->spec.range_min)return 0;
     if(ctl->spec.border&&ctl->spec.border_width){
         int p=(int)ctl->spec.border_width;
@@ -429,13 +436,18 @@ static int host_ui_sbar_thumb_rect(int idx,SDL_Rect *out){
         if(r.w<=0||r.h<=0)return 0;
     }
     span=ctl->spec.range_max-ctl->spec.range_min;
-    page=ctl->spec.range_page?ctl->spec.range_page:1;
     track=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?r.h:r.w;
     cross=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?r.w:r.h;
     if(track<=0||cross<=0)return 0;
-    len=(int)(((uint64_t)track*(uint64_t)page)/((uint64_t)span+(uint64_t)page));
-    if(len<cross)len=cross;
-    if(len<8)len=8;
+    if(ctl->spec.kind==NYOTA_UI_CTRL_SLIDER){
+        len=(int)ctl->spec.slider_thumb_size;
+        if(len<4)len=4;
+    }else{
+        page=ctl->spec.range_page?ctl->spec.range_page:1;
+        len=(int)(((uint64_t)track*(uint64_t)page)/((uint64_t)span+(uint64_t)page));
+        if(len<cross)len=cross;
+        if(len<8)len=8;
+    }
     if(len>track)len=track;
     avail=track-len;
     pos=avail>0?(int)(((uint64_t)(ctl->spec.range_value-ctl->spec.range_min)*(uint64_t)avail)/(uint64_t)span):0;
@@ -447,12 +459,12 @@ static int host_ui_sbar_thumb_rect(int idx,SDL_Rect *out){
     return 1;
 }
 
-static uint32_t host_ui_sbar_value_from_pointer(int idx,int x,int y){
+static uint32_t host_ui_range_value_from_pointer(int idx,int x,int y){
     HostUiControl *ctl=&g_host_ui_controls[idx];
     SDL_Rect r,thumb;
     int track,len,avail,p;
     uint32_t span;
-    if(!host_ui_control_rect_index(idx,&r)||!host_ui_sbar_thumb_rect(idx,&thumb)||
+    if(!host_ui_control_rect_index(idx,&r)||!host_ui_range_thumb_rect(idx,&thumb)||
        ctl->spec.range_max<=ctl->spec.range_min)return ctl->spec.range_value;
     if(ctl->spec.border&&ctl->spec.border_width){
         int pad=(int)ctl->spec.border_width;
@@ -555,9 +567,9 @@ static void host_pump(void) {
                 for(i=0;i<HOST_MAX_UI_CONTROLS;i++){
                     HostUiControl *dc=&g_host_ui_controls[i];
                     if(!dc->used||dc->window_handle!=g_ui_windows[ui].handle||
-                       dc->spec.kind!=NYOTA_UI_CTRL_SBAR||!dc->range_dragging||!dc->spec.enabled)continue;
+                       (dc->spec.kind!=NYOTA_UI_CTRL_SBAR&&dc->spec.kind!=NYOTA_UI_CTRL_SLIDER)||!dc->range_dragging||!dc->spec.enabled)continue;
                     {
-                        uint32_t nv=host_ui_sbar_value_from_pointer(i,e.motion.x,e.motion.y);
+                        uint32_t nv=host_ui_range_value_from_pointer(i,e.motion.x,e.motion.y);
                         if(nv!=dc->spec.range_value){dc->spec.range_value=nv;changed=1;}
                     }
                 }
@@ -592,7 +604,8 @@ static void host_pump(void) {
                                ctl->spec.kind == NYOTA_UI_CTRL_COMBO ||
                                ctl->spec.kind == NYOTA_UI_CTRL_DAREA ||
                                ctl->spec.kind == NYOTA_UI_CTRL_TAREA ||
-                               ctl->spec.kind == NYOTA_UI_CTRL_SBAR) {
+                               ctl->spec.kind == NYOTA_UI_CTRL_SBAR ||
+                               ctl->spec.kind == NYOTA_UI_CTRL_SLIDER) {
                         over = (uint8_t)host_ui_point_in_control(i,e.motion.x,e.motion.y);
                     }
                     if (popup_owner >= 0 && i != popup_owner) over = 0;
@@ -696,18 +709,18 @@ static void host_pump(void) {
                             changed=1;break;
                         }
                     }
-                    if(ctl->spec.kind==NYOTA_UI_CTRL_SBAR&&host_ui_point_in_control(i,e.button.x,e.button.y)){
+                    if((ctl->spec.kind==NYOTA_UI_CTRL_SBAR||ctl->spec.kind==NYOTA_UI_CTRL_SLIDER)&&host_ui_point_in_control(i,e.button.x,e.button.y)){
                         SDL_Rect th;
                         host_ui_set_focus(ui,i);
                         ctl->pressed=1;
-                        if(host_ui_sbar_thumb_rect(i,&th)){
+                        if(host_ui_range_thumb_rect(i,&th)){
                             int along=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?e.button.y:e.button.x;
                             int start=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?th.y:th.x;
                             int len=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?th.h:th.w;
                             int inside=e.button.x>=th.x&&e.button.x<th.x+th.w&&e.button.y>=th.y&&e.button.y<th.y+th.h;
                             ctl->range_drag_offset=inside?along-start:len/2;
                             ctl->range_dragging=1;
-                            if(!inside)ctl->spec.range_value=host_ui_sbar_value_from_pointer(i,e.button.x,e.button.y);
+                            if(!inside)ctl->spec.range_value=host_ui_range_value_from_pointer(i,e.button.x,e.button.y);
                         }
                         changed=1;break;
                     }
@@ -812,7 +825,7 @@ static void host_pump(void) {
                     HostUiControl *sc=&g_host_ui_controls[i];
                     int64_t nv;
                     if(!sc->used||sc->window_handle!=g_ui_windows[ui].handle||!sc->focused||
-                       sc->spec.kind!=NYOTA_UI_CTRL_SBAR||!sc->spec.enabled)continue;
+                       (sc->spec.kind!=NYOTA_UI_CTRL_SBAR&&sc->spec.kind!=NYOTA_UI_CTRL_SLIDER)||!sc->spec.enabled)continue;
                     nv=sc->spec.range_value;
                     if(k==SDLK_LEFT||k==SDLK_UP)nv-=(int64_t)sc->spec.range_step;
                     else if(k==SDLK_RIGHT||k==SDLK_DOWN)nv+=(int64_t)sc->spec.range_step;
@@ -1472,7 +1485,7 @@ static int host_ui_collect_rounded_clips(int idx,HostUiRoundedClip *out,int cap)
     while(p>=0){
         HostUiControl *pc=&g_host_ui_controls[p];
         SDL_Rect pr;
-        if((pc->spec.kind==NYOTA_UI_CTRL_PANEL||pc->spec.kind==NYOTA_UI_CTRL_TAB)&&pc->spec.clip&&
+        if((pc->spec.kind==NYOTA_UI_CTRL_PANEL||pc->spec.kind==NYOTA_UI_CTRL_TAB||pc->spec.kind==NYOTA_UI_CTRL_STATBAR||pc->spec.kind==NYOTA_UI_CTRL_TOOLBAR)&&pc->spec.clip&&
            pc->spec.radius&&host_ui_control_rect_index(p,&pr)&&n<cap){
             out[n].r=pr;out[n].radius=pc->spec.radius;out[n].tab=(uint8_t)(pc->spec.kind==NYOTA_UI_CTRL_TAB);n++;
         }
@@ -1564,7 +1577,7 @@ static int host_ui_has_rounded_ancestor(int idx){
       host_ui_control_index_by_handle(g_host_ui_controls[idx].parent_control_handle):-1;
     while(p>=0){
         HostUiControl *pc=&g_host_ui_controls[p];
-        if((pc->spec.kind==NYOTA_UI_CTRL_PANEL||pc->spec.kind==NYOTA_UI_CTRL_TAB)&&pc->spec.clip&&pc->spec.radius)return 1;
+        if((pc->spec.kind==NYOTA_UI_CTRL_PANEL||pc->spec.kind==NYOTA_UI_CTRL_TAB||pc->spec.kind==NYOTA_UI_CTRL_STATBAR||pc->spec.kind==NYOTA_UI_CTRL_TOOLBAR)&&pc->spec.clip&&pc->spec.radius)return 1;
         p=pc->parent_control_handle>0?host_ui_control_index_by_handle(pc->parent_control_handle):-1;
     }
     return 0;
@@ -1964,7 +1977,7 @@ static int host_ui_clip_for_control(int idx, SDL_Rect *clip) {
     p=c->parent_control_handle>0?host_ui_control_index_by_handle(c->parent_control_handle):-1;
     while(p>=0){
         HostUiControl *pc=&g_host_ui_controls[p];
-        if((pc->spec.kind==NYOTA_UI_CTRL_PANEL||pc->spec.kind==NYOTA_UI_CTRL_TAB) && pc->spec.clip && host_ui_control_rect_index(p,&pr)){
+        if((pc->spec.kind==NYOTA_UI_CTRL_PANEL||pc->spec.kind==NYOTA_UI_CTRL_TAB||pc->spec.kind==NYOTA_UI_CTRL_STATBAR||pc->spec.kind==NYOTA_UI_CTRL_TOOLBAR) && pc->spec.clip && host_ui_control_rect_index(p,&pr)){
             if(!SDL_IntersectRect(clip,&pr,&inter)){clip->w=clip->h=0;return 1;} *clip=inter;
         }
         p=pc->parent_control_handle>0?host_ui_control_index_by_handle(pc->parent_control_handle):-1;
@@ -2342,7 +2355,7 @@ static void host_ui_fill_round_rect(SDL_Renderer *ren,int idx,SDL_Rect q){
 static void host_ui_draw_sbar_thumb(SDL_Renderer *ren,int idx,HostUiControl *ctl){
     SDL_Rect q;
     NyotaColor c;
-    if(!host_ui_sbar_thumb_rect(idx,&q))return;
+    if(!host_ui_range_thumb_rect(idx,&q))return;
     c=(ctl->hover||ctl->pressed)?ctl->spec.thumb_hover_color:ctl->spec.thumb_color;
     if(!ctl->spec.enabled)c=host_ui_tint_color(c,-60);
     SDL_SetRenderDrawBlendMode(ren,SDL_BLENDMODE_BLEND);
@@ -2355,6 +2368,10 @@ static void host_ui_draw_sbar_thumb(SDL_Renderer *ren,int idx,HostUiControl *ctl
         int d=q.w<q.h?q.w:q.h;SDL_Rect z={q.x+(q.w-d)/2,q.y+(q.h-d)/2,d,d};host_ui_fill_diamond(ren,idx,z);
     }else if(ctl->spec.thumb_shape==NYOTA_UI_SBAR_THUMB_TRIANGLE)host_ui_fill_triangle(ren,idx,q,ctl->spec.orientation);
     else host_ui_fill_parallelogram(ren,idx,q);
+}
+
+static void host_ui_draw_slider_thumb(SDL_Renderer *ren,int idx,HostUiControl *ctl){
+    host_ui_draw_sbar_thumb(ren,idx,ctl);
 }
 
 static void host_ui_draw_pbar(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_Rect r){
@@ -2403,6 +2420,190 @@ static void host_ui_draw_pbar(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_R
             else if(ctl->spec.progress_shape==NYOTA_UI_PBAR_SHAPE_SQUARE){
                 int d=q.w<q.h?q.w:q.h;SDL_Rect z={q.x+(q.w-d)/2,q.y+(q.h-d)/2,d,d};host_ui_fill_rect_masked(ren,idx,z);
             }else host_ui_fill_parallelogram(ren,idx,q);
+        }
+    }
+}
+
+static void host_ui_clear_eq_cache(HostUiControl *ctl){
+    if(!ctl)return;
+    if(ctl->eq_barbg_cache)SDL_DestroyTexture(ctl->eq_barbg_cache);
+    if(ctl->eq_fill_cache)SDL_DestroyTexture(ctl->eq_fill_cache);
+    if(ctl->eq_glow_cache)SDL_DestroyTexture(ctl->eq_glow_cache);
+    ctl->eq_barbg_cache=ctl->eq_fill_cache=ctl->eq_glow_cache=NULL;
+    ctl->eq_cache_w=ctl->eq_cache_h=0;
+}
+
+static int host_ui_bg_is_transparent(const NyotaUiBackground *bg){
+    return bg&&bg->kind==NYOTA_UI_BG_COLOR&&bg->colors[0].mode==NYOTA_COLOR_TRANSPARENT;
+}
+
+static SDL_Texture *host_ui_background_texture(SDL_Renderer *ren,const NyotaUiBackground *bg,uint32_t w,uint32_t h){
+    NyotaUiControlSpec ts;SDL_Surface *sf;SDL_Texture *tx;
+    if(!ren||!bg||!w||!h||host_ui_bg_is_transparent(bg))return NULL;
+    memset(&ts,0,sizeof(ts));ts.kind=NYOTA_UI_CTRL_PANEL;ts.w=w;ts.h=h;ts.background=*bg;
+    sf=host_ui_control_background_surface(&ts,bg);if(!sf)return NULL;
+    tx=SDL_CreateTextureFromSurface(ren,sf);SDL_FreeSurface(sf);
+    if(tx)SDL_SetTextureBlendMode(tx,SDL_BLENDMODE_BLEND);
+    return tx;
+}
+
+static void host_ui_eqbox_ensure_cache(SDL_Renderer *ren,HostUiControl *ctl,uint32_t w,uint32_t h){
+    if(!ctl||!ren||!w||!h)return;
+    if(ctl->eq_cache_w==w&&ctl->eq_cache_h==h&&
+       (ctl->eq_barbg_cache||host_ui_bg_is_transparent(&ctl->spec.eq_bar_background))&&
+       (ctl->eq_fill_cache||host_ui_bg_is_transparent(&ctl->spec.eq_bar_fill))&&
+       (ctl->eq_glow_cache||host_ui_bg_is_transparent(&ctl->spec.eq_glow)))return;
+    host_ui_clear_eq_cache(ctl);
+    ctl->eq_cache_w=w;ctl->eq_cache_h=h;
+    ctl->eq_barbg_cache=host_ui_background_texture(ren,&ctl->spec.eq_bar_background,w,h);
+    ctl->eq_fill_cache=host_ui_background_texture(ren,&ctl->spec.eq_bar_fill,w,h);
+    ctl->eq_glow_cache=host_ui_background_texture(ren,&ctl->spec.eq_glow,w,h);
+}
+
+static NyotaColor host_ui_eq_sample(const NyotaUiBackground *bg,double t){
+    NyotaColor c;uint8_t r=255,g=255,b=255,a=255;
+    memset(&c,0,sizeof(c));c.mode=NYOTA_COLOR_SOLID;
+    if(!bg)return c;
+    if(bg->kind==NYOTA_UI_BG_COLOR){
+        c=bg->colors[0];
+        if(c.mode==NYOTA_COLOR_TRANSPARENT){c.r=c.g=c.b=0;c.a=0;c.mode=NYOTA_COLOR_SOLID;}
+        return c;
+    }
+    if(bg->kind!=NYOTA_UI_BG_IMAGE){
+        if(t<0.0)t=0.0;if(t>1.0)t=1.0;
+        host_ui_lerp_color(bg,t,&r,&g,&b,&a);c.r=r;c.g=g;c.b=b;c.a=a;return c;
+    }
+    c.r=c.g=c.b=255;c.a=255;return c;
+}
+
+static SDL_Rect host_ui_eq_active_rect(const HostUiControl *ctl,SDL_Rect track,uint32_t value){
+    SDL_Rect q=track;uint32_t span=ctl->spec.range_max-ctl->spec.range_min,pos;
+    int total=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?track.h:track.w;
+    int minlen=(int)ctl->spec.eq_min_height,maxlen=ctl->spec.eq_max_height?(int)ctl->spec.eq_max_height:total,len;
+    if(maxlen>total)maxlen=total;if(minlen>maxlen)minlen=maxlen;
+    pos=value<=ctl->spec.range_min?0:(value>=ctl->spec.range_max?span:value-ctl->spec.range_min);
+    len=minlen+(span?(int)(((uint64_t)(maxlen-minlen)*(uint64_t)pos)/(uint64_t)span):0);
+    if(ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL){
+        q.h=len;
+        if(ctl->spec.eq_direction==NYOTA_UI_EQ_DOWN)q.y=track.y;
+        else if(ctl->spec.eq_direction==NYOTA_UI_EQ_CENTER)q.y=track.y+(track.h-len)/2;
+        else q.y=track.y+track.h-len;
+    }else{
+        q.w=len;
+        if(ctl->spec.eq_direction==NYOTA_UI_EQ_RIGHT)q.x=track.x;
+        else if(ctl->spec.eq_direction==NYOTA_UI_EQ_CENTER)q.x=track.x+(track.w-len)/2;
+        else q.x=track.x+track.w-len;
+    }
+    return q;
+}
+
+static void host_ui_eq_copy_active(SDL_Renderer *ren,SDL_Texture *tx,SDL_Rect track,SDL_Rect active,uint8_t orientation,uint8_t direction){
+    SDL_Rect src;
+    if(!tx||active.w<=0||active.h<=0)return;
+    src.x=active.x-track.x;src.y=active.y-track.y;src.w=active.w;src.h=active.h;
+    if(orientation==NYOTA_UI_SEP_VERTICAL&&(direction==NYOTA_UI_EQ_UP||direction==NYOTA_UI_EQ_CENTER))src.y=active.y-track.y;
+    if(orientation==NYOTA_UI_SEP_HORIZONTAL&&(direction==NYOTA_UI_EQ_LEFT||direction==NYOTA_UI_EQ_CENTER))src.x=active.x-track.x;
+    SDL_RenderCopy(ren,tx,&src,&active);
+}
+
+static void host_ui_eq_draw_glow(SDL_Renderer *ren,HostUiControl *ctl,SDL_Rect track,SDL_Rect active){
+    uint32_t blur=ctl->spec.eq_blur;int pass;
+    if(!blur||!ctl->eq_glow_cache||active.w<=0||active.h<=0)return;
+    for(pass=3;pass>=1;pass--){
+        int grow=(int)((blur*(uint32_t)pass)/3u);
+        SDL_Rect d={active.x-grow,active.y-grow,active.w+2*grow,active.h+2*grow};
+        Uint8 alpha=(Uint8)(36+(3-pass)*28);
+        SDL_SetTextureAlphaMod(ctl->eq_glow_cache,alpha);
+        SDL_RenderCopy(ren,ctl->eq_glow_cache,NULL,&d);
+    }
+    SDL_SetTextureAlphaMod(ctl->eq_glow_cache,255);
+    (void)track;
+}
+
+static void host_ui_eq_draw_segment_shape(SDL_Renderer *ren,int idx,uint8_t build,SDL_Rect q,NyotaColor c,uint8_t orientation){
+    SDL_SetRenderDrawBlendMode(ren,SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren,c.r,c.g,c.b,c.a);
+    if(build==NYOTA_UI_EQ_CIRCLE)host_ui_fill_circle(ren,idx,q);
+    else if(build==NYOTA_UI_EQ_SQUARE){int d=q.w<q.h?q.w:q.h;SDL_Rect z={q.x+(q.w-d)/2,q.y+(q.h-d)/2,d,d};host_ui_fill_rect_masked(ren,idx,z);}
+    else if(build==NYOTA_UI_EQ_TRIANGLE)host_ui_fill_triangle(ren,idx,q,orientation);
+    else if(build==NYOTA_UI_EQ_DIAMOND)host_ui_fill_diamond(ren,idx,q);
+    else if(build==NYOTA_UI_EQ_PARALLELOGRAM)host_ui_fill_parallelogram(ren,idx,q);
+    else host_ui_fill_rect_masked(ren,idx,q);
+}
+
+static void host_ui_draw_eqbox(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_Rect r){
+    SDL_Rect inner=r;uint32_t n=ctl->spec.eq_bars,i;int bw=(int)ctl->spec.eq_bar_width,gap=(int)ctl->spec.eq_gap;
+    int border=ctl->spec.border?(int)ctl->spec.border_width:0;
+    int total,start,crossLen;
+    if(border){inner.x+=border;inner.y+=border;inner.w-=2*border;inner.h-=2*border;}
+    inner.x+=(int)ctl->spec.pad_x;inner.w-=2*(int)ctl->spec.pad_x;
+    inner.y+=(int)ctl->spec.pad_y;inner.h-=2*(int)ctl->spec.pad_y;
+    if(inner.w<=0||inner.h<=0||!n||bw<=0)return;
+    total=(int)n*bw+(int)(n>1?(n-1u)*(uint32_t)gap:0u);
+    crossLen=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?inner.w:inner.h;
+    start=(crossLen-total)/2;if(start<0)start=0;
+
+    for(i=0;i<n;i++){
+        SDL_Rect track,active;uint32_t v=ctl->spec.eq_values[i];
+        int maxlen;
+        if(v<ctl->spec.range_min)v=ctl->spec.range_min;if(v>ctl->spec.range_max)v=ctl->spec.range_max;
+        if(ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL){
+            maxlen=ctl->spec.eq_max_height?(int)ctl->spec.eq_max_height:inner.h;if(maxlen>inner.h)maxlen=inner.h;
+            track.x=inner.x+start+(int)i*(bw+gap);track.w=bw;track.h=maxlen;
+            if(ctl->spec.eq_direction==NYOTA_UI_EQ_DOWN)track.y=inner.y;
+            else if(ctl->spec.eq_direction==NYOTA_UI_EQ_CENTER)track.y=inner.y+(inner.h-maxlen)/2;
+            else track.y=inner.y+inner.h-maxlen;
+        }else{
+            maxlen=ctl->spec.eq_max_height?(int)ctl->spec.eq_max_height:inner.w;if(maxlen>inner.w)maxlen=inner.w;
+            track.y=inner.y+start+(int)i*(bw+gap);track.h=bw;track.w=maxlen;
+            if(ctl->spec.eq_direction==NYOTA_UI_EQ_RIGHT)track.x=inner.x;
+            else if(ctl->spec.eq_direction==NYOTA_UI_EQ_CENTER)track.x=inner.x+(inner.w-maxlen)/2;
+            else track.x=inner.x+inner.w-maxlen;
+        }
+        host_ui_eqbox_ensure_cache(ren,ctl,(uint32_t)track.w,(uint32_t)track.h);
+        if(ctl->eq_barbg_cache)SDL_RenderCopy(ren,ctl->eq_barbg_cache,NULL,&track);
+        active=host_ui_eq_active_rect(ctl,track,v);
+        host_ui_eq_draw_glow(ren,ctl,track,active);
+
+        if(ctl->spec.eq_build==NYOTA_UI_EQ_SOLID){
+            if(i<ctl->spec.eq_color_count&&ctl->spec.eq_bar_color_set[i]){
+                NyotaColor cc=ctl->spec.eq_bar_colors[i];SDL_SetRenderDrawColor(ren,cc.r,cc.g,cc.b,cc.a);host_ui_fill_rect_masked(ren,idx,active);
+            }else if(ctl->eq_fill_cache)host_ui_eq_copy_active(ren,ctl->eq_fill_cache,track,active,ctl->spec.orientation,ctl->spec.eq_direction);
+        }else{
+            int unit=bw,sg=(int)ctl->spec.eq_segment_gap,along=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?active.h:active.w;
+            int count=(along+sg)/(unit+sg),k;
+            if(unit<2)unit=2;
+            for(k=0;k<count;k++){
+                SDL_Rect q;double t=count>1?(double)k/(double)(count-1):0.0;NyotaColor cc;
+                if(ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL){
+                    q.x=track.x;q.w=track.w;q.h=unit;
+                    if(ctl->spec.eq_direction==NYOTA_UI_EQ_DOWN)q.y=active.y+k*(unit+sg);
+                    else q.y=active.y+active.h-unit-k*(unit+sg);
+                }else{
+                    q.y=track.y;q.h=track.h;q.w=unit;
+                    if(ctl->spec.eq_direction==NYOTA_UI_EQ_RIGHT)q.x=active.x+k*(unit+sg);
+                    else q.x=active.x+active.w-unit-k*(unit+sg);
+                }
+                if(q.x<active.x||q.y<active.y||q.x+q.w>active.x+active.w||q.y+q.h>active.y+active.h)continue;
+                cc=(i<ctl->spec.eq_color_count&&ctl->spec.eq_bar_color_set[i])?ctl->spec.eq_bar_colors[i]:host_ui_eq_sample(&ctl->spec.eq_bar_fill,t);
+                host_ui_eq_draw_segment_shape(ren,idx,ctl->spec.eq_build,q,cc,ctl->spec.orientation);
+            }
+        }
+
+        if(ctl->spec.eq_show_labels&&i<ctl->spec.eq_label_count&&ctl->spec.eq_labels[i][0]){
+            NyotaUiControlSpec ts=ctl->spec;SDL_Rect lr=track;
+            strncpy(ts.text,ctl->spec.eq_labels[i],sizeof(ts.text)-1);ts.text[sizeof(ts.text)-1]='\0';
+            ts.halign=NYOTA_UI_ALIGN_CENTER;ts.valign=NYOTA_UI_VALIGN_MIDDLE;ts.pad_x=ts.pad_y=0;
+            if(ctl->spec.eq_label_pos==NYOTA_UI_EQ_LABEL_BOTTOM){lr.y=track.y+track.h-(int)ctl->spec.font_size-4;lr.h=(int)ctl->spec.font_size+4;}
+            else if(ctl->spec.eq_label_pos==NYOTA_UI_EQ_LABEL_TOP){lr.h=(int)ctl->spec.font_size+4;}
+            else lr=active;
+            host_ui_draw_text(ren,&ts,lr);
+        }
+        if(ctl->spec.eq_show_values){
+            NyotaUiControlSpec ts=ctl->spec;SDL_Rect vr=active;char vb[24];
+            snprintf(vb,sizeof(vb),"%u",v);strncpy(ts.text,vb,sizeof(ts.text)-1);ts.text[sizeof(ts.text)-1]='\0';
+            ts.halign=NYOTA_UI_ALIGN_CENTER;ts.valign=NYOTA_UI_VALIGN_MIDDLE;ts.pad_x=ts.pad_y=0;
+            host_ui_draw_text(ren,&ts,vr);
         }
     }
 }
@@ -2479,6 +2680,10 @@ static void host_ui_draw_control_index(int idx) {
         host_ui_draw_sbar_thumb(u->ren,idx,ctl);
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_PBAR){
         host_ui_draw_pbar(u->ren,idx,ctl,r);
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_SLIDER){
+        host_ui_draw_slider_thumb(u->ren,idx,ctl);
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_EQBOX){
+        host_ui_draw_eqbox(u->ren,idx,ctl,r);
     } else {
         NyotaUiControlSpec ts=ctl->spec;
         if(!ts.enabled) ts.text_color=host_ui_tint_color(ts.text_color,-72);
@@ -2685,7 +2890,9 @@ static int32_t host_ui_control_create(const char *name, int32_t window_handle,
         if (spec->kind == NYOTA_UI_CTRL_TAB) {
             if (g_host_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_TABS) return -1;
         } else if (g_host_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_PANEL &&
-                   g_host_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_TAB) return -1;
+                   g_host_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_TAB &&
+                   g_host_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_STATBAR &&
+                   g_host_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_TOOLBAR) return -1;
     }
     for(i=0;i<HOST_MAX_UI_CONTROLS;i++) if(!g_host_ui_controls[i].used){
         memset(&g_host_ui_controls[i],0,sizeof(g_host_ui_controls[i]));
@@ -2705,6 +2912,7 @@ static int32_t host_ui_control_create(const char *name, int32_t window_handle,
 static int32_t host_ui_control_update(int32_t handle, const NyotaUiControlSpec *spec) {
     int i=host_ui_control_index_by_handle(handle), wi;
     if(i<0||!spec)return -1;
+    host_ui_clear_eq_cache(&g_host_ui_controls[i]);
     g_host_ui_controls[i].spec=*spec;
     wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);
     if(wi<0)return -1;
@@ -2718,6 +2926,7 @@ static void host_ui_control_destroy_index(int idx) {
     if(idx<0||idx>=HOST_MAX_UI_CONTROLS||!g_host_ui_controls[idx].used)return;
     handle=g_host_ui_controls[idx].handle;
     wi=host_ui_index_by_handle(g_host_ui_controls[idx].window_handle);
+    host_ui_clear_eq_cache(&g_host_ui_controls[idx]);
     for(i=0;i<HOST_MAX_UI_CONTROLS;i++)
         if(g_host_ui_controls[i].used&&g_host_ui_controls[i].parent_control_handle==handle)
             host_ui_control_destroy_index(i);
@@ -2797,14 +3006,14 @@ static int32_t host_ui_tarea_changed(int32_t handle){
 
 static int32_t host_ui_range_value(int32_t handle){
     int i=host_ui_control_index_by_handle(handle);
-    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_PBAR))return -1;
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_PBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SLIDER))return -1;
     host_pump();
     return (int32_t)g_host_ui_controls[i].spec.range_value;
 }
 
 static int32_t host_ui_range_set_value(int32_t handle,uint32_t value){
     int i=host_ui_control_index_by_handle(handle),wi;
-    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_PBAR))return -1;
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_PBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SLIDER))return -1;
     if(value<g_host_ui_controls[i].spec.range_min||value>g_host_ui_controls[i].spec.range_max)return -2;
     g_host_ui_controls[i].spec.range_value=value;
     wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);
@@ -2812,6 +3021,22 @@ static int32_t host_ui_range_set_value(int32_t handle,uint32_t value){
     return 0;
 }
 
+
+static int32_t host_ui_eqbox_set_values(int32_t handle,const uint32_t *values,uint32_t count){
+    int i=host_ui_control_index_by_handle(handle),wi;uint32_t k;
+    if(i<0||!values||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_EQBOX||count!=g_host_ui_controls[i].spec.eq_bars)return -1;
+    for(k=0;k<count;k++)if(values[k]<g_host_ui_controls[i].spec.range_min||values[k]>g_host_ui_controls[i].spec.range_max)return -2;
+    memcpy(g_host_ui_controls[i].spec.eq_values,values,count*sizeof(uint32_t));g_host_ui_controls[i].spec.eq_value_count=count;
+    wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);if(wi>=0)host_ui_mark_dirty(wi);return 0;
+}
+static int32_t host_ui_eqbox_set_bar(int32_t handle,uint32_t index,uint32_t value){
+    int i=host_ui_control_index_by_handle(handle),wi;
+    if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_EQBOX||index>=g_host_ui_controls[i].spec.eq_bars)return -1;
+    if(value<g_host_ui_controls[i].spec.range_min||value>g_host_ui_controls[i].spec.range_max)return -2;
+    g_host_ui_controls[i].spec.eq_values[index]=value;
+    if(g_host_ui_controls[i].spec.eq_value_count<=index)g_host_ui_controls[i].spec.eq_value_count=index+1;
+    wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);if(wi>=0)host_ui_mark_dirty(wi);return 0;
+}
 
 static int32_t host_ui_win_create(const char *name, int32_t parent_handle,
                                   uint32_t w, uint32_t h, int32_t x, int32_t y,
@@ -2908,8 +3133,10 @@ static void host_ui_destroy_index(int idx) {
     if (idx < 0 || idx >= HOST_MAX_UI_WINDOWS || !g_ui_windows[idx].used) return;
     handle = g_ui_windows[idx].handle;
     for (i = 0; i < HOST_MAX_UI_CONTROLS; i++)
-        if (g_host_ui_controls[i].used && g_host_ui_controls[i].window_handle == handle)
+        if (g_host_ui_controls[i].used && g_host_ui_controls[i].window_handle == handle) {
+            host_ui_clear_eq_cache(&g_host_ui_controls[i]);
             memset(&g_host_ui_controls[i], 0, sizeof(g_host_ui_controls[i]));
+        }
     for (i = 0; i < HOST_MAX_UI_WINDOWS; i++)
         if (g_ui_windows[i].used && g_ui_windows[i].parent_handle == handle)
             host_ui_destroy_index(i);
@@ -3355,6 +3582,8 @@ int main(int argc, char **argv) {
     g_nyhost.ui_tarea_changed = host_ui_tarea_changed;
     g_nyhost.ui_range_value = host_ui_range_value;
     g_nyhost.ui_range_set_value = host_ui_range_set_value;
+    g_nyhost.ui_eqbox_set_values = host_ui_eqbox_set_values;
+    g_nyhost.ui_eqbox_set_bar = host_ui_eqbox_set_bar;
     NyotaSetHost(&g_nyhost);
     g_input_feed = getenv("NYOTA_INPUT");
     g_input_pos = 0;
