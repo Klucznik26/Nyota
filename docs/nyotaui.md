@@ -429,3 +429,10 @@ BUTTON zapisz, panel, [120, 36], [20, 20], TEXT="Zapisz", ENABLED=FALSE
 `ENABLED=FALSE` wyszarza kontrolkę i wyłącza obsługę wejścia. Domyślna wartość to `TRUE`.
 
 Backend POSIX utrzymuje też focus klawiatury dla kontrolek interaktywnych. Kliknięcie nadaje focus, a `Tab` oraz `Shift+Tab` przechodzą między aktywnymi kontrolkami. `Enter`/`Space` aktywują kontrolkę z focusem: `BUTTON`, `CBOX`, `RADIO`, `COMBO` lub `TAB`. Focus jest sygnalizowany subtelnym obrysem i nie wymaga dodatkowej właściwości w kodzie Nyoty.
+
+
+## Wygładzanie geometrii POSIX
+
+Zaokrąglone tła, kontrolki kołowe oraz eliptyczne otrzymują na hoście POSIX antyaliasowaną maskę krawędzi. Dotyczy to między innymi `RADIUS`, `RADIO`, `DAREA CIRCLE/ELLIPSE` i obu części `TAB`.
+
+Cienie zachowują teraz geometrię kontrolki zamiast być zawsze prostokątem. Nadal obowiązuje kontrakt bez rozmycia; `SHADOW` pozostaje cieniem kierunkowym o określonej głębokości.
