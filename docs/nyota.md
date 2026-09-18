@@ -97,7 +97,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">FILE oraz DIR/LS przez kontrakt NyotaHost; pełny backend POSIX wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">SORT: jawny wybór AUTO/BUBBLE/INSERT/SELECT/MERGE/QUICK/HEAP/SHELL/COUNTING wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">NYASM: bezpieczna VM R0-R3 z INPUT/OUTPUT i MOV/ADD/SUB/MUL/DIV/MOD/STORE wykonane 2026-09-18</span>
-- <span style="color: #006A4E;">NyotaUI: `WIN` oraz kontrolki `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `ICONBUTTON`, `SWITCH`, `FRAME`, `INPUT`; wspólne `.CONFIG`, layout FREE/ROW/COL, AUTO/CENTER, PNG, gradienty, focus, UTF-8 i HiDPI — rdzeń i backend POSIX działają; AyoOS czeka na podpięcie backendu</span>
+- <span style="color: #006A4E;">NyotaUI: `WIN` oraz kontrolki `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `ICONBUTTON`, `TOGGLE`, `FRAME`, `INPUT`; wspólne `.CONFIG`, layout FREE/ROW/COL, AUTO/CENTER, PNG, gradienty, focus, UTF-8 i HiDPI — rdzeń i backend POSIX działają; AyoOS czeka na podpięcie backendu</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - Tunga pozostaje osobnym edytorem wywołującym interpreter Nyoty; integracja Tungi nie jest częścią tego repozytorium.
@@ -1281,11 +1281,11 @@ FRAME panel.CONFIG:
     LPADY = 28
 
 INPUT szukaj, panel, [300, 38], AUTO, TYPE=SEARCH
-SWITCH wifi, panel, [92, 34], AUTO, VALUE=TRUE
+TOGGLE wifi, panel, [92, 34], AUTO, VALUE=TRUE
 BUTTON zapisz, panel, [140, 38], AUTO, TEXT="Zapisz"
 ```
 
-Bieżące rodzaje kontrolek: `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `ICONBUTTON`, `SWITCH`, `FRAME`, `INPUT`.
+Bieżące rodzaje kontrolek: `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `ICONBUTTON`, `TOGGLE`, `FRAME`, `INPUT`.
 
 Kontrolki używają rodzica, rozmiaru, pozycji `AUTO`/`CENTER` albo `[x,y]`, właściwości inline oraz opcjonalnego bloku `.CONFIG:`. Szczegółowa lista właściwości, walidacja i model hosta są normatywnie opisane w [`docs/nyotaui.md`](nyotaui.md).
 
@@ -1321,7 +1321,7 @@ LISTVIEW_INDEX     LISTVIEW_VALUE     LISTVIEW_SET      LISTVIEW_CHANGED
 TREEVIEW_INDEX     TREEVIEW_VALUE     TREEVIEW_SET      TREEVIEW_CHANGED
 SPLITTER_VALUE     SPLITTER_SET       SPLITTER_CHANGED
 SCALE_VALUE        SCALE_SET          SCALE_CHANGED
-SWITCH_VALUE       SWITCH_SET         SWITCH_CHANGED
+TOGGLE_VALUE       TOGGLE_SET         TOGGLE_CHANGED
 ICONBUTTON_VALUE   ICONBUTTON_SET     ICONBUTTON_CLICKED
 EQBOX_SET          EQBOX_BAR
 CLOCK_SET          CLOCK_NEEDLE       CLOCK_VALUE       CLOCK_VALUES
