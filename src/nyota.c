@@ -6338,10 +6338,14 @@ static int UiValidateControlSpec(const NyotaUiControlSpec *s){
         if(s->orientation==NYOTA_UI_SEP_HORIZONTAL&&(s->eq_direction==NYOTA_UI_EQ_UP||s->eq_direction==NYOTA_UI_EQ_DOWN)){OutError("EQBOX HORIZONTAL wymaga DIRECTION=LEFT/RIGHT/CENTER");return 0;}
         for(i=0;i<s->eq_value_count;i++)if(s->eq_values[i]<s->range_min||s->eq_values[i]>s->range_max){OutError("EQBOX VALUES: wartosc poza MIN..MAX");return 0;}
     }
-    if(s->kind==NYOTA_UI_CTRL_TBOX){
-        if(strlen(s->text)>s->max_length){OutError("TBOX: TEXT przekracza MAXLEN");return 0;}
-        if(strchr(s->text,'\n')||strchr(s->text,'\r')){OutError("TBOX: TEXT musi byc jednowierszowy");return 0;}
+    if(s->kind==NYOTA_UI_CTRL_TBOX||s->kind==NYOTA_UI_CTRL_INPUT){
+        if(strlen(s->text)>s->max_length){OutError("TBOX/INPUT: TEXT przekracza MAXLEN");return 0;}
+        if(strchr(s->text,'\n')||strchr(s->text,'\r')){OutError("TBOX/INPUT: TEXT musi byc jednowierszowy");return 0;}
+        if(s->kind==NYOTA_UI_CTRL_INPUT&&(s->icon_pos==NYOTA_UI_ICON_TOP||s->icon_pos==NYOTA_UI_ICON_BOTTOM)){OutError("INPUT ICONPOS wspiera LEFT/RIGHT/CENTER");return 0;}
     }
+    if(s->kind==NYOTA_UI_CTRL_ICONBUTTON&&s->checked&&!s->toggle){OutError("ICONBUTTON VALUE=TRUE wymaga TOGGLE=TRUE");return 0;}
+    if(s->kind==NYOTA_UI_CTRL_SWITCH&&s->switch_thumb_size<4){OutError("SWITCH THUMBSIZE jest za maly");return 0;}
+
     if(s->kind==NYOTA_UI_CTRL_SPINBOX||s->kind==NYOTA_UI_CTRL_SCALE){
         if(s->signed_max<=s->signed_min){OutError("SPINBOX/SCALE: MAX musi byc wieksze od MIN");return 0;}
         if(s->signed_step<=0){OutError("SPINBOX/SCALE: STEP musi byc dodatni");return 0;}
