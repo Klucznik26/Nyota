@@ -3221,7 +3221,7 @@ static void host_ui_draw_clock(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_
             host_ui_draw_tick_mark(ren,idx,ctl->spec.tick_style,xo,yo,xi,yi,cc,(int)ctl->spec.tick_width,ctl->spec.tick_blur);
             if(major&&ctl->spec.show_labels&&ctl->spec.label_step>0&&((v-ctl->spec.signed_min)%ctl->spec.label_step)==0){
                 int lx,ly;char buf[32];SDL_Rect lr;host_ui_polar_point(cx,cy,radius-8.0-tl-(double)ctl->spec.label_offset,a,&lx,&ly);
-                snprintf(buf,sizeof(buf),"%lld",(long long)v);lr.x=lx-28;lr.y=ly-10;lr.w=56;lr.h=20;host_ui_draw_simple_text(ren,buf,ctl->spec.text_color,lr,ctl->spec.font_size);
+                snprintf(buf,sizeof(buf),"%lld",(long long)v);lr.x=lx-28;lr.y=ly-10;lr.w=56;lr.h=20;host_ui_draw_control_label(ren,ctl,buf,lr);
             }
             if(v+step<v)break;
         }
