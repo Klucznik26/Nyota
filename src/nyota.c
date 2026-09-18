@@ -3651,7 +3651,7 @@ static NyotaVal ParseShift(const char **pp) {
         else break;
         *pp = p + n;
         {
-            NyotaVal right = ParseBor(pp);
+            NyotaVal right = ParseAdd(pp);
             left = ValBitOp(&left, op, &right);
         }
     }
@@ -3706,7 +3706,7 @@ static NyotaVal ParseCompare(const char **pp) {
     if (PeekWord(p, "IN")) {
         *pp = p + 2;
         {
-            NyotaVal right = ParseAdd(pp);
+            NyotaVal right = ParseBor(pp);
             NyotaVal r;
             ValClear(&r);
             if (right.type == TYPE_MARK) {
