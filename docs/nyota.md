@@ -37,7 +37,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">BEGIN i END są obowiązkowe; brak pary albo kod poza blokiem to błąd, a nie ciche wykonanie całego pliku wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`+` wymaga tego samego typu; `4 + "8"` i `"8" + 4` są błędem, nie zgadywaniem wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=` i `<>` porównują typ i wartość; `5 = "5"` oraz `5 = 5.0` są błędem typu wykonane 2026-09-17</span>
-- <span style="color: navy;">literał `5.0` jest FLOAT; `FLT()` / `STR()` / `BOOL()` działają obok `INT()` i `STRING()` w toku (zaawansowany etap) 2026-09-17</span>
+- <span style="color: #006A4E;">FLOAT: stała precyzja 3 miejsc, jawne ucinanie dalszych cyfr, poprawne liczby ujemne i kontrola przepełnień wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">typ DATE: literał `&lt;RRRR.MM.DD&gt;`, walidacja gregoriańska, `+`/`-` dni, `YEAR`/`MONTH`/`DAY`/`TODAY` wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">FUNCTION / PROCEDURE: parametry, VAR, RETURN, zakresy i wywołanie w wyrażeniu wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">IF / ELIF / ELSE jako jeden łańcuch: tylko pierwsza prawdziwa gałąź, ELSE nie odpala się sam wykonane 2026-09-17</span>
@@ -56,8 +56,8 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 - <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>
-- <span style="color: navy;">Linux: interpreter woła NyotaHost, nie AyoAPI; PRINT/GRAPH/INPUT/DELAY przez host POSIX w toku (zaawansowany etap) 2026-09-17</span>
-- <span style="color: yellow;">pomoc Tunga / AyoEdit nadal opisuje 7 spacji zaczęte 2026-09-17</span>
+- <span style="color: #006A4E;">Linux: pełny host POSIX/SDL2; PRINT/GRAPH/INPUT/DELAY, FILE/DIR, SCREEN, BUTTON i SPRITE wykonane 2026-09-18</span>
+- Pomoc Tunga/AyoEdit znajduje się poza dostępnym repozytorium Nyoty; źródłem prawdy pozostaje reguła 4 spacji.
 
 Testy: `Programs/Tools/nyota/tests/` — w tym `date_arith.nyo`, `date_add.nyo`, `date_cmp.nyo`, `date_parts.nyo`, `date_leap_ok.nyo`, `date_leap_bad.nyo`, `date_gregorian.nyo`, `date_plus_date.nyo`.
 
@@ -207,7 +207,8 @@ Nyota używa bloków opartych o dwukropek i wcięcia.
 Zasady:
 
 * linia kończąca się `:` otwiera blok,
-* wnętrze bloku musi być wcięte dokładnie o 4 spacje,
+* wnętrze nowego bloku musi zaczynać się dokładnie 4 spacje głębiej niż instrukcja otwierająca,
+* skok o 8 lub więcej spacji bez pośredniego bloku jest błędem,
 * wcięcie linii z kodem musi być wielokrotnością 4,
 * tabulacja jest surowo zabroniona i powoduje błąd interpretera,
 * powrót do wcześniejszego wcięcia zamyka blok.
@@ -497,9 +498,9 @@ Kolejność od najwyższego do najniższego priorytetu:
 12. `AND`
 13. `OR`
 
-Parser wyrażeń egzekwuje poziomy 2–5 oraz 10–13. `2 * 3 + 4` daje `10`,
-`2 + 3 * 4` daje `14`, `10 - 3 - 2` daje `5`. `SHL` / `SHR` / `BAND` /
-`BXOR` / `BOR` oraz postfiksowe `!` jeszcze nie są w parserze.
+Parser wyrażeń egzekwuje cały powyższy porządek. `2 * 3 + 4` daje `10`,
+`2 + 3 * 4` daje `14`, `10 - 3 - 2` daje `5`. `!`, `SHL`, `SHR`, `BAND`,
+`BXOR` i `BOR` są wykonywane przez ten sam parser precedencji.
 
 ---
 
@@ -527,7 +528,9 @@ Ważne:
 
 * `%` zawsze oznacza procent,
 * modulo zapisuje się `MOD`; `/%` jest nadal akceptowane,
-* `!` jest operatorem postfiksowym.
+* `!` jest operatorem postfiksowym, działa na nieujemnym `INTEGER` i zgłasza przepełnienie,
+* `SHL` / `SHR` wymagają `INTEGER` i przesunięcia 0..31,
+* `BAND`, `BXOR`, `BOR` działają na 32-bitowych wartościach `INTEGER`.
 
 Przykłady:
 
@@ -697,7 +700,7 @@ PROCEDURE Nazwa():
     PRINT "Dzialam"
 ```
 
-W procedurze `RETURN` jest zabroniony.
+W procedurze `RETURN` jest zabroniony. Interpreter wykonuje też pre-scan kontraktu funkcji: wykrywa brak `RETURN` oraz różne statycznie rozpoznawalne typy na różnych ścieżkach. Typ zwracany jest dodatkowo blokowany podczas wykonania.
 
 Błędnie:
 
@@ -794,7 +797,7 @@ VAR boss := Postac()
 boss.imie := "Wielki Smok"
 ```
 
-Pola mają twardo zablokowane typy na podstawie wartości domyślnych.
+Pola mają twardo zablokowane typy na podstawie wartości domyślnych. Definicje `RECORD` są skanowane przed uruchomieniem programu, konstruktor nie przyjmuje argumentów, a przypisanie pola innego typu jest błędem.
 
 ---
 
@@ -810,7 +813,7 @@ WITH boss:
 
 `WITH` działa na oryginalnym obiekcie, nie na kopii.
 
-Wewnątrz `WITH` nazwy odnoszą się najpierw do pól obiektu, potem do zakresu zewnętrznego.
+Wewnątrz `WITH` nazwy odnoszą się najpierw do pól obiektu, potem do zakresu zewnętrznego. Przypisanie do pola zmienia oryginalny rekord.
 
 ---
 
@@ -1060,7 +1063,7 @@ ON ERROR CALL ObsluzBlad
 END
 ```
 
-`ERR_CODE` zawiera kody błędów bezpośrednio z jądra AyoOS.
+`ERR_CODE` jest systemowym `INTEGER` tylko do odczytu. Dla błędów samego interpretera ma obecnie kod `1`; handler jest wywoływany synchronicznie i ma ochronę przed rekursją błędów.
 
 ---
 
@@ -1084,7 +1087,10 @@ Zasady:
 * nie uruchamia prawdziwych wątków,
 * zdarzenia wykonują się pomiędzy iteracjami głównej pętli,
 * zdarzenia wykonują się w kolejności deklaracji,
-* `CANCEL EVERY` nie przerywa aktualnie wykonywanego wywołania.
+* `CANCEL EVERY` nie przerywa aktualnie wykonywanego wywołania,
+* procedura schedulera nie może mieć parametrów,
+* bieżący limit implementacji to 16 zdarzeń,
+* scheduler nie tworzy lawiny zaległych callbacków po dłuższej operacji.
 
 ---
 
@@ -1102,7 +1108,9 @@ Zasady:
 * plik importowany nie może zawierać `BEGIN` ani `END`,
 * plik importowany nie może zawierać instrukcji wykonywalnych,
 * dozwolone są wyłącznie deklaracje: `CONST`, `RECORD`, `FUNCTION`, `PROCEDURE`,
-* duplikacja nazw `FUNCTION`, `PROCEDURE` lub `RECORD` powoduje błąd.
+* duplikacja nazw `FUNCTION`, `PROCEDURE` lub `RECORD` powoduje błąd,
+* import zagnieżdżony jest obecnie zabroniony,
+* import jest rozwijany przed walidacją i pre-scanem deklaracji.
 
 ---
 
@@ -1151,7 +1159,8 @@ Zasady:
 * ekran off-screen musi mieć identyczną rozdzielczość jak zadeklarowany `GRAPH`,
 * ID screenów muszą być unikalne i dodatnie,
 * przekroczenie limitu screenów powoduje błąd,
-* `SCREEN <id> SET` dla nieistniejącego ekranu powoduje błąd.
+* `SCREEN <id> SET` dla nieistniejącego ekranu powoduje błąd,
+* host POSIX/SDL2 implementuje `SCREEN` jako render target; zmiana `GRAPH` unieważnia wcześniejsze cele off-screen.
 
 ---
 
@@ -1466,7 +1475,7 @@ SORT dane, QUICK, REVERSE
 Kierunki: \`ASC\` (domyślny), \`DESC\`, \`REVERSE\` = malejąco.
 \`AUTO\` pozwala interpreterowi wybrać algorytm.
 
-Typy sortowalne w LIST: \`INTEGER\`, \`BOOLEAN\`, \`FLOAT\`, \`STRING\`,
+Typy sortowalne w LIST: \`INTEGER\`, \`FLOAT\`, \`STRING\`,
 \`DATE\`, \`TIME\`. Lista mieszanych typów jest błędem.
 
 \`COUNTING\` przyjmuje tylko \`INTEGER\` lub \`BOOLEAN\`; bieżący limit
@@ -1863,7 +1872,7 @@ błędy wracają do AI jako kontekst
 
 Ten dokument jest przeznaczony jako mocna, robocza specyfikacja dla agenta AI w AyoEdit.
 
-<span style="color: orange;">v0.5 rdzeń: wcięcia, BEGIN/END, typy, FUNCTION, IF, precedencja, WHILE/STEP/MOD w toku (zaawansowany etap) 2026-09-17</span>
+<span style="color: #006A4E;">Rdzeń v0.5 oraz wszystkie konstrukcje z `nyota_v05.md` posiadające zamkniętą składnię i semantykę są zaimplementowane i objęte regresją 2026-09-18.</span>
 
 Plan wydania i dalszy podział BLOCKS / AFTER CORE / FUTURE: [`docs/nyota_v05.md`](../../../docs/nyota_v05.md).
 
