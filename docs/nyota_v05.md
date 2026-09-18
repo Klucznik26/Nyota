@@ -1,6 +1,6 @@
 # Nyota v0.5 — plan stabilizacji i rozwoju
 
-**Ostatnia weryfikacja całości:** 2026-09-17  
+**Ostatnia weryfikacja całości:** 2026-09-18  
 **Powiązane:** [`nyota.md`](../Programs/Tools/nyota/nyota.md) — bieżąca specyfikacja dla agenta i stan interpretera; ten plik jest planem wydania, nie źródłem prawdy o tym, co już działa.
 
 **Status:** dokument roboczy  
@@ -179,7 +179,8 @@ DATE z literałem <RRRR.MM.DD> i arytmetyką dni
 TIME(HH.MM.SS) oraz TIME +/- Hn/Mn/Sn
     — implementacja dopiero po zamknięciu TIME - TIME
       i decyzji o DATETIME
-FILE i DIR / LS przez AyoAPI / VFS
+FILE i DIR / LS przez NyotaHost / AyoAPI / VFS
+    — rdzeń + backend POSIX wykonane 2026-09-18; AyoOS czeka na podłączenie callbacków VFS
 ```
 
 Dla `TIME` kierunek składni pozostaje zatwierdzony, ale interpreter nie
@@ -192,14 +193,14 @@ Kierunek zatwierdzony koncepcyjnie; specyfikację można projektować
 wcześniej, wdrożenie nie należy nawet do fali po rdzeniu v0.5:
 
 ```text
-wybór algorytmu SORT jako składnia języka (BUBBLE, QUICK, ...)
+wybór algorytmu SORT jako składnia języka (BUBBLE, QUICK, ...) — wykonane 2026-09-18
 relacyjny MARK
 DATETIME
 standard GUI Nyoty
 dalszy rozwój sprite'ów (podstawowy SPRITE i animacja klatkowa są już wdrożone)
 audio
-NYASM / assembler natywny
-Nyota poza AyoOS (Linux, Windows, VS Code) — to cel języka, nie dodatek
+NYASM — bezpieczna VM wykonana 2026-09-18; assembler natywny nadal FUTURE
+Nyota poza AyoOS: Linux i VS Code działają; Windows pozostaje celem hosta
 ```
 
 Jawne `SORT dane, BUBBLE` ma sens dydaktyczny. Dla użytkownika języka
@@ -831,8 +832,8 @@ istniejącego kodu.
 ## 6.2. SORT
 
 **Status wdrożenia:** APPROVED AFTER CORE  
-**Wybór algorytmu w składni:** FUTURE  
-<span style="color: #006A4E;">SORT lista i SORT lista, DESC; mieszane typy = błąd wykonane 2026-09-17</span>
+**Wybór algorytmu w składni:** wykonane 2026-09-18  
+<span style="color: #006A4E;">SORT lista, ASC/DESC/REVERSE oraz AUTO/BUBBLE/INSERT/SELECT/MERGE/QUICK/HEAP/SHELL/COUNTING wykonane</span>
 
 Planowana instrukcja sortowania. `SORT` zmienia kolekcję w miejscu.
 
@@ -880,32 +881,29 @@ COUNTING
 
 ## 6.3. FILE
 
-**Status wdrożenia:** APPROVED AFTER CORE
+**Status wdrożenia:** wykonane w rdzeniu i hoście POSIX 2026-09-18
 
-Bezpieczne operacje plikowe wysokiego poziomu przez:
-
-```text
-Nyota -> AyoAPI -> VFS
-```
+Wysokopoziomowe FILE działa przez `NyotaHost`. Semantyka obejmuje
+FILE_WRITE/APPEND/DELETE/COPY/MOVE oraz FILE_READ/EXISTS/SIZE.
+Host AyoOS wymaga jeszcze podłączenia callbacków do AyoAPI/VFS.
 
 ## 6.4. DIR / LS
 
-**Status wdrożenia:** APPROVED AFTER CORE
+**Status wdrożenia:** wykonane w rdzeniu i hoście POSIX 2026-09-18
 
-Operacje katalogowe i listowanie zawartości katalogów przez AyoAPI/VFS.
+DIR_CREATE/DELETE/COPY/MOVE oraz DIR_EXISTS/DIR_LIST działają. `LS()` jest
+aliasem funkcji `DIR_LIST()` i zwraca LIST nazw, a nie wypisuje katalogu.
 
 ## 6.5. NYASM / ASM
 
-**Status wdrożenia:** FUTURE
+**Status wdrożenia:** bezpieczna VM wykonana 2026-09-18; assembler natywny FUTURE
 
-Preferowany kierunek:
+Działa pierwszy etap: R0–R3, jawne INPUT/OUTPUT i instrukcje
+MOV/ADD/SUB/MUL/DIV/MOD/STORE. VM nie ma syscalli, skoków do Nyoty ani
+niekontrolowanego dostępu do pamięci. `ASM` jest aliasem `NYASM`.
 
-1. najpierw wirtualny `NYASM`,
-2. jawne `INPUT` / `OUTPUT`,
-3. później ewentualny assembler natywny.
-
-Nie wdrażać przed ustabilizowaniem rdzenia języka. To kierunek po v0.5,
-nie element fali APPROVED AFTER CORE.
+Natywny assembler procesora pozostaje osobnym kierunkiem FUTURE, ponieważ
+nie ma jeszcze zamkniętej specyfikacji ABI i bezpieczeństwa.
 
 ## 6.6. WHILE
 
@@ -2022,9 +2020,9 @@ DATETIME
 standard GUI Nyoty
 sprite'y
 audio
-NYASM / assembler natywny
-Nyota poza AyoOS
-dydaktyczny wybór algorytmu SORT
+assembler natywny
+Windows jako host Nyoty
+relacyjny MARK / DATETIME / standard GUI / audio
 ```
 
 ---
@@ -2420,7 +2418,7 @@ Na dzień 2026-09-17 ustalono:
 77. Przed wdrożeniem =N=, DATE, TIME, jednostek H/M/S i zakresów a:b
     obowiązuje aneks C. Lexer v0.5 rozpoznaje te tokeny i odrzuca je
     jawnym błędem.
-78. Relacyjny MARK, dalszy rozwój TABLE/GUI i sprite'ów, audio oraz NYASM pozostają FUTURE; podstawowy SPRITE i animacja klatkowa są wdrożone.
+78. Relacyjny MARK, dalszy rozwój TABLE/GUI i sprite'ów, audio oraz natywny assembler pozostają FUTURE; podstawowy SPRITE/animacja, dydaktyczny SORT i bezpieczny NYASM są wdrożone.
 79. Nyota jest niezależnym językiem. Tunga jest osobnym edytorem.
     AyoOS, Linux i Windows to hosty. PRINT, GRAPH, INPUT, DELAY
     należą do języka i muszą działać na każdym hoście.
