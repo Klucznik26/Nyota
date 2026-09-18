@@ -1847,10 +1847,11 @@ static int ParseNumber(const char *expr, NyotaVal *out, uint32_t *consumed) {
         if (!NIsDigit(expr[i + 1])) return 0;
         i++;
         while (NIsDigit(expr[i])) {
-            if (digits >= 3) return 0; /* FLOAT ma dokładnie max 3 miejsca */
-            frac = frac * 10 + (expr[i] - '0');
-            i++;
+            /* FLOAT przechowuje 3 miejsca. Nadmiar cyfr jest świadomie
+             * ucinany, co zachowuje przykłady =N= z 2.5678. */
+            if (digits < 3) frac = frac * 10 + (expr[i] - '0');
             digits++;
+            i++;
         }
         if (expr[i] == '.') return 0; /* np. 14.20.20 poza TIME() */
         while (digits < 3) { frac *= 10; digits++; }
