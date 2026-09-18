@@ -7477,7 +7477,7 @@ static void RunProgram(void) {
 static void DrawHeader(const char *filename) {
     HostRect(0, 0, SCREEN_W, SCREEN_H, 10, 10, 20);
     HostRect(0, 0, SCREEN_W, 36, 20, 20, 40);
-    HostText(OUT_MARGIN, 8, "Nyota Interpreter v0.1 | AyoOS", 100, 180, 255, 2);
+    HostText(OUT_MARGIN, 8, "Nyota Interpreter v0.5 | AyoOS", 100, 180, 255, 2);
     HostText(OUT_MARGIN + 700, 8, filename, 160, 160, 200, 2);
     HostRect(0, 36, SCREEN_W, 2, 50, 50, 100);
     g_out_x = OUT_MARGIN;
