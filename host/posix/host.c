@@ -123,6 +123,7 @@ static uint32_t host_ui_splitter_value_from_pointer(int idx,int x,int y);
 static int32_t host_ui_scale_value_from_pointer(int idx,int mx,int my);
 static int host_ui_tree_visible_row_to_index(const HostUiControl *ctl,uint32_t row,uint32_t *out);
 static int host_ui_tree_has_child(const HostUiControl *ctl,uint32_t index);
+static int host_ui_tree_item_visible(const HostUiControl *ctl,uint32_t index);
 static uint32_t host_ui_tree_depth_text(const char *s);
 static int g_ui_draw_clip_idx = -1;
 static uint8_t g_ui_initializing = 1;
@@ -3622,14 +3623,14 @@ static int32_t host_ui_tarea_changed(int32_t handle){
 
 static int32_t host_ui_range_value(int32_t handle){
     int i=host_ui_control_index_by_handle(handle);
-    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_PBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SLIDER))return -1;
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_PBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SLIDER&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SPLITTER))return -1;
     host_pump();
     return (int32_t)g_host_ui_controls[i].spec.range_value;
 }
 
 static int32_t host_ui_range_set_value(int32_t handle,uint32_t value){
     int i=host_ui_control_index_by_handle(handle),wi;
-    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_PBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SLIDER))return -1;
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_PBAR&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SLIDER&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SPLITTER))return -1;
     if(value<g_host_ui_controls[i].spec.range_min||value>g_host_ui_controls[i].spec.range_max)return -2;
     g_host_ui_controls[i].spec.range_value=value;
     wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);
@@ -3637,6 +3638,65 @@ static int32_t host_ui_range_set_value(int32_t handle,uint32_t value){
     return 0;
 }
 
+
+static int32_t host_ui_signed_value(int32_t handle,int32_t *value){
+    int i=host_ui_control_index_by_handle(handle);
+    if(i<0||!value||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SPINBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SCALE))return -1;
+    host_pump();*value=g_host_ui_controls[i].spec.signed_value;return 0;
+}
+static int32_t host_ui_signed_set_value(int32_t handle,int32_t value){
+    int i=host_ui_control_index_by_handle(handle),wi;HostUiControl *c;
+    if(i<0)return -1;c=&g_host_ui_controls[i];
+    if(c->spec.kind!=NYOTA_UI_CTRL_SPINBOX&&c->spec.kind!=NYOTA_UI_CTRL_SCALE)return -1;
+    if(c->spec.kind==NYOTA_UI_CTRL_SCALE&&c->spec.scale_wrap)value=host_ui_wrap_signed(value,c->spec.signed_min,c->spec.signed_max);
+    if(value<c->spec.signed_min||value>c->spec.signed_max||(c->spec.kind==NYOTA_UI_CTRL_SCALE&&c->spec.scale_wrap&&value>=c->spec.signed_max))return -2;
+    if(c->spec.signed_value!=value){c->spec.signed_value=value;c->changed=1;}
+    wi=host_ui_index_by_handle(c->window_handle);if(wi>=0)host_ui_mark_dirty(wi);return 0;
+}
+static int32_t host_ui_control_changed(int32_t handle){
+    int i=host_ui_control_index_by_handle(handle);int32_t v;
+    if(i<0)return -1;
+    if(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SPINBOX&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SCALE&&
+       g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_SPLITTER&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_LISTVIEW&&
+       g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TREEVIEW)return -1;
+    host_pump();v=g_host_ui_controls[i].changed?1:0;g_host_ui_controls[i].changed=0;return v;
+}
+static int32_t host_ui_select_index(int32_t handle){
+    int i=host_ui_control_index_by_handle(handle);
+    if(i<0||(g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_LISTVIEW&&g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_TREEVIEW))return -1;
+    host_pump();return (int32_t)g_host_ui_controls[i].spec.selected;
+}
+static int32_t host_ui_select_set_index(int32_t handle,uint32_t index){
+    int i=host_ui_control_index_by_handle(handle),wi;HostUiControl *c;uint32_t count;
+    if(i<0)return -1;c=&g_host_ui_controls[i];
+    if(c->spec.kind!=NYOTA_UI_CTRL_LISTVIEW&&c->spec.kind!=NYOTA_UI_CTRL_TREEVIEW)return -1;
+    count=host_ui_combo_item_count(c);if(index>=count)return -2;
+    if(c->spec.selected!=index){c->spec.selected=index;c->changed=1;}
+    c->list_selected_mask=index<64?(1ULL<<index):0;
+    wi=host_ui_index_by_handle(c->window_handle);if(wi>=0)host_ui_mark_dirty(wi);return 0;
+}
+static int32_t host_ui_clock_set_values(int32_t handle,const int32_t *values,uint32_t count){
+    int i=host_ui_control_index_by_handle(handle),wi;uint32_t k;HostUiControl *c;
+    if(i<0||!values)return -1;c=&g_host_ui_controls[i];
+    if(c->spec.kind!=NYOTA_UI_CTRL_CLOCK||count!=c->spec.clock_needles)return -1;
+    for(k=0;k<count;k++)if(values[k]<c->spec.clock_needle_min[k]||values[k]>c->spec.clock_needle_max[k])return -2;
+    memcpy(c->spec.clock_values,values,count*sizeof(int32_t));c->spec.clock_value_count=count;
+    wi=host_ui_index_by_handle(c->window_handle);if(wi>=0)host_ui_mark_dirty(wi);return 0;
+}
+static int32_t host_ui_clock_set_needle(int32_t handle,uint32_t index,int32_t value){
+    int i=host_ui_control_index_by_handle(handle),wi;HostUiControl *c;
+    if(i<0)return -1;c=&g_host_ui_controls[i];
+    if(c->spec.kind!=NYOTA_UI_CTRL_CLOCK||index>=c->spec.clock_needles)return -1;
+    if(value<c->spec.clock_needle_min[index]||value>c->spec.clock_needle_max[index])return -2;
+    c->spec.clock_values[index]=value;if(c->spec.clock_value_count<=index)c->spec.clock_value_count=index+1;
+    wi=host_ui_index_by_handle(c->window_handle);if(wi>=0)host_ui_mark_dirty(wi);return 0;
+}
+static int32_t host_ui_clock_value(int32_t handle,uint32_t index,int32_t *value){
+    int i=host_ui_control_index_by_handle(handle);HostUiControl *c;
+    if(i<0||!value)return -1;c=&g_host_ui_controls[i];
+    if(c->spec.kind!=NYOTA_UI_CTRL_CLOCK||index>=c->spec.clock_needles)return -1;
+    host_pump();*value=c->spec.clock_values[index];return 0;
+}
 
 static int32_t host_ui_eqbox_set_values(int32_t handle,const uint32_t *values,uint32_t count){
     int i=host_ui_control_index_by_handle(handle),wi;uint32_t k;
@@ -4200,6 +4260,14 @@ int main(int argc, char **argv) {
     g_nyhost.ui_range_set_value = host_ui_range_set_value;
     g_nyhost.ui_eqbox_set_values = host_ui_eqbox_set_values;
     g_nyhost.ui_eqbox_set_bar = host_ui_eqbox_set_bar;
+    g_nyhost.ui_signed_value = host_ui_signed_value;
+    g_nyhost.ui_signed_set_value = host_ui_signed_set_value;
+    g_nyhost.ui_control_changed = host_ui_control_changed;
+    g_nyhost.ui_select_index = host_ui_select_index;
+    g_nyhost.ui_select_set_index = host_ui_select_set_index;
+    g_nyhost.ui_clock_set_values = host_ui_clock_set_values;
+    g_nyhost.ui_clock_set_needle = host_ui_clock_set_needle;
+    g_nyhost.ui_clock_value = host_ui_clock_value;
     NyotaSetHost(&g_nyhost);
     g_input_feed = getenv("NYOTA_INPUT");
     g_input_pos = 0;
