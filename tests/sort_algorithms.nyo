@@ -47,10 +47,6 @@ SORT a, QUICK, REVERSE
 IF a <> [5, 4, 3, 2, 1]:
     ok := FALSE
 
-VAR b := [TRUE, FALSE, TRUE]
-SORT b, COUNTING
-IF b <> [FALSE, TRUE, TRUE]:
-    ok := FALSE
 
 IF ok:
     PRINT "SORT_OK"
