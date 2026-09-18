@@ -3019,8 +3019,13 @@ static void host_ui_draw_scale_track(SDL_Renderer *ren,int idx,HostUiControl *ct
         for(i=0;i<=steps;i++){
             int draw=1;t=(double)i/(double)steps;host_ui_scale_point(ctl,r,t,&x,&y,NULL);
             if(i){
-                if(ctl->spec.track_style==NYOTA_UI_TRACK_DASH||ctl->spec.track_style==NYOTA_UI_TRACK_SEGMENT)draw=((i/6)%2)==0;
-                else if(ctl->spec.track_style==NYOTA_UI_TRACK_DOT)draw=(i%8)==0;
+                if(ctl->spec.track_style==NYOTA_UI_TRACK_DASH||ctl->spec.track_style==NYOTA_UI_TRACK_SEGMENT){
+                    int on=ctl->spec.track_style==NYOTA_UI_TRACK_SEGMENT?4:8;
+                    int off=(int)ctl->spec.track_gap;if(off<1)off=1;
+                    draw=(i%(on+off))<on;
+                }else if(ctl->spec.track_style==NYOTA_UI_TRACK_DOT){
+                    int every=(int)ctl->spec.track_gap+4;if(every<4)every=4;draw=(i%every)==0;
+                }
                 if(draw){
                     if(ctl->spec.track_style==NYOTA_UI_TRACK_DOT){NyotaColor cc=host_ui_bg_sample(&ctl->spec.track_fill,t);SDL_Rect q={x-(int)ctl->spec.track_width/2,y-(int)ctl->spec.track_width/2,(int)ctl->spec.track_width,(int)ctl->spec.track_width};SDL_SetRenderDrawColor(ren,cc.r,cc.g,cc.b,cc.a);host_ui_fill_circle(ren,idx,q);}
                     else host_ui_draw_track_segment(ren,idx,ctl,px,py,x,y,t);
@@ -3028,6 +3033,34 @@ static void host_ui_draw_scale_track(SDL_Renderer *ren,int idx,HostUiControl *ct
             }
             px=x;py=y;
         }
+    }
+}
+
+static void host_ui_draw_tick_mark(SDL_Renderer *ren,int idx,uint8_t style,int xo,int yo,int xi,int yi,NyotaColor c,int width,uint32_t blur){
+    double dx=(double)xi-xo,dy=(double)yi-yo,len=sqrt(dx*dx+dy*dy),nx,ny;
+    int sz=width*2;if(sz<4)sz=4;if(sz>12)sz=12;
+    if(len<1.0)len=1.0;nx=-dy/len;ny=dx/len;
+    if(style==NYOTA_UI_TICK_LINE||style==NYOTA_UI_TICK_RECT){
+        if(blur)host_ui_draw_glow_line(ren,idx,xo,yo,xi,yi,c,width,blur);
+        host_ui_draw_thick_line(ren,idx,xo,yo,xi,yi,c,width);
+    }else if(style==NYOTA_UI_TICK_ROUND){
+        SDL_Rect q0={xo-sz/2,yo-sz/2,sz,sz},q1={xi-sz/2,yi-sz/2,sz,sz};
+        if(blur){NyotaColor g=c;g.a=(uint8_t)(c.a/3);SDL_Rect gg={q0.x-(int)blur,q0.y-(int)blur,q0.w+2*(int)blur,q0.h+2*(int)blur};SDL_SetRenderDrawColor(ren,g.r,g.g,g.b,g.a);host_ui_fill_circle(ren,idx,gg);}
+        SDL_SetRenderDrawColor(ren,c.r,c.g,c.b,c.a);host_ui_fill_circle(ren,idx,q0);host_ui_fill_circle(ren,idx,q1);
+        host_ui_draw_thick_line(ren,idx,xo,yo,xi,yi,c,width);
+    }else if(style==NYOTA_UI_TICK_DOT){
+        int mx=(xo+xi)/2,my=(yo+yi)/2;SDL_Rect q={mx-sz/2,my-sz/2,sz,sz};
+        if(blur){NyotaColor g=c;g.a=(uint8_t)(c.a/3);SDL_Rect gg={q.x-(int)blur,q.y-(int)blur,q.w+2*(int)blur,q.h+2*(int)blur};SDL_SetRenderDrawColor(ren,g.r,g.g,g.b,g.a);host_ui_fill_circle(ren,idx,gg);}
+        SDL_SetRenderDrawColor(ren,c.r,c.g,c.b,c.a);host_ui_fill_circle(ren,idx,q);
+    }else if(style==NYOTA_UI_TICK_TRIANGLE){
+        SDL_Point p[3]={{xo,yo},{xi+(int)lround(nx*sz),yi+(int)lround(ny*sz)},{xi-(int)lround(nx*sz),yi-(int)lround(ny*sz)}};
+        if(blur)host_ui_draw_glow_line(ren,idx,xo,yo,xi,yi,c,width,blur);
+        host_ui_fill_polygon(ren,idx,p,3,c);
+    }else{
+        int mx=(xo+xi)/2,my=(yo+yi)/2;
+        SDL_Point p[4]={{xo,yo},{mx+(int)lround(nx*sz),my+(int)lround(ny*sz)},{xi,yi},{mx-(int)lround(nx*sz),my-(int)lround(ny*sz)}};
+        if(blur)host_ui_draw_glow_line(ren,idx,xo,yo,xi,yi,c,width,blur);
+        host_ui_fill_polygon(ren,idx,p,4,c);
     }
 }
 
@@ -3046,8 +3079,7 @@ static void host_ui_draw_scale_ticks(SDL_Renderer *ren,int idx,HostUiControl *ct
             int cx=r.x+r.w/2,cy=r.y+r.h/2;double dx=(double)x-cx,dy=(double)y-cy,dl=sqrt(dx*dx+dy*dy);if(dl<1.0)dl=1.0;
             x2=x-(int)lround(dx/dl*len);y2=y-(int)lround(dy/dl*len);
         }
-        if(ctl->spec.tick_blur)host_ui_draw_glow_line(ren,idx,x,y,x2,y2,cc,(int)ctl->spec.tick_width,ctl->spec.tick_blur);
-        host_ui_draw_thick_line(ren,idx,x,y,x2,y2,cc,(int)ctl->spec.tick_width);
+        host_ui_draw_tick_mark(ren,idx,ctl->spec.tick_style,x,y,x2,y2,cc,(int)ctl->spec.tick_width,ctl->spec.tick_blur);
         if(major&&ctl->spec.show_labels&&ctl->spec.label_step>0&&((v-ctl->spec.signed_min)%ctl->spec.label_step)==0){
             char buf[32];SDL_Rect lr={x2-28,y2-10,56,20};snprintf(buf,sizeof(buf),"%lld",(long long)v);
             if(ctl->spec.scale_shape==NYOTA_UI_SCALE_LINE){
@@ -3177,8 +3209,7 @@ static void host_ui_draw_clock(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_
             int major=ctl->spec.major_step>0&&((v-ctl->spec.signed_min)%ctl->spec.major_step)==0;
             int tl=major?(int)ctl->spec.tick_len:(int)ctl->spec.minor_tick_len;NyotaColor cc=major?ctl->spec.tick_color:ctl->spec.minor_tick_color;
             host_ui_polar_point(cx,cy,radius-8.0,a,&xo,&yo);host_ui_polar_point(cx,cy,radius-8.0-tl,a,&xi,&yi);
-            if(ctl->spec.tick_blur)host_ui_draw_glow_line(ren,idx,xo,yo,xi,yi,cc,(int)ctl->spec.tick_width,ctl->spec.tick_blur);
-            host_ui_draw_thick_line(ren,idx,xo,yo,xi,yi,cc,(int)ctl->spec.tick_width);
+            host_ui_draw_tick_mark(ren,idx,ctl->spec.tick_style,xo,yo,xi,yi,cc,(int)ctl->spec.tick_width,ctl->spec.tick_blur);
             if(major&&ctl->spec.show_labels&&ctl->spec.label_step>0&&((v-ctl->spec.signed_min)%ctl->spec.label_step)==0){
                 int lx,ly;char buf[32];SDL_Rect lr;host_ui_polar_point(cx,cy,radius-8.0-tl-(double)ctl->spec.label_offset,a,&lx,&ly);
                 snprintf(buf,sizeof(buf),"%lld",(long long)v);lr.x=lx-28;lr.y=ly-10;lr.w=56;lr.h=20;host_ui_draw_simple_text(ren,buf,ctl->spec.text_color,lr,ctl->spec.font_size);
