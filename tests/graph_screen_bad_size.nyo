@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+GRAPH 1
+SCREEN 1 OPEN 800, 600, 32
+END
