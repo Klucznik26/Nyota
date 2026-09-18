@@ -1,0 +1,6 @@
+# Oczekiwane: BLAD
+IMPORT "tests/import_bad_lib.nyo"
+
+BEGIN
+PRINT "never"
+END
