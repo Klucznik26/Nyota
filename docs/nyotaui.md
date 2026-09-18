@@ -498,6 +498,178 @@ VAR one := EQBOX_BAR(eq, 3, 88)
 
 Backend POSIX cache'uje statyczne warstwy słupków i poświaty. Zmiana wartości przechodzi osobnym kontraktem hosta, aby uniknąć ponownego parsowania stylu oraz ponownego ładowania obrazów przy każdej aktualizacji.
 
+## TBOX
+
+`TBOX` jest jednowierszowym polem tekstowym. Korzysta z hostowego edytora UTF-8 znanego z `TAREA`, ale blokuje nowe linie i może ograniczać długość tekstu.
+
+```nyota
+TBOX login, panel, [280, 34], [20, 20], PLACEHOLDER="Nazwa uzytkownika", MAXLEN=32
+TBOX haslo, panel, [280, 34], [20, 64], PASSWORD=TRUE, MAXLEN=64
+```
+
+Najważniejsze właściwości: `TEXT`, `PLACEHOLDER`, `PASSWORD`, `MAXLEN`, `READONLY`, `CCARET` oraz standardowe właściwości tekstu, tła i bordera.
+
+```nyota
+VAR text := TBOX_TEXT(login)
+VAR ok := TBOX_SET(login, "AyoOS")
+IF TBOX_CHANGED(login):
+    PRINT "zmiana"
+```
+
+## SPINBOX
+
+`SPINBOX` przechowuje signed `INTEGER` i pozwala zmieniać go przyciskami góra/dół lub klawiaturą.
+
+```nyota
+SPINBOX limit, panel, [180, 34], [20, 110], MIN=-20, MAX=120, VALUE=70, STEP=5
+```
+
+API: `SPINBOX_VALUE(name)`, `SPINBOX_SET(name, value)`, `SPINBOX_CHANGED(name)`.
+
+## LISTVIEW i TREEVIEW
+
+`LISTVIEW` prezentuje listę wierszy z hoverem i zaznaczeniem. `TREEVIEW` używa tej samej listy danych, ale interpretuje znak `/` jako poziom hierarchii.
+
+```nyota
+LISTVIEW disks, panel, [260, 180], [20, 160], ITEMS=["C:", "D:", "E:"], SELECTED=0
+
+TREEVIEW tree, panel, [300, 220], [300, 160],
+         ITEMS=["System", "System/CPU", "System/GPU", "Storage", "Storage/SSD"],
+         INDENT=22, SHOWLINES=TRUE
+```
+
+Gałęzie `TREEVIEW` można rozwijać i zwijać myszą albo klawiszami Left/Right. Up/Down, Home/End zmieniają zaznaczenie. `ROWHEIGHT` ustala wysokość wiersza.
+
+API obu kontrolek:
+
+```nyota
+VAR i := LISTVIEW_INDEX(disks)
+VAR name := LISTVIEW_VALUE(disks)
+VAR ok := LISTVIEW_SET(disks, 2)
+VAR changed := LISTVIEW_CHANGED(disks)
+
+VAR ti := TREEVIEW_INDEX(tree)
+VAR path := TREEVIEW_VALUE(tree)
+VAR tok := TREEVIEW_SET(tree, 4)
+```
+
+Dla `TREEVIEW_VALUE` zwracana jest pełna ścieżka elementu, np. `"Storage/SSD"`.
+
+## SPLITTER
+
+`SPLITTER` jest interaktywną linią podziału poruszającą się wewnątrz prostokątnego obszaru. `ORIENTATION=VERTICAL` oznacza pionową linię poruszającą się poziomo; `HORIZONTAL` — linię poziomą poruszającą się pionowo.
+
+```nyota
+SPLITTER split, panel, [600, 40], [20, 400],
+         ORIENTATION=VERTICAL, MIN=0, MAX=1000, VALUE=500,
+         STEP=10, THICK=8, CSEP=SAPPHIRE
+```
+
+API: `SPLITTER_VALUE`, `SPLITTER_SET`, `SPLITTER_CHANGED`. Kontrolka raportuje pozycję; sposób zmiany rozmiaru sąsiednich paneli pozostaje decyzją aplikacji.
+
+## SCALE
+
+`SCALE` jest signed skalą liniową albo obrotową. Dostępne geometrie to `SHAPE=LINE`, `ARC` i `CIRCLE`.
+
+```nyota
+SCALE db, panel, [520, 100], [20, 470], MIN=-60, MAX=0, VALUE=-20, STEP=5, ORIENTATION=HORIZONTAL
+
+SCALE dial, panel, [260, 260], [580, 390], MIN=0, MAX=360, VALUE=0, STEP=1
+SCALE dial.CONFIG:
+    SHAPE = CIRCLE
+    RADIUS = 100
+    WRAP = TRUE
+    TRACKWIDTH = 8
+    TRACKFILL = GRAD(LINEAR, VERTICAL, 3, [SAPPHIRE, PURPLE, RUBY])
+    TRACKGLOW = SAPPHIRE
+    TRACKBLUR = 5
+    THUMB = DIAMOND
+    THUMBSIZE = 22
+    THUMBFILL = WHITE
+    THUMBGLOW = SAPPHIRE
+    THUMBBLUR = 8
+    THUMBROTATE = TRUE
+    THUMBALIGN = RADIAL
+```
+
+Dla `ARC` używane są `STARTANGLE`, `ENDANGLE` i `RADIUS`. Kąty hosta POSIX mają 0° na górze i rosną zgodnie z ruchem wskazówek zegara. `CIRCLE` wykonuje pełne 360°.
+
+`WRAP=TRUE` tworzy skalę zapętloną. Zakres jest wtedy półotwarty `[MIN, MAX)`: przy `MIN=0, MAX=360` po 359 następuje 0 i obrót może być powtarzany bez końca.
+
+Tor:
+- `TRACKWIDTH`, `TRACKFILL`, `TRACKGLOW`, `TRACKBLUR`;
+- `TRACKSTYLE=SOLID/DASH/DOT/SEGMENT`, `TRACKGAP`.
+
+Uchwyt:
+- `THUMB=RECT/ROUND/CIRCLE/DIAMOND/TRIANGLE/PARALLELOGRAM/LINE/NEEDLE/DOT`;
+- `THUMBSIZE`, `THUMBWIDTH`, `THUMBFILL`;
+- `THUMBBORDER`, `CTHUMBBORDER`, `THUMBBWIDTH`;
+- `THUMBGLOW`, `THUMBBLUR`;
+- `THUMBROTATE`, `THUMBALIGN=FIXED/RADIAL/TANGENT`.
+
+Podziałka:
+`MAJORSTEP`, `MINORSTEP`, `TICKSTYLE`, `CTICK`, `CMINORTICK`, `TICKLEN`, `MINORTICKLEN`, `TICKWIDTH`, `TICKBLUR`, `SHOWLABELS`, `LABELSTEP`, `LABELOFFSET`.
+
+API: `SCALE_VALUE`, `SCALE_SET`, `SCALE_CHANGED`.
+
+## CLOCK
+
+`CLOCK` jest analogowym wskaźnikiem telemetrycznym: tarcza + podziałka + jedna lub wiele wskazówek. Nie jest ograniczony do czasu. Typowe zastosowania to zajętość partycji, temperatura CPU/GPU/SSD, obciążenie, RPM, napięcie czy bateria.
+
+```nyota
+CLOCK hw, panel, [360, 360], [700, 360], NEEDLES=3, MIN=0, MAX=110
+
+CLOCK hw.CONFIG:
+    SHAPE = ARC
+    RADIUS = 145
+    STARTANGLE = 210
+    ENDANGLE = 510
+    VALUES = [58, 72, 1400]
+
+    NEEDLEMINS = [0, 0, 0]
+    NEEDLEMAXS = [110, 110, 3000]
+    NEEDLECOLORS = [SAPPHIRE, RUBY, GOLD]
+    NEEDLESHAPES = ["LINE", "TRIANGLE", "ARROW"]
+    NEEDLEWIDTHS = [3, 5, 3]
+    NEEDLELENS = [115, 105, 92]
+    NEEDLEBLURS = [2, 4, 1]
+
+    MAJORSTEP = 10
+    MINORSTEP = 2
+    CTICK = WHITE
+    CMINORTICK = GRAY
+    TICKBLUR = 1
+
+    BG = GRAD(SHAPE, CIRCLE, CENTER, 0, 3, [BLACK, DARKGRAY, BLACK])
+    BORDER = TRUE
+    CBORDER = GRAY
+    BWIDTH = 2
+    DIALBLUR = 2
+
+    CENTERDOT = TRUE
+    CCENTER = WHITE
+    CENTERSIZE = 12
+    CENTERBLUR = 2
+
+    TEXT = "Hardware"
+    UNIT = "C"
+    SHOWVALUE = TRUE
+    ZONES = [[0, 70, EMERALD], [70, 90, GOLD], [90, 110, RUBY]]
+```
+
+`SHAPE=ARC/CIRCLE`. Kształty wskazówek: `LINE`, `TRIANGLE`, `ARROW`, `DIAMOND`, `PARALLELOGRAM`, `BAR`, `DOUBLE`. `NEEDLE=<shape>` ustawia wspólny kształt, a tablice `NEEDLE*` pozwalają personalizować każdą wskazówkę osobno. Każda wskazówka może mieć własny zakres przez `NEEDLEMINS` i `NEEDLEMAXS`.
+
+Tarcza obsługuje standardowe `BG` NyotaUI, więc może być kolorem, gradientem, obrazem albo przezroczysta. `ZONES` rysuje kolorowe strefy zakresu.
+
+Szybkie API wartości:
+
+```nyota
+VAR ok := CLOCK_SET(hw, [61, 76, 1500])
+VAR one := CLOCK_NEEDLE(hw, 1, 80)
+VAR gpu := CLOCK_VALUE(hw, 1)
+VAR all := CLOCK_VALUES(hw)
+```
+
 ## SHADOW dziedziczony z WIN
 
 Cień definiuje się wyłącznie w `WIN.CONFIG`; wszystkie kontrolki należące do tego okna dziedziczą tę samą politykę cienia. Nie jest to cień dekoracji systemowego okna `WIN ... ROOT`.
