@@ -428,4 +428,4 @@ BUTTON zapisz, panel, [120, 36], [20, 20], TEXT="Zapisz", ENABLED=FALSE
 
 `ENABLED=FALSE` wyszarza kontrolkę i wyłącza obsługę wejścia. Domyślna wartość to `TRUE`.
 
-Backend POSIX utrzymuje też focus klawiatury dla kontrolek interaktywnych. Kliknięcie nadaje focus, a `Tab` oraz `Shift+Tab` przechodzą między aktywnymi kontrolkami. Focus jest sygnalizowany subtelnym obrysem i nie wymaga dodatkowej właściwości w kodzie Nyoty.
+Backend POSIX utrzymuje też focus klawiatury dla kontrolek interaktywnych. Kliknięcie nadaje focus, a `Tab` oraz `Shift+Tab` przechodzą między aktywnymi kontrolkami. `Enter`/`Space` aktywują kontrolkę z focusem: `BUTTON`, `CBOX`, `RADIO`, `COMBO` lub `TAB`. Focus jest sygnalizowany subtelnym obrysem i nie wymaga dodatkowej właściwości w kodzie Nyoty.
