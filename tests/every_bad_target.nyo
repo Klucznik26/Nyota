@@ -1,0 +1,7 @@
+# Oczekiwane: BLAD
+FUNCTION Bad():
+    RETURN 1
+
+BEGIN
+EVERY 10 CALL Bad
+END
