@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD
+BEGIN
+WIN zle, ROOT, [320], CENTER, FALSE
+END
