@@ -49,6 +49,10 @@ typedef struct NyotaHost {
                      uint8_t r, uint8_t g, uint8_t b, uint32_t scale);
     void (*gfx_mode)(uint32_t w, uint32_t h);
 
+    /* Off-screen SCREEN targets. ID 0 oznacza ekran fizyczny. */
+    int32_t (*gfx_screen_open)(uint32_t id, uint32_t w, uint32_t h, uint32_t color_mode);
+    int32_t (*gfx_screen_set)(uint32_t id);
+
     /* Sprite backend. Language-level SPRITE is named state in Nyota;
      * host owns only the loaded image resource and drawing. */
     int32_t (*gfx_sprite_load)(const char *path);
