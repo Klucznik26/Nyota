@@ -436,3 +436,6 @@ Backend POSIX utrzymuje też focus klawiatury dla kontrolek interaktywnych. Klik
 Zaokrąglone tła, kontrolki kołowe oraz eliptyczne otrzymują na hoście POSIX antyaliasowaną maskę krawędzi. Dotyczy to między innymi `RADIUS`, `RADIO`, `DAREA CIRCLE/ELLIPSE` i obu części `TAB`.
 
 Cienie zachowują teraz geometrię kontrolki zamiast być zawsze prostokątem. Nadal obowiązuje kontrakt bez rozmycia; `SHADOW` pozostaje cieniem kierunkowym o określonej głębokości.
+
+
+Zaokrąglone i kołowe bordery oraz obrysy focusu są na hoście POSIX renderowane z antyaliasingiem. Focus na `TAB` jest zaznaczany delikatnym akcentem na główce, bez dodawania dolnej krawędzi oddzielającej aktywną zakładkę od jej zawartości.
