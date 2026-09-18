@@ -114,6 +114,7 @@ static void host_ui_flush_dirty(void);
 static void host_ui_finish_initial_build(void);
 static void host_ui_clear_eq_cache(HostUiControl *ctl);
 static int host_ui_combo_popup_hit(int idx,int x,int y,int32_t *row_out);
+static uint32_t host_ui_combo_item_count(const HostUiControl *ctl);
 static NyotaColor host_ui_tint_color(NyotaColor c,int delta);
 static uint32_t host_ui_tarea_caret_from_point(HostUiControl *ctl,SDL_Rect r,int mx,int my);
 static void host_ui_tarea_caret_visual(HostUiControl *ctl,SDL_Rect r,int *out_x,int *out_row);
@@ -3104,9 +3105,9 @@ static void host_ui_draw_control_index(int idx) {
             host_ui_tint_background(&ctl->spec.background,&state_bg,ctl->pressed?-18:10);
             bg=&state_bg;
         }
-        surface=host_ui_control_background_surface(&ctl->spec,bg);
+        surface=ctl->spec.kind==NYOTA_UI_CTRL_CLOCK?NULL:host_ui_control_background_surface(&ctl->spec,bg);
     }if(surface){host_ui_apply_ancestor_mask(idx,surface,r.x,r.y);tex=SDL_CreateTextureFromSurface(u->ren,surface);SDL_FreeSurface(surface);if(tex){SDL_SetTextureBlendMode(tex,SDL_BLENDMODE_BLEND);SDL_RenderCopy(u->ren,tex,NULL,&r);SDL_DestroyTexture(tex);}}
-    host_ui_draw_border(u->ren,ctl,r);
+    if(ctl->spec.kind!=NYOTA_UI_CTRL_CLOCK)host_ui_draw_border(u->ren,ctl,r);
     if(ctl->spec.kind==NYOTA_UI_CTRL_CBOX&&ctl->spec.checked){
         if(!strcmp(ctl->spec.check_symbol,"X")){
             int pad=r.w/4;if(pad<3)pad=3;
@@ -3131,6 +3132,23 @@ static void host_ui_draw_control_index(int idx) {
         if(!ctl->spec.enabled)ctl->spec.text_color=host_ui_tint_color(ctl->spec.text_color,-72);
         host_ui_draw_tarea(u->ren,ctl,r,idx);
         ctl->spec=saved;
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_TBOX){
+        NyotaUiControlSpec saved=ctl->spec;
+        if(!ctl->spec.enabled)ctl->spec.text_color=host_ui_tint_color(ctl->spec.text_color,-72);
+        host_ui_draw_tbox(u->ren,ctl,r,idx);
+        ctl->spec=saved;
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_SPINBOX){
+        host_ui_draw_spinbox(u->ren,idx,ctl,r);
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_LISTVIEW){
+        host_ui_draw_listview(u->ren,idx,ctl,r,0);
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_TREEVIEW){
+        host_ui_draw_listview(u->ren,idx,ctl,r,1);
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_SPLITTER){
+        host_ui_draw_splitter(u->ren,idx,ctl);
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_SCALE){
+        host_ui_draw_scale(u->ren,idx,ctl,r);
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_CLOCK){
+        host_ui_draw_clock(u->ren,idx,ctl,r);
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_SBAR){
         host_ui_draw_sbar_thumb(u->ren,idx,ctl);
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_PBAR){
