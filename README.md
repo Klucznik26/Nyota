@@ -81,7 +81,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `MARK` | ✅ | klucze+kolumny, algebra, iteracja, sortowanie, przebudowa kolumn i statystyki |
 | `TABLE` | ✅ | nazwana kontrolka prezentacji LIST/TUPLE/MARK w trybie graficznym |
 | `BUTTON` | ✅ | nazwana kontrolka GUI; wygląd + wykrywanie kliknięcia na hoście POSIX |
-| `WIN / NyotaUI` | 🚧 | WIN, BUTTON, LABEL, PANEL, DAREA, CBOX, RADIO, COMBO, SEP, TABS/TAB, TAREA, SBAR, PBAR, EQBOX, SLIDER, STATBAR, TOOLBAR, TBOX, SPINBOX, LISTVIEW, TREEVIEW, SPLITTER, SCALE i CLOCK wdrożone na backendzie POSIX; kod `.nyo` pozostaje wspólny dla Linux/Windows/AyoOS |
+| `WIN / NyotaUI` | 🚧 | WIN, BUTTON, LABEL, PANEL, DAREA, CBOX, RADIO, COMBO, SEP, TABS/TAB, TAREA, SBAR, PBAR, EQBOX, SLIDER, STATBAR, TOOLBAR, TBOX, SPINBOX, LISTVIEW, TREEVIEW, SPLITTER, SCALE, CLOCK, ICONBUTTON, SWITCH, FRAME i INPUT wdrożone na backendzie POSIX; kod `.nyo` pozostaje wspólny dla Linux/Windows/AyoOS |
 | `SPRITE` | ✅ | nazwany obiekt graficzny; ruch, widoczność, animacja klatkowa, jawne rysowanie i kolizja AABB |
 | `FILE / DIR / LS` | ✅ | wysokopoziomowy kontrakt hosta; pełny backend POSIX |
 | `RECORD / WITH` | ✅ | rekordy z blokadą typów i kontekstem pól |
@@ -92,7 +92,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `NYASM` | ✅ | bezpieczna VM R0-R3 z jawnym INPUT/OUTPUT |
 | Host Linux | 🚧 | terminal + backend SDL2 dla grafiki i FILE/DIR |
 | Host AyoOS | 🚧 | docelowo wspólny `src/nyota.c` dla wszystkich hostów |
-| VS Code | ✅ | Nyota Language Support 0.5.0: kolorowanie + uruchamianie przez `▶` / `Ctrl+F5` + próbki/picker kolorów NyotaUI |
+| VS Code | ✅ | Nyota Language Support 0.5.3: kolorowanie + uruchamianie przez `▶` / `Ctrl+F5` + próbki/picker kolorów NyotaUI |
 
 Szczegółowy stan interpretera znajduje się w [`docs/nyota.md`](docs/nyota.md), a droga do stabilizacji i rozwoju w [`docs/nyota_v05.md`](docs/nyota_v05.md).
 
@@ -175,7 +175,7 @@ zbudowania potrzebne są narzędzia RPM i nagłówki zgodności SDL2:
 ```bash
 sudo dnf install rpm-build gcc make pkgconf-pkg-config sdl2-compat-devel SDL2_image-devel tar gzip
 make rpm
-sudo dnf install packaging/nyota-0.5.0-21.fc44.x86_64.rpm
+sudo dnf install packaging/nyota-0.5.0-22.fc44.x86_64.rpm
 nyota /usr/share/nyota/tests/add_int.nyo
 ```
 
