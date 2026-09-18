@@ -39,6 +39,7 @@ static int g_input_pos;
 #define HOST_MAX_SPRITES 64
 #define HOST_MAX_SCREENS 16
 #define HOST_MAX_UI_WINDOWS 32
+#define HOST_MAX_UI_CONTROLS 128
 static SDL_Texture *g_sprite_tex[HOST_MAX_SPRITES];
 static SDL_Texture *g_screen_tex[HOST_MAX_SCREENS];
 static uint32_t g_active_screen;
@@ -56,8 +57,23 @@ typedef struct {
 
 static HostUiWindow g_ui_windows[HOST_MAX_UI_WINDOWS];
 
+typedef struct {
+    int used;
+    int32_t handle;
+    int32_t window_handle;
+    int32_t parent_control_handle;
+    NyotaUiControlSpec spec;
+    uint8_t prev_down;
+    uint8_t hover;
+    uint8_t dropped;
+    char drop_items[NYOTA_UI_DROP_MAX];
+} HostUiControl;
+
+static HostUiControl g_ui_controls[HOST_MAX_UI_CONTROLS];
+
 static void host_ui_render_background_index(int idx);
 static void host_ui_destroy_index(int idx);
+static void host_ui_redraw_controls(int window_index);
 
 static void posix_emit(char c) {
     fputc(c, stdout);
@@ -82,6 +98,73 @@ static int host_ui_index_by_handle(int32_t handle) {
     return -1;
 }
 
+static int host_ui_control_index_by_handle(int32_t handle) {
+    int i;
+    for (i = 0; i < HOST_MAX_UI_CONTROLS; i++)
+        if (g_ui_controls[i].used && g_ui_controls[i].handle == handle) return i;
+    return -1;
+}
+
+static int host_ui_control_rect_index(int idx, SDL_Rect *out) {
+    HostUiControl *c;
+    SDL_Rect parent;
+    int wi;
+    if (!out || idx < 0 || idx >= HOST_MAX_UI_CONTROLS || !g_ui_controls[idx].used) return 0;
+    c = &g_ui_controls[idx];
+    wi = host_ui_index_by_handle(c->window_handle);
+    if (wi < 0) return 0;
+    if (c->parent_control_handle > 0) {
+        int pi = host_ui_control_index_by_handle(c->parent_control_handle);
+        if (pi < 0 || !host_ui_control_rect_index(pi, &parent)) return 0;
+    } else {
+        parent.x = 0; parent.y = 0;
+        parent.w = (int)g_ui_windows[wi].w; parent.h = (int)g_ui_windows[wi].h;
+    }
+    out->w = (int)c->spec.w; out->h = (int)c->spec.h;
+    if (c->spec.position_mode == NYOTA_UI_POS_CENTER) {
+        out->x = parent.x + (parent.w - out->w) / 2;
+        out->y = parent.y + (parent.h - out->h) / 2;
+    } else {
+        out->x = parent.x + c->spec.x;
+        out->y = parent.y + c->spec.y;
+    }
+    return 1;
+}
+
+static int host_ui_point_in_control(int idx, int x, int y) {
+    HostUiControl *c;
+    SDL_Rect r;
+    double nx, ny;
+    int p;
+    if (!host_ui_control_rect_index(idx, &r)) return 0;
+    if (x < r.x || y < r.y || x >= r.x + r.w || y >= r.y + r.h) return 0;
+    c = &g_ui_controls[idx];
+    if (c->spec.kind == NYOTA_UI_CTRL_DAREA) {
+        if (c->spec.shape == NYOTA_UI_DAREA_CIRCLE) {
+            double radius = (double)(r.w < r.h ? r.w : r.h) / 2.0;
+            double cx = r.x + r.w / 2.0, cy = r.y + r.h / 2.0;
+            double dx = x - cx, dy = y - cy;
+            if (dx * dx + dy * dy > radius * radius) return 0;
+        } else if (c->spec.shape == NYOTA_UI_DAREA_ELLIPSE) {
+            if (r.w <= 0 || r.h <= 0) return 0;
+            nx = ((double)x - (r.x + r.w / 2.0)) / ((double)r.w / 2.0);
+            ny = ((double)y - (r.y + r.h / 2.0)) / ((double)r.h / 2.0);
+            if (nx * nx + ny * ny > 1.0) return 0;
+        }
+    }
+    p = c->parent_control_handle > 0 ? host_ui_control_index_by_handle(c->parent_control_handle) : -1;
+    while (p >= 0) {
+        HostUiControl *pc = &g_ui_controls[p];
+        SDL_Rect pr;
+        if (pc->spec.kind == NYOTA_UI_CTRL_PANEL && pc->spec.clip) {
+            if (!host_ui_control_rect_index(p, &pr) ||
+                x < pr.x || y < pr.y || x >= pr.x + pr.w || y >= pr.y + pr.h) return 0;
+        }
+        p = pc->parent_control_handle > 0 ? host_ui_control_index_by_handle(pc->parent_control_handle) : -1;
+    }
+    return 1;
+}
+
 static void host_pump(void) {
     SDL_Event e;
     if (!g_video) return;
@@ -102,6 +185,7 @@ static void host_pump(void) {
                         g_ui_windows[ui].h = (uint32_t)h;
                         if (g_ui_windows[ui].has_background)
                             host_ui_render_background_index(ui);
+                        host_ui_redraw_controls(ui);
                     }
                 } else if (e.window.event == SDL_WINDOWEVENT_CLOSE) {
                     host_ui_destroy_index(ui);
@@ -113,6 +197,57 @@ static void host_pump(void) {
                 g_graph_closed = 1;
                 continue;
             }
+        }
+        if (e.type == SDL_MOUSEMOTION) {
+            int ui = host_ui_index_by_window_id(e.motion.windowID);
+            if (ui >= 0) {
+                int changed = 0, i;
+                for (i = 0; i < HOST_MAX_UI_CONTROLS; i++) {
+                    HostUiControl *ctl = &g_ui_controls[i];
+                    uint8_t over;
+                    if (!ctl->used || ctl->window_handle != g_ui_windows[ui].handle ||
+                        ctl->spec.kind != NYOTA_UI_CTRL_DAREA) continue;
+                    over = (uint8_t)host_ui_point_in_control(i, e.motion.x, e.motion.y);
+                    if (over != ctl->hover) { ctl->hover = over; changed = 1; }
+                }
+                if (changed) {
+                    if (g_ui_windows[ui].has_background) host_ui_render_background_index(ui);
+                    host_ui_redraw_controls(ui);
+                }
+            }
+            continue;
+        }
+        if (e.type == SDL_DROPFILE) {
+            int ui = host_ui_index_by_window_id(e.drop.windowID);
+            if (ui >= 0 && e.drop.file) {
+                int mx = 0, my = 0, i;
+                struct stat st;
+                SDL_GetMouseState(&mx, &my);
+                for (i = HOST_MAX_UI_CONTROLS - 1; i >= 0; i--) {
+                    HostUiControl *ctl = &g_ui_controls[i];
+                    size_t cur, add;
+                    int is_dir, accepted;
+                    if (!ctl->used || ctl->window_handle != g_ui_windows[ui].handle ||
+                        ctl->spec.kind != NYOTA_UI_CTRL_DAREA ||
+                        !host_ui_point_in_control(i, mx, my)) continue;
+                    if (stat(e.drop.file, &st) != 0) break;
+                    is_dir = S_ISDIR(st.st_mode) ? 1 : 0;
+                    accepted = ctl->spec.accept == NYOTA_UI_ACCEPT_ALL ||
+                               (is_dir && ctl->spec.accept == NYOTA_UI_ACCEPT_DIRS) ||
+                               (!is_dir && ctl->spec.accept == NYOTA_UI_ACCEPT_FILES);
+                    if (!accepted) break;
+                    if (!ctl->spec.multi) ctl->drop_items[0] = '\0';
+                    cur = strlen(ctl->drop_items); add = strlen(e.drop.file);
+                    if (cur + add + 2 < sizeof(ctl->drop_items)) {
+                        memcpy(ctl->drop_items + cur, e.drop.file, add);
+                        cur += add; ctl->drop_items[cur++] = '\n'; ctl->drop_items[cur] = '\0';
+                        ctl->dropped = 1;
+                    }
+                    break;
+                }
+                SDL_free(e.drop.file);
+            }
+            continue;
         }
         if (e.type == SDL_KEYDOWN) {
             SDL_Keycode k = e.key.keysym.sym;
@@ -549,6 +684,316 @@ static void host_ui_render_background_index(int idx) {
     SDL_RenderPresent(u->ren);
 }
 
+
+static int host_ui_shape_inside(const NyotaUiControlSpec *s, int x, int y, int w, int h) {
+    if (!s || s->kind != NYOTA_UI_CTRL_DAREA || s->shape == NYOTA_UI_DAREA_RECT) return 1;
+    if (s->shape == NYOTA_UI_DAREA_CIRCLE) {
+        double radius = (double)(w < h ? w : h) / 2.0;
+        double dx = (double)x + 0.5 - (double)w / 2.0;
+        double dy = (double)y + 0.5 - (double)h / 2.0;
+        return dx * dx + dy * dy <= radius * radius;
+    }
+    if (s->shape == NYOTA_UI_DAREA_ELLIPSE) {
+        double nx, ny;
+        if (w <= 0 || h <= 0) return 0;
+        nx = ((double)x + 0.5 - (double)w / 2.0) / ((double)w / 2.0);
+        ny = ((double)y + 0.5 - (double)h / 2.0) / ((double)h / 2.0);
+        return nx * nx + ny * ny <= 1.0;
+    }
+    return 1;
+}
+
+static SDL_Surface *host_ui_control_background_surface(const NyotaUiControlSpec *s,
+                                                        const NyotaUiBackground *bg) {
+    SDL_Surface *dst = NULL, *src = NULL, *conv = NULL;
+    uint32_t x, y;
+    if (!s || !bg || !s->w || !s->h) return NULL;
+    dst = SDL_CreateRGBSurfaceWithFormat(0, (int)s->w, (int)s->h, 32, SDL_PIXELFORMAT_RGBA32);
+    if (!dst) return NULL;
+    SDL_FillRect(dst, NULL, SDL_MapRGBA(dst->format, 0, 0, 0, 0));
+
+    if (bg->kind == NYOTA_UI_BG_IMAGE) {
+        SDL_Rect sr, dr;
+        int sw, sh, dw, dh;
+        src = IMG_Load(bg->image_path);
+        if (!src) { SDL_FreeSurface(dst); return NULL; }
+        conv = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_RGBA32, 0);
+        SDL_FreeSurface(src); src = NULL;
+        if (!conv) { SDL_FreeSurface(dst); return NULL; }
+        sw = conv->w; sh = conv->h;
+        sr.x = 0; sr.y = 0; sr.w = sw; sr.h = sh;
+        dr.x = 0; dr.y = 0; dr.w = (int)s->w; dr.h = (int)s->h;
+        if (bg->image_mode == NYOTA_UI_IMG_STRETCH) {
+            SDL_BlitScaled(conv, NULL, dst, &dr);
+        } else if (bg->image_mode == NYOTA_UI_IMG_NATIVE) {
+            SDL_BlitSurface(conv, NULL, dst, &dr);
+        } else if (bg->image_mode == NYOTA_UI_IMG_TILE) {
+            int xx, yy;
+            for (yy = 0; yy < (int)s->h; yy += sh)
+                for (xx = 0; xx < (int)s->w; xx += sw) {
+                    dr.x = xx; dr.y = yy; dr.w = sw; dr.h = sh;
+                    SDL_BlitSurface(conv, NULL, dst, &dr);
+                }
+        } else if (bg->image_mode == NYOTA_UI_IMG_FIT) {
+            if ((int64_t)sw * s->h > (int64_t)sh * s->w) {
+                dw = (int)s->w; dh = (int)((int64_t)sh * s->w / sw);
+            } else {
+                dh = (int)s->h; dw = (int)((int64_t)sw * s->h / sh);
+            }
+            dr.w = dw; dr.h = dh; dr.x = ((int)s->w - dw) / 2; dr.y = ((int)s->h - dh) / 2;
+            SDL_BlitScaled(conv, NULL, dst, &dr);
+        } else {
+            if ((int64_t)sw * s->h > (int64_t)sh * s->w) {
+                sr.w = (int)((int64_t)sh * s->w / s->h); sr.x = (sw - sr.w) / 2;
+            } else {
+                sr.h = (int)((int64_t)sw * s->h / s->w); sr.y = (sh - sr.h) / 2;
+            }
+            SDL_BlitScaled(conv, &sr, dst, &dr);
+        }
+        SDL_FreeSurface(conv);
+    } else {
+        if (SDL_LockSurface(dst) != 0) { SDL_FreeSurface(dst); return NULL; }
+        for (y = 0; y < s->h; y++) {
+            uint32_t *row = (uint32_t *)((uint8_t *)dst->pixels + y * dst->pitch);
+            for (x = 0; x < s->w; x++) {
+                uint8_t r=0,g=0,b=0,a=0;
+                if (bg->kind == NYOTA_UI_BG_LINEAR || bg->kind == NYOTA_UI_BG_SHAPE ||
+                    bg->kind == NYOTA_UI_BG_SPIRAL) {
+                    double t = host_ui_gradient_t(bg, x, y, s->w, s->h);
+                    host_ui_lerp_color(bg, t, &r, &g, &b, &a);
+                } else {
+                    NyotaColor cc = bg->colors[0];
+                    r=cc.r; g=cc.g; b=cc.b; a=(cc.mode == NYOTA_COLOR_TRANSPARENT ? 0 : cc.a);
+                }
+                row[x] = SDL_MapRGBA(dst->format, r, g, b, a);
+            }
+        }
+        SDL_UnlockSurface(dst);
+    }
+
+    if (s->kind == NYOTA_UI_CTRL_DAREA && s->shape != NYOTA_UI_DAREA_RECT) {
+        if (SDL_LockSurface(dst) == 0) {
+            for (y = 0; y < s->h; y++) {
+                uint32_t *row = (uint32_t *)((uint8_t *)dst->pixels + y * dst->pitch);
+                for (x = 0; x < s->w; x++) {
+                    if (!host_ui_shape_inside(s, (int)x, (int)y, (int)s->w, (int)s->h))
+                        row[x] = SDL_MapRGBA(dst->format, 0, 0, 0, 0);
+                }
+            }
+            SDL_UnlockSurface(dst);
+        }
+    }
+    return dst;
+}
+
+static void host_ui_draw_text(SDL_Renderer *ren, const NyotaUiControlSpec *s, SDL_Rect r) {
+    const char *text;
+    int scale, charw, charh, len, tx, ty, i, row, col;
+    NyotaColor color;
+    if (!ren || !s || !(text = s->text) || !text[0] || s->kind == NYOTA_UI_CTRL_PANEL) return;
+    color = s->text_color;
+    if (color.mode == NYOTA_COLOR_TRANSPARENT) return;
+    scale = (int)((s->font_size + 7u) / 8u);
+    if (scale < 1) scale = 1; if (scale > 16) scale = 16;
+    charw = 8 * scale; charh = 8 * scale; len = (int)strlen(text);
+    tx = r.x + 4;
+    if (s->halign == NYOTA_UI_ALIGN_CENTER) tx = r.x + (r.w - len * charw) / 2;
+    else if (s->halign == NYOTA_UI_ALIGN_RIGHT) tx = r.x + r.w - len * charw - 4;
+    ty = r.y + 4;
+    if (s->valign == NYOTA_UI_VALIGN_MIDDLE) ty = r.y + (r.h - charh) / 2;
+    else if (s->valign == NYOTA_UI_VALIGN_BOTTOM) ty = r.y + r.h - charh - 4;
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, color.r, color.g, color.b, color.a);
+    for (i = 0; text[i]; i++) {
+        unsigned ch = (unsigned char)text[i];
+        const unsigned char *glyph;
+        int gx = tx + i * charw;
+        if (ch < 32 || ch > 126) ch = '?';
+        glyph = FONT8[ch - 32];
+        for (row = 0; row < 8; row++) {
+            unsigned char bits = glyph[row];
+            int slant = s->italic ? (7 - row) * scale / 3 : 0;
+            for (col = 0; col < 8; col++) if (bits & (1u << col)) {
+                SDL_Rect px = {gx + col * scale + slant, ty + row * scale, scale, scale};
+                SDL_RenderFillRect(ren, &px);
+                if (s->bold) { px.x += 1; SDL_RenderFillRect(ren, &px); }
+            }
+        }
+    }
+    if (s->underline) {
+        SDL_RenderDrawLine(ren, tx, ty + charh - 1, tx + len * charw - 1, ty + charh - 1);
+    }
+}
+
+static void host_ui_draw_border(SDL_Renderer *ren, const HostUiControl *ctl, SDL_Rect r) {
+    uint32_t k, width;
+    NyotaColor color;
+    if (!ren || !ctl || !ctl->spec.border) return;
+    color = (ctl->spec.kind == NYOTA_UI_CTRL_DAREA && ctl->hover) ?
+            ctl->spec.border_color_over : ctl->spec.border_color;
+    width = (ctl->spec.kind == NYOTA_UI_CTRL_DAREA && ctl->hover) ?
+            ctl->spec.border_width_over : ctl->spec.border_width;
+    if (color.mode == NYOTA_COLOR_TRANSPARENT || !width) return;
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, color.r, color.g, color.b, color.a);
+    for (k = 0; k < width; k++) {
+        SDL_Rect q = {r.x + (int)k, r.y + (int)k, r.w - (int)(2*k), r.h - (int)(2*k)};
+        if (q.w <= 1 || q.h <= 1) break;
+        if (ctl->spec.kind == NYOTA_UI_CTRL_DAREA && ctl->spec.shape != NYOTA_UI_DAREA_RECT) {
+            int seg, nseg = 96;
+            double pi = 3.14159265358979323846;
+            int px = 0, py = 0;
+            double rx = (ctl->spec.shape == NYOTA_UI_DAREA_CIRCLE ?
+                        (double)(q.w < q.h ? q.w : q.h) / 2.0 : (double)q.w / 2.0);
+            double ry = (ctl->spec.shape == NYOTA_UI_DAREA_CIRCLE ? rx : (double)q.h / 2.0);
+            double cx = q.x + q.w / 2.0, cy = q.y + q.h / 2.0;
+            for (seg = 0; seg <= nseg; seg++) {
+                double a = 2.0 * pi * seg / nseg;
+                int nx = (int)lrint(cx + cos(a) * rx);
+                int ny = (int)lrint(cy + sin(a) * ry);
+                if (seg) SDL_RenderDrawLine(ren, px, py, nx, ny);
+                px = nx; py = ny;
+            }
+        } else SDL_RenderDrawRect(ren, &q);
+    }
+}
+
+static int host_ui_clip_for_control(int idx, SDL_Rect *clip) {
+    int p;
+    SDL_Rect full, pr, inter;
+    HostUiControl *c;
+    int wi;
+    if (idx < 0 || idx >= HOST_MAX_UI_CONTROLS || !g_ui_controls[idx].used) return 0;
+    c=&g_ui_controls[idx]; wi=host_ui_index_by_handle(c->window_handle); if(wi<0)return 0;
+    full.x=0;full.y=0;full.w=(int)g_ui_windows[wi].w;full.h=(int)g_ui_windows[wi].h; *clip=full;
+    p=c->parent_control_handle>0?host_ui_control_index_by_handle(c->parent_control_handle):-1;
+    while(p>=0){
+        HostUiControl *pc=&g_ui_controls[p];
+        if(pc->spec.kind==NYOTA_UI_CTRL_PANEL && pc->spec.clip && host_ui_control_rect_index(p,&pr)){
+            if(!SDL_IntersectRect(clip,&pr,&inter)){clip->w=clip->h=0;return 1;} *clip=inter;
+        }
+        p=pc->parent_control_handle>0?host_ui_control_index_by_handle(pc->parent_control_handle):-1;
+    }
+    return 1;
+}
+
+static void host_ui_draw_control_index(int idx) {
+    HostUiControl *ctl;
+    HostUiWindow *u;
+    SDL_Rect r, clip;
+    SDL_Surface *surface;
+    SDL_Texture *tex;
+    const NyotaUiBackground *bg;
+    int wi;
+    if (idx < 0 || idx >= HOST_MAX_UI_CONTROLS || !g_ui_controls[idx].used) return;
+    ctl = &g_ui_controls[idx];
+    wi = host_ui_index_by_handle(ctl->window_handle);
+    if (wi < 0 || !(u=&g_ui_windows[wi])->ren || !host_ui_control_rect_index(idx,&r)) return;
+    if (!host_ui_clip_for_control(idx,&clip) || clip.w<=0 || clip.h<=0) return;
+    SDL_RenderSetClipRect(u->ren,&clip);
+    bg = (ctl->spec.kind == NYOTA_UI_CTRL_DAREA && ctl->hover) ?
+         &ctl->spec.background_over : &ctl->spec.background;
+    surface = host_ui_control_background_surface(&ctl->spec,bg);
+    if(surface){
+        tex=SDL_CreateTextureFromSurface(u->ren,surface); SDL_FreeSurface(surface);
+        if(tex){SDL_SetTextureBlendMode(tex,SDL_BLENDMODE_BLEND);SDL_RenderCopy(u->ren,tex,NULL,&r);SDL_DestroyTexture(tex);}
+    }
+    host_ui_draw_border(u->ren,ctl,r);
+    host_ui_draw_text(u->ren,&ctl->spec,r);
+    SDL_RenderSetClipRect(u->ren,NULL);
+}
+
+static void host_ui_redraw_controls(int window_index) {
+    int i;
+    HostUiWindow *u;
+    if(window_index<0||window_index>=HOST_MAX_UI_WINDOWS||!g_ui_windows[window_index].used)return;
+    u=&g_ui_windows[window_index];
+    for(i=0;i<HOST_MAX_UI_CONTROLS;i++)
+        if(g_ui_controls[i].used&&g_ui_controls[i].window_handle==u->handle)
+            host_ui_draw_control_index(i);
+    if(u->ren) SDL_RenderPresent(u->ren);
+}
+
+static int32_t host_ui_control_create(const char *name, int32_t window_handle,
+                                      int32_t parent_control_handle,
+                                      const NyotaUiControlSpec *spec) {
+    int i, wi = host_ui_index_by_handle(window_handle);
+    (void)name;
+    if (wi < 0 || !spec || !spec->w || !spec->h) return -1;
+    if (parent_control_handle > 0) {
+        int pi = host_ui_control_index_by_handle(parent_control_handle);
+        if (pi < 0 || g_ui_controls[pi].window_handle != window_handle ||
+            g_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_PANEL) return -1;
+    }
+    for(i=0;i<HOST_MAX_UI_CONTROLS;i++) if(!g_ui_controls[i].used){
+        memset(&g_ui_controls[i],0,sizeof(g_ui_controls[i]));
+        g_ui_controls[i].used=1; g_ui_controls[i].handle=1000+i;
+        g_ui_controls[i].window_handle=window_handle;
+        g_ui_controls[i].parent_control_handle=parent_control_handle;
+        g_ui_controls[i].spec=*spec;
+        if (g_ui_windows[wi].has_background) host_ui_render_background_index(wi);
+        host_ui_redraw_controls(wi);
+        return g_ui_controls[i].handle;
+    }
+    return -1;
+}
+
+static int32_t host_ui_control_update(int32_t handle, const NyotaUiControlSpec *spec) {
+    int i=host_ui_control_index_by_handle(handle), wi;
+    if(i<0||!spec)return -1;
+    g_ui_controls[i].spec=*spec;
+    wi=host_ui_index_by_handle(g_ui_controls[i].window_handle);
+    if(wi<0)return -1;
+    if(g_ui_windows[wi].has_background) host_ui_render_background_index(wi);
+    host_ui_redraw_controls(wi);
+    return 0;
+}
+
+static void host_ui_control_destroy_index(int idx) {
+    int i, wi;
+    int32_t handle;
+    if(idx<0||idx>=HOST_MAX_UI_CONTROLS||!g_ui_controls[idx].used)return;
+    handle=g_ui_controls[idx].handle;
+    wi=host_ui_index_by_handle(g_ui_controls[idx].window_handle);
+    for(i=0;i<HOST_MAX_UI_CONTROLS;i++)
+        if(g_ui_controls[i].used&&g_ui_controls[i].parent_control_handle==handle)
+            host_ui_control_destroy_index(i);
+    memset(&g_ui_controls[idx],0,sizeof(g_ui_controls[idx]));
+    if(wi>=0){if(g_ui_windows[wi].has_background)host_ui_render_background_index(wi);host_ui_redraw_controls(wi);}
+}
+
+static void host_ui_control_destroy(int32_t handle) {
+    int i=host_ui_control_index_by_handle(handle); if(i>=0)host_ui_control_destroy_index(i);
+}
+
+static int32_t host_ui_button_clicked(int32_t handle) {
+    int i=host_ui_control_index_by_handle(handle), wi, mx=0,my=0;
+    Uint32 buttons; uint8_t down; int inside, clicked;
+    if(i<0||g_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_BUTTON)return -1;
+    host_pump();
+    wi=host_ui_index_by_handle(g_ui_controls[i].window_handle); if(wi<0)return -1;
+    if(SDL_GetMouseFocus()!=g_ui_windows[wi].win){g_ui_controls[i].prev_down=0;return 0;}
+    buttons=SDL_GetMouseState(&mx,&my); down=(buttons&SDL_BUTTON(SDL_BUTTON_LEFT))?1:0;
+    inside=host_ui_point_in_control(i,mx,my);
+    clicked=down&&!g_ui_controls[i].prev_down&&inside;
+    g_ui_controls[i].prev_down=down;
+    return clicked?1:0;
+}
+
+static int32_t host_ui_darea_dropped(int32_t handle) {
+    int i=host_ui_control_index_by_handle(handle); int32_t v;
+    if(i<0||g_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_DAREA)return -1;
+    host_pump(); v=g_ui_controls[i].dropped?1:0; g_ui_controls[i].dropped=0; return v;
+}
+
+static int32_t host_ui_darea_items(int32_t handle,char *out,uint32_t cap,uint32_t *out_size){
+    int i=host_ui_control_index_by_handle(handle); size_t n;
+    if(out_size)*out_size=0;
+    if(i<0||g_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_DAREA||!out||!cap)return -1;
+    n=strlen(g_ui_controls[i].drop_items); if(n+1>cap)return -2;
+    memcpy(out,g_ui_controls[i].drop_items,n+1); if(out_size)*out_size=(uint32_t)n; return 0;
+}
+
 static int32_t host_ui_win_create(const char *name, int32_t parent_handle,
                                   uint32_t w, uint32_t h, int32_t x, int32_t y,
                                   uint8_t position_mode, uint8_t resizable) {
@@ -638,6 +1083,9 @@ static void host_ui_destroy_index(int idx) {
     int32_t handle;
     if (idx < 0 || idx >= HOST_MAX_UI_WINDOWS || !g_ui_windows[idx].used) return;
     handle = g_ui_windows[idx].handle;
+    for (i = 0; i < HOST_MAX_UI_CONTROLS; i++)
+        if (g_ui_controls[i].used && g_ui_controls[i].window_handle == handle)
+            memset(&g_ui_controls[i], 0, sizeof(g_ui_controls[i]));
     for (i = 0; i < HOST_MAX_UI_WINDOWS; i++)
         if (g_ui_windows[i].used && g_ui_windows[i].parent_handle == handle)
             host_ui_destroy_index(i);
@@ -1055,6 +1503,12 @@ int main(int argc, char **argv) {
     g_nyhost.ui_win_set_icon = host_ui_win_set_icon;
     g_nyhost.ui_win_set_background = host_ui_win_set_background;
     g_nyhost.ui_win_destroy = host_ui_win_destroy;
+    g_nyhost.ui_control_create = host_ui_control_create;
+    g_nyhost.ui_control_update = host_ui_control_update;
+    g_nyhost.ui_control_destroy = host_ui_control_destroy;
+    g_nyhost.ui_button_clicked = host_ui_button_clicked;
+    g_nyhost.ui_darea_dropped = host_ui_darea_dropped;
+    g_nyhost.ui_darea_items = host_ui_darea_items;
     NyotaSetHost(&g_nyhost);
     g_input_feed = getenv("NYOTA_INPUT");
     g_input_pos = 0;
