@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        4%{?dist}
+Release:        5%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -11,6 +11,7 @@ Source0:        %{name}-%{version}.tar.gz
 BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  pkgconfig(sdl2)
+BuildRequires:  pkgconfig(SDL2_image)
 
 %description
 Nyota is a programming language. PRINT, GRAPH, INPUT and DELAY are part
@@ -38,6 +39,11 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-5
+- Add NyotaUI WIN with ROOT/parent hierarchy and LIST-based geometry.
+- Add optional WIN CONFIG with TITLE, BG and ICO.
+- Add color, image, linear/shape/spiral background support on POSIX/SDL2.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-4
 - Complete the v0.5 parser precedence and numeric edge checks.
 - Implement RECORD/WITH, IMPORT, EVERY, ON ERROR/ERR_CODE and SCREEN.
