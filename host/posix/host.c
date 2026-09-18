@@ -100,6 +100,7 @@ static void host_ui_redraw_controls(int window_index);
 static void host_ui_mark_dirty(int window_index);
 static void host_ui_flush_dirty(void);
 static void host_ui_finish_initial_build(void);
+static int host_ui_combo_popup_hit(int idx,int x,int y,int32_t *row_out);
 static NyotaColor host_ui_tint_color(NyotaColor c,int delta);
 static uint32_t host_ui_tarea_caret_from_point(HostUiControl *ctl,SDL_Rect r,int mx,int my);
 static void host_ui_tarea_caret_visual(HostUiControl *ctl,SDL_Rect r,int *out_x,int *out_row);
