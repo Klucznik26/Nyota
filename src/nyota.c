@@ -48,6 +48,34 @@ static int32_t HostScreenSet(uint32_t id) {
     return -1;
 }
 
+static int32_t HostWinCreate(const char *name, int32_t parent_handle,
+                             uint32_t w, uint32_t h, int32_t x, int32_t y,
+                             uint8_t position_mode, uint8_t resizable) {
+    if (g_host && g_host->ui_win_create)
+        return g_host->ui_win_create(name, parent_handle, w, h, x, y, position_mode, resizable);
+    return -1;
+}
+
+static int32_t HostWinSetTitle(int32_t handle, const char *title) {
+    if (g_host && g_host->ui_win_set_title) return g_host->ui_win_set_title(handle, title);
+    return -1;
+}
+
+static int32_t HostWinSetIcon(int32_t handle, const char *path) {
+    if (g_host && g_host->ui_win_set_icon) return g_host->ui_win_set_icon(handle, path);
+    return -1;
+}
+
+static int32_t HostWinSetBackground(int32_t handle, const NyotaUiBackground *background) {
+    if (g_host && g_host->ui_win_set_background)
+        return g_host->ui_win_set_background(handle, background);
+    return -1;
+}
+
+static void HostWinDestroy(int32_t handle) {
+    if (g_host && g_host->ui_win_destroy) g_host->ui_win_destroy(handle);
+}
+
 static int32_t HostSpriteLoad(const char *path) {
     if (g_host && g_host->gfx_sprite_load) return g_host->gfx_sprite_load(path);
     return -1;
@@ -202,6 +230,7 @@ static int32_t HostDirList(const char *path, char *out, uint32_t cap, uint32_t *
 #define MAX_RECORDS     32
 #define MAX_RECORD_FIELDS 16
 #define MAX_SCREENS     16
+#define MAX_WINDOWS     32
 #define NYOTA_INDENT    4       // jeden poziom bloku = dokładnie 4 spacje
 
 // ============================================================
@@ -218,6 +247,7 @@ static int32_t HostDirList(const char *path, char *out, uint32_t cap, uint32_t *
 #define TYPE_TUPLE   8
 #define TYPE_TIME    9
 #define TYPE_RECORD  10
+#define TYPE_COLOR   11
 
 // Wartość (może być dowolnego typu)
 typedef struct NyotaVal NyotaVal;
@@ -298,6 +328,19 @@ typedef struct {
     uint64_t last_frame_tick;
 } NyotaSprite;
 
+typedef struct {
+    char name[64];
+    char parent_name[64];
+    int32_t host_handle;
+    uint32_t w, h;
+    int32_t x, y;
+    uint8_t position_mode;
+    uint8_t resizable;
+    char title[MAX_STR_LEN];
+    char icon[MAX_STR_LEN];
+    NyotaUiBackground background;
+} NyotaWindow;
+
 // ============================================================
 // STAN GLOBALNY INTERPRETERA
 // ============================================================
@@ -323,6 +366,8 @@ static NyotaButton g_buttons[MAX_BUTTONS];
 static uint32_t    g_button_count = 0;
 static NyotaSprite g_sprites[MAX_SPRITES];
 static uint32_t    g_sprite_count = 0;
+static NyotaWindow g_windows[MAX_WINDOWS];
+static uint32_t    g_window_count = 0;
 
 #define MAX_EVERY_EVENTS 16
 typedef struct {
@@ -824,6 +869,24 @@ static void ValFromStr(NyotaVal *v, const char *s) {
     v->type = TYPE_STR;
     NStrCopy(v->s, s, MAX_STR_LEN);
 }
+static void ValFromColor(NyotaVal *v, const NyotaColor *c) {
+    ValClear(v);
+    if (!c) return;
+    v->type = TYPE_COLOR;
+    v->i = (int32_t)NyotaColorRGBA(c);
+    v->f_int = (int32_t)c->mode;
+}
+static int ValToColorValue(const NyotaVal *v, NyotaColor *out) {
+    uint32_t rgba;
+    if (!v || !out || v->type != TYPE_COLOR) return 0;
+    rgba = (uint32_t)v->i;
+    out->mode = (uint8_t)v->f_int;
+    out->r = (uint8_t)((rgba >> 24) & 0xFFu);
+    out->g = (uint8_t)((rgba >> 16) & 0xFFu);
+    out->b = (uint8_t)((rgba >> 8) & 0xFFu);
+    out->a = (uint8_t)(rgba & 0xFFu);
+    return 1;
+}
 static void ValFromFloat(NyotaVal *v, int32_t ip, int32_t frac) {
     int64_t milli = (int64_t)ip * 1000LL + (int64_t)frac;
     ValClear(v);
@@ -850,6 +913,7 @@ static const char *ValTypeName(uint8_t t) {
     if (t == TYPE_TUPLE) return "TUPLE";
     if (t == TYPE_TIME) return "TIME";
     if (t == TYPE_RECORD) return "RECORD";
+    if (t == TYPE_COLOR) return "COLOR";
     return "NONE";
 }
 
@@ -943,6 +1007,7 @@ static int ValEqual(const NyotaVal *a, const NyotaVal *b) {
     if (a->type != b->type) return 0;
     if (a->type == TYPE_INT || a->type == TYPE_BOOL || a->type == TYPE_DATE || a->type == TYPE_TIME)
         return a->i == b->i;
+    if (a->type == TYPE_COLOR) return a->i == b->i && a->f_int == b->f_int;
     if (a->type == TYPE_FLOAT) return FloatMilli(a) == FloatMilli(b);
     if (a->type == TYPE_STR) return NStrEq(a->s, b->s);
     if (a->type == TYPE_RECORD) {
@@ -989,6 +1054,29 @@ static void ValToStr(const NyotaVal *v, char *out, uint32_t max) {
         frac[2] = (char)('0' + a % 10);
         frac[3] = '\0';
         NStrAppend(out, frac, max);
+    } else if (v->type == TYPE_COLOR) {
+        static const char hex[] = "0123456789ABCDEF";
+        uint32_t rgba = (uint32_t)v->i;
+        uint8_t mode = (uint8_t)v->f_int;
+        uint8_t r = (uint8_t)((rgba >> 24) & 0xFFu);
+        uint8_t g = (uint8_t)((rgba >> 16) & 0xFFu);
+        uint8_t b = (uint8_t)((rgba >> 8) & 0xFFu);
+        uint8_t a = (uint8_t)(rgba & 0xFFu);
+        char buf[12];
+        if (mode == NYOTA_COLOR_TRANSPARENT) {
+            NStrCopy(out, "TRANSPARENT", max);
+        } else if (mode == NYOTA_COLOR_BACKDROP) {
+            NStrCopy(out, "BACKDROP", max);
+        } else {
+            buf[0] = '0'; buf[1] = 'x';
+            buf[2] = hex[(r >> 4) & 15]; buf[3] = hex[r & 15];
+            buf[4] = hex[(g >> 4) & 15]; buf[5] = hex[g & 15];
+            buf[6] = hex[(b >> 4) & 15]; buf[7] = hex[b & 15];
+            if (a != 255) {
+                buf[8] = hex[(a >> 4) & 15]; buf[9] = hex[a & 15]; buf[10] = '\0';
+            } else buf[8] = '\0';
+            NStrCopy(out, buf, max);
+        }
     } else if (v->type == TYPE_TIME) {
         int32_t hh = v->i / 3600;
         int32_t mm = (v->i / 60) % 60;
@@ -2489,6 +2577,18 @@ static NyotaVal ParsePrimary(const char **pp) {
         *pp = expr + 5; return result;
     }
 
+    // Nazwane kolory NyotaUI sa stalymi jezyka.
+    if (NIsAlpha(expr[0])) {
+        char color_name[32];
+        uint32_t cn = ParseIdent(expr, color_name, sizeof(color_name));
+        NyotaColor color;
+        if (cn > 0 && NyotaColorParse(color_name, &color)) {
+            ValFromColor(&result, &color);
+            *pp = expr + cn;
+            return result;
+        }
+    }
+
     // Funkcje wbudowane: INT(...), STRING(...), LEN(...)
     if (NStrEqN(expr, "INT(", 4)) {
         NyotaVal inner = Eval(expr + 4);
@@ -3532,6 +3632,33 @@ static NyotaVal ParsePrimary(const char **pp) {
         return result;
     }
 
+    // Kolor 0xRRGGBB / 0xRRGGBBAA
+    if (expr[0] == '0' && (expr[1] == 'x' || expr[1] == 'X')) {
+        char color_token[16];
+        uint32_t n = 2;
+        NyotaColor color;
+        while (n < 10 && ((expr[n] >= '0' && expr[n] <= '9') ||
+                          (expr[n] >= 'A' && expr[n] <= 'F') ||
+                          (expr[n] >= 'a' && expr[n] <= 'f'))) n++;
+        if ((n == 8 || n == 10) &&
+            !((expr[n] >= '0' && expr[n] <= '9') ||
+              (expr[n] >= 'A' && expr[n] <= 'F') ||
+              (expr[n] >= 'a' && expr[n] <= 'f') ||
+              NIsAlpha(expr[n]))) {
+            uint32_t k;
+            for (k = 0; k < n; k++) color_token[k] = expr[k];
+            color_token[n] = '\0';
+            if (NyotaColorParse(color_token, &color)) {
+                ValFromColor(&result, &color);
+                *pp = expr + n;
+                return result;
+            }
+        }
+        OutError("Niepoprawny kolor szesnastkowy (wymagane 0xRRGGBB albo 0xRRGGBBAA)");
+        *pp = expr;
+        return result;
+    }
+
     // Liczba całkowita lub float
     if (NIsDigit(expr[0]) || (expr[0] == '-' && NIsDigit(expr[1]))) {
         uint32_t consumed = 0;
@@ -4473,6 +4600,392 @@ static int ParseArgs(const char *p, int32_t *args, int max_args) {
     return count;
 }
 
+
+static NyotaWindow *FindWindow(const char *name) {
+    uint32_t i;
+    for (i = 0; i < g_window_count; i++)
+        if (NStrEq(g_windows[i].name, name)) return &g_windows[i];
+    return 0;
+}
+
+static int UiEvalPair(const char *expr, int32_t *a, int32_t *b, int positive, const char *label) {
+    NyotaVal v = Eval(expr);
+    if (v.type != TYPE_LIST || v.list_len != 2 ||
+        v.list_items[0].type != TYPE_INT || v.list_items[1].type != TYPE_INT) {
+        char err[160];
+        NStrCopy(err, label, sizeof(err));
+        NStrAppend(err, " wymaga LIST z dokladnie dwoma INTEGER", sizeof(err));
+        OutError(err);
+        return 0;
+    }
+    if (positive && (v.list_items[0].i <= 0 || v.list_items[1].i <= 0)) {
+        char err[160];
+        NStrCopy(err, label, sizeof(err));
+        NStrAppend(err, " wymaga wartosci > 0", sizeof(err));
+        OutError(err);
+        return 0;
+    }
+    *a = v.list_items[0].i;
+    *b = v.list_items[1].i;
+    return 1;
+}
+
+static void UiBackgroundBlack(NyotaUiBackground *bg) {
+    uint32_t i;
+    if (!bg) return;
+    bg->kind = NYOTA_UI_BG_COLOR;
+    bg->image_mode = NYOTA_UI_IMG_CROP;
+    bg->direction = NYOTA_UI_DIR_VERTICAL;
+    bg->shape = NYOTA_UI_SHAPE_CIRCLE;
+    bg->center_mode = NYOTA_UI_POS_CENTER;
+    bg->spiral_direction = NYOTA_UI_SPIRAL_CW;
+    bg->center_x = 0; bg->center_y = 0; bg->angle_deg = 0;
+    bg->turns = 1;
+    bg->color_count = 1;
+    bg->image_path[0] = '\0';
+    for (i = 0; i < NYOTA_UI_MAX_GRAD_COLORS; i++) {
+        bg->colors[i].mode = NYOTA_COLOR_SOLID;
+        bg->colors[i].r = bg->colors[i].g = bg->colors[i].b = 0;
+        bg->colors[i].a = 255;
+    }
+}
+
+static int UiParseColorList(const char *expr, uint32_t expected, NyotaUiBackground *bg) {
+    NyotaVal list = Eval(expr);
+    uint32_t i;
+    if (expected < 2 || expected > NYOTA_UI_MAX_GRAD_COLORS) {
+        OutError("GRAD: liczba kolorow musi byc 2..64");
+        return 0;
+    }
+    if (list.type != TYPE_LIST || list.list_len != expected) {
+        OutError("GRAD: liczba kolorow nie zgadza sie z dlugoscia LIST");
+        return 0;
+    }
+    for (i = 0; i < expected; i++) {
+        if (!ValToColorValue(&list.list_items[i], &bg->colors[i])) {
+            OutError("GRAD: LIST moze zawierac tylko kolory Nyoty");
+            return 0;
+        }
+        if (bg->colors[i].mode == NYOTA_COLOR_BACKDROP) {
+            OutError("GRAD: BACKDROP nie moze byc punktem gradientu");
+            return 0;
+        }
+    }
+    bg->color_count = expected;
+    return 1;
+}
+
+static int UiEvalInteger(const char *expr, int32_t *out, const char *label) {
+    NyotaVal v = Eval(expr);
+    if (v.type != TYPE_INT) {
+        char err[128];
+        NStrCopy(err, label, sizeof(err));
+        NStrAppend(err, " wymaga INTEGER", sizeof(err));
+        OutError(err);
+        return 0;
+    }
+    *out = v.i;
+    return 1;
+}
+
+static int UiParseCenter(const char *expr, NyotaUiBackground *bg) {
+    const char *p = NTrim(expr);
+    if (NStrEq(p, "CENTER")) {
+        bg->center_mode = NYOTA_UI_POS_CENTER;
+        bg->center_x = bg->center_y = 0;
+        return 1;
+    }
+    bg->center_mode = NYOTA_UI_POS_XY;
+    return UiEvalPair(p, &bg->center_x, &bg->center_y, 0, "GRAD: centrum");
+}
+
+static int UiParseDirection(const char *s, uint8_t *out) {
+    s = NTrim(s);
+    if (NStrEq(s, "VERTICAL")) *out = NYOTA_UI_DIR_VERTICAL;
+    else if (NStrEq(s, "HORIZONTAL")) *out = NYOTA_UI_DIR_HORIZONTAL;
+    else if (NStrEq(s, "DIAG_DOWN")) *out = NYOTA_UI_DIR_DIAG_DOWN;
+    else if (NStrEq(s, "DIAG_UP")) *out = NYOTA_UI_DIR_DIAG_UP;
+    else { OutError("GRAD LINEAR: kierunek VERTICAL/HORIZONTAL/DIAG_DOWN/DIAG_UP"); return 0; }
+    return 1;
+}
+
+static int UiParseShape(const char *s, uint8_t *out) {
+    s = NTrim(s);
+    if (NStrEq(s, "CIRCLE")) *out = NYOTA_UI_SHAPE_CIRCLE;
+    else if (NStrEq(s, "ELLIPSE")) *out = NYOTA_UI_SHAPE_ELLIPSE;
+    else if (NStrEq(s, "SQUARE")) *out = NYOTA_UI_SHAPE_SQUARE;
+    else if (NStrEq(s, "RECT")) *out = NYOTA_UI_SHAPE_RECT;
+    else if (NStrEq(s, "DIAMOND")) *out = NYOTA_UI_SHAPE_DIAMOND;
+    else if (NStrEq(s, "STAR")) *out = NYOTA_UI_SHAPE_STAR;
+    else if (NStrEq(s, "EGG")) *out = NYOTA_UI_SHAPE_EGG;
+    else { OutError("GRAD SHAPE: nieznany ksztalt"); return 0; }
+    return 1;
+}
+
+static int UiParseImageMode(const char *s, uint8_t *out) {
+    s = NTrim(s);
+    if (NStrEq(s, "CROP")) *out = NYOTA_UI_IMG_CROP;
+    else if (NStrEq(s, "FIT")) *out = NYOTA_UI_IMG_FIT;
+    else if (NStrEq(s, "STRETCH")) *out = NYOTA_UI_IMG_STRETCH;
+    else if (NStrEq(s, "NATIVE")) *out = NYOTA_UI_IMG_NATIVE;
+    else if (NStrEq(s, "TILE")) *out = NYOTA_UI_IMG_TILE;
+    else { OutError("IMG: tryb FIT/CROP/STRETCH/NATIVE/TILE"); return 0; }
+    return 1;
+}
+
+static int UiParseBackground(const char *expr, NyotaUiBackground *bg) {
+    char work[MAX_LINE_LEN];
+    const char *p;
+    uint32_t len;
+    UiBackgroundBlack(bg);
+    NStrCopy(work, NTrim(expr), sizeof(work));
+    NRTrim(work);
+    p = work;
+    len = NStrLen(work);
+
+    if (NStrEqN(p, "IMG(", 4)) {
+        char args[2][MAX_STR_LEN];
+        int n;
+        NyotaVal pathv;
+        if (len < 5 || work[len - 1] != ')') { OutError("IMG: brak zamykajacego )"); return 0; }
+        n = SplitFunctionArgs(p + 4, args, 2);
+        if (n != 1 && n != 2) { OutError("IMG(path [, tryb])"); return 0; }
+        pathv = Eval(args[0]);
+        if (pathv.type != TYPE_STR || !pathv.s[0]) { OutError("IMG: path wymaga niepustego STRING"); return 0; }
+        bg->kind = NYOTA_UI_BG_IMAGE;
+        NStrCopy(bg->image_path, pathv.s, sizeof(bg->image_path));
+        bg->image_mode = NYOTA_UI_IMG_CROP;
+        if (n == 2 && !UiParseImageMode(args[1], &bg->image_mode)) return 0;
+        return 1;
+    }
+
+    if (NStrEqN(p, "GRAD(", 5)) {
+        char args[7][MAX_STR_LEN];
+        int n;
+        int32_t count, angle, turns;
+        if (len < 6 || work[len - 1] != ')') { OutError("GRAD: brak zamykajacego )"); return 0; }
+        n = SplitFunctionArgs(p + 5, args, 7);
+        if (n <= 0) { OutError("GRAD: brak argumentow"); return 0; }
+
+        if (NStrEq(NTrim(args[0]), "LINEAR")) {
+            if (n != 4) { OutError("GRAD(LINEAR, kierunek, liczba, kolory)"); return 0; }
+            bg->kind = NYOTA_UI_BG_LINEAR;
+            if (!UiParseDirection(args[1], &bg->direction)) return 0;
+            if (!UiEvalInteger(args[2], &count, "GRAD: liczba kolorow")) return 0;
+            return UiParseColorList(args[3], (uint32_t)count, bg);
+        }
+
+        if (NStrEq(NTrim(args[0]), "SHAPE")) {
+            if (n != 6) { OutError("GRAD(SHAPE, figura, centrum, kat, liczba, kolory)"); return 0; }
+            bg->kind = NYOTA_UI_BG_SHAPE;
+            if (!UiParseShape(args[1], &bg->shape)) return 0;
+            if (!UiParseCenter(args[2], bg)) return 0;
+            if (!UiEvalInteger(args[3], &angle, "GRAD: kat")) return 0;
+            if (!UiEvalInteger(args[4], &count, "GRAD: liczba kolorow")) return 0;
+            bg->angle_deg = angle;
+            return UiParseColorList(args[5], (uint32_t)count, bg);
+        }
+
+        if (NStrEq(NTrim(args[0]), "SPIRAL")) {
+            if (n != 7) { OutError("GRAD(SPIRAL, centrum, kat, obroty, CW/CCW, liczba, kolory)"); return 0; }
+            bg->kind = NYOTA_UI_BG_SPIRAL;
+            if (!UiParseCenter(args[1], bg)) return 0;
+            if (!UiEvalInteger(args[2], &angle, "GRAD: kat")) return 0;
+            if (!UiEvalInteger(args[3], &turns, "GRAD SPIRAL: obroty")) return 0;
+            if (turns <= 0) { OutError("GRAD SPIRAL: obroty musza byc > 0"); return 0; }
+            if (NStrEq(NTrim(args[4]), "CW")) bg->spiral_direction = NYOTA_UI_SPIRAL_CW;
+            else if (NStrEq(NTrim(args[4]), "CCW")) bg->spiral_direction = NYOTA_UI_SPIRAL_CCW;
+            else { OutError("GRAD SPIRAL: kierunek CW albo CCW"); return 0; }
+            if (!UiEvalInteger(args[5], &count, "GRAD: liczba kolorow")) return 0;
+            bg->angle_deg = angle;
+            bg->turns = (uint32_t)turns;
+            return UiParseColorList(args[6], (uint32_t)count, bg);
+        }
+
+        OutError("GRAD: pierwszy argument musi byc LINEAR, SHAPE albo SPIRAL");
+        return 0;
+    }
+
+    {
+        NyotaVal cv = Eval(p);
+        NyotaColor color;
+        if (!ValToColorValue(&cv, &color)) {
+            OutError("BG wymaga koloru, IMG(...) albo GRAD(...)");
+            return 0;
+        }
+        bg->kind = NYOTA_UI_BG_COLOR;
+        bg->color_count = 1;
+        bg->colors[0] = color;
+        return 1;
+    }
+}
+
+static int UiApplyWinConfig(uint32_t ln, const char *raw, NyotaWindow *w) {
+    uint32_t my_indent = NIndent(raw);
+    uint32_t body_start = ln + 1;
+    uint32_t body_end = SkipBlock(body_start, my_indent);
+    uint32_t i;
+    g_cur_line = body_end;
+    for (i = body_start; i < body_end; i++) {
+        const char *cl = NTrim(g_lines[i]);
+        char prop[64];
+        uint32_t pn;
+        const char *rhs;
+        if (!*cl || *cl == '#') continue;
+        if (NIndent(g_lines[i]) != my_indent + NYOTA_INDENT) {
+            g_cur_line = i; OutError("WIN CONFIG: wymagane dokladnie 4 spacje"); return 0;
+        }
+        pn = ParseIdent(cl, prop, sizeof(prop));
+        rhs = NTrim(cl + pn);
+        if (!prop[0] || *rhs != '=') {
+            g_cur_line = i; OutError("WIN CONFIG: wymagane WLASCIWOSC = wartosc"); return 0;
+        }
+        rhs = NTrim(rhs + 1);
+        g_cur_line = i;
+        if (NStrEq(prop, "TITLE")) {
+            NyotaVal v = Eval(rhs);
+            if (v.type != TYPE_STR) { OutError("WIN CONFIG TITLE wymaga STRING"); return 0; }
+            NStrCopy(w->title, v.s, sizeof(w->title));
+            if (HostWinSetTitle(w->host_handle, w->title) != 0) {
+                OutError("WIN CONFIG TITLE: host odrzucil ustawienie"); return 0;
+            }
+        } else if (NStrEq(prop, "ICO")) {
+            NyotaVal v = Eval(rhs);
+            if (v.type != TYPE_STR || !v.s[0]) { OutError("WIN CONFIG ICO wymaga niepustego STRING"); return 0; }
+            NStrCopy(w->icon, v.s, sizeof(w->icon));
+            if (HostWinSetIcon(w->host_handle, w->icon) != 0) {
+                OutError("WIN CONFIG ICO: nie mozna ustawic ikony"); return 0;
+            }
+        } else if (NStrEq(prop, "BG")) {
+            NyotaUiBackground bg;
+            if (!UiParseBackground(rhs, &bg)) return 0;
+            w->background = bg;
+            if (HostWinSetBackground(w->host_handle, &w->background) != 0) {
+                OutError("WIN CONFIG BG: host odrzucil tlo"); return 0;
+            }
+        } else {
+            OutError("WIN CONFIG: nieznana wlasciwosc (TITLE/BG/ICO)"); return 0;
+        }
+    }
+    g_cur_line = body_end;
+    return 1;
+}
+
+static int UiExecWin(uint32_t ln, const char *raw, const char *line) {
+    const char *p = NTrim(line + 3);
+    char name[64];
+    uint32_t nn = ParseIdent(p, name, sizeof(name));
+    NyotaWindow *existing;
+    p = NTrim(p + nn);
+    if (!name[0]) { OutError("WIN: brak nazwy okna"); return 1; }
+
+    if (NStrEq(p, ".CONFIG:")) {
+        existing = FindWindow(name);
+        if (!existing) {
+            g_cur_line = SkipBlock(ln + 1, NIndent(raw));
+            OutError("WIN CONFIG: nieznane okno");
+            return 1;
+        }
+        UiApplyWinConfig(ln, raw, existing);
+        return 1;
+    }
+
+    if (*p != ',') { OutError("WIN: po nazwie wymagany przecinek"); return 1; }
+    if (FindWindow(name)) { OutError("WIN: nazwa okna juz istnieje"); return 1; }
+    if (g_window_count >= MAX_WINDOWS) { OutError("WIN: przekroczono limit 32 okien"); return 1; }
+    if (!g_host || !g_host->ui_win_create || !g_host->ui_win_set_background) {
+        OutError("WIN: host nie obsluguje NyotaUI WIN");
+        return 1;
+    }
+
+    {
+        char args[4][MAX_STR_LEN];
+        int n = SplitFunctionArgs(NTrim(p + 1), args, 4);
+        char parent_name[64];
+        uint32_t pn;
+        NyotaWindow *parent = 0;
+        int32_t parent_handle = 0;
+        int32_t wi, hi, x = 0, y = 0;
+        uint8_t pos_mode = NYOTA_UI_POS_SYSTEM;
+        uint8_t resizable = 1;
+        int32_t handle;
+        NyotaWindow temp;
+
+        if (n < 2 || n > 4) {
+            OutError("WIN nazwa, rodzic, [w,h] [, CENTER/[x,y]] [, TRUE/FALSE]");
+            return 1;
+        }
+
+        pn = ParseIdent(NTrim(args[0]), parent_name, sizeof(parent_name));
+        if (!parent_name[0] || *NTrim(NTrim(args[0]) + pn)) {
+            OutError("WIN: rodzic musi byc ROOT albo nazwa WIN");
+            return 1;
+        }
+        if (!NStrEq(parent_name, "ROOT")) {
+            parent = FindWindow(parent_name);
+            if (!parent) { OutError("WIN: nieznany rodzic"); return 1; }
+            parent_handle = parent->host_handle;
+        }
+
+        if (!UiEvalPair(args[1], &wi, &hi, 1, "WIN: rozmiar")) return 1;
+
+        if (n == 3) {
+            NyotaVal third;
+            if (NStrEq(NTrim(args[2]), "CENTER")) {
+                pos_mode = NYOTA_UI_POS_CENTER;
+            } else {
+                third = Eval(args[2]);
+                if (third.type == TYPE_BOOL) {
+                    resizable = (uint8_t)(third.i != 0);
+                } else if (third.type == TYPE_LIST && third.list_len == 2 &&
+                           third.list_items[0].type == TYPE_INT && third.list_items[1].type == TYPE_INT) {
+                    x = third.list_items[0].i; y = third.list_items[1].i;
+                    pos_mode = NYOTA_UI_POS_XY;
+                } else {
+                    OutError("WIN: trzeci argument wymaga CENTER, [x,y] albo BOOLEAN");
+                    return 1;
+                }
+            }
+        } else if (n == 4) {
+            NyotaVal rv;
+            if (NStrEq(NTrim(args[2]), "CENTER")) pos_mode = NYOTA_UI_POS_CENTER;
+            else {
+                if (!UiEvalPair(args[2], &x, &y, 0, "WIN: pozycja")) return 1;
+                pos_mode = NYOTA_UI_POS_XY;
+            }
+            rv = Eval(args[3]);
+            if (rv.type != TYPE_BOOL) { OutError("WIN: resize wymaga BOOLEAN"); return 1; }
+            resizable = (uint8_t)(rv.i != 0);
+        }
+
+        handle = HostWinCreate(name, parent_handle, (uint32_t)wi, (uint32_t)hi,
+                               x, y, pos_mode, resizable);
+        if (handle <= 0) { OutError("WIN: host nie utworzyl okna"); return 1; }
+
+        temp.host_handle = handle;
+        temp.w = (uint32_t)wi; temp.h = (uint32_t)hi;
+        temp.x = x; temp.y = y; temp.position_mode = pos_mode; temp.resizable = resizable;
+        NStrCopy(temp.name, name, sizeof(temp.name));
+        NStrCopy(temp.parent_name, parent_name, sizeof(temp.parent_name));
+        NStrCopy(temp.title, name, sizeof(temp.title));
+        temp.icon[0] = '\0';
+        UiBackgroundBlack(&temp.background);
+
+        if (HostWinSetBackground(handle, &temp.background) != 0) {
+            HostWinDestroy(handle);
+            OutError("WIN: host nie ustawil domyslnego tla");
+            return 1;
+        }
+        if (g_host->ui_win_set_title && HostWinSetTitle(handle, temp.title) != 0) {
+            HostWinDestroy(handle);
+            OutError("WIN: host nie ustawil tytulu");
+            return 1;
+        }
+        g_windows[g_window_count++] = temp;
+    }
+    return 1;
+}
+
 // ============================================================
 // POMOCNICZE: RYSOWANIE LINII (Bresenham)
 // ============================================================
@@ -5192,6 +5705,12 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
 
     // Pusta lub komentarz
     if (!*line || *line == '#') return;
+
+    // --- NyotaUI WIN / WIN name.CONFIG: ---
+    if (NStartsWith(line, "WIN")) {
+        UiExecWin(ln, raw, line);
+        return;
+    }
 
     // --- PRINT ---
     if (NStartsWith(line, "PRINT")) {
@@ -7509,6 +8028,7 @@ static void NyotaEmbedReset(void) {
     g_list_pool_used = 0;
     g_table_count = 0;
     g_button_count = 0;
+    g_window_count = 0;
     g_is_graphics = 0;
     g_graph_w = g_graph_h = 0;
     g_active_screen = 0;
