@@ -5832,7 +5832,11 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"CBORDER")){if(!UiParseColorProperty(rhs,&s->border_color,"CBORDER"))return 0;}
     else if(NStrEq(prop,"BWIDTH")){if(!UiParseUIntProperty(rhs,&s->border_width,1,64,"BWIDTH"))return 0;}
     else if(NStrEq(prop,"CLIP")){if(!UiParseBoolProperty(rhs,&s->clip,"CLIP"))return 0;}
-    else if(NStrEq(prop,"RADIUS")){if(!UiParseUIntProperty(rhs,&s->radius,0,1024,"RADIUS"))return 0;if(s->kind==NYOTA_UI_CTRL_DAREA&&s->shape!=NYOTA_UI_DAREA_RECT&&s->radius){OutError("DAREA RADIUS wymaga SHAPE=RECT");return 0;}}
+    else if(NStrEq(prop,"RADIUS")){
+        if(s->kind==NYOTA_UI_CTRL_SCALE){if(!UiParseUIntProperty(rhs,&s->scale_radius,1,4096,"RADIUS"))return 0;}
+        else if(s->kind==NYOTA_UI_CTRL_CLOCK){if(!UiParseUIntProperty(rhs,&s->clock_radius,1,4096,"RADIUS"))return 0;}
+        else {if(!UiParseUIntProperty(rhs,&s->radius,0,1024,"RADIUS"))return 0;if(s->kind==NYOTA_UI_CTRL_DAREA&&s->shape!=NYOTA_UI_DAREA_RECT&&s->radius){OutError("DAREA RADIUS wymaga SHAPE=RECT");return 0;}}
+    }
     else if(NStrEq(prop,"LAYOUT")){const char*v=NTrim(rhs);if(NStrEq(v,"FREE"))s->layout=NYOTA_UI_LAYOUT_FREE;else if(NStrEq(v,"ROW"))s->layout=NYOTA_UI_LAYOUT_ROW;else if(NStrEq(v,"COL"))s->layout=NYOTA_UI_LAYOUT_COL;else{OutError("LAYOUT wymaga FREE/ROW/COL");return 0;}}
     else if(NStrEq(prop,"GAP")){if(s->kind==NYOTA_UI_CTRL_EQBOX){if(!UiParseUIntProperty(rhs,&s->eq_gap,0,1024,"GAP"))return 0;}else if(!UiParseUIntProperty(rhs,&s->gap,0,1024,"GAP"))return 0;}
     else if(NStrEq(prop,"LPADX")){if(!UiParseUIntProperty(rhs,&s->layout_pad_x,0,1024,"LPADX"))return 0;}
@@ -5848,6 +5852,15 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
             else if(NStrEq(v,"SQUARE"))s->progress_shape=NYOTA_UI_PBAR_SHAPE_SQUARE;
             else if(NStrEq(v,"PARALLELOGRAM"))s->progress_shape=NYOTA_UI_PBAR_SHAPE_PARALLELOGRAM;
             else{OutError("PBAR SHAPE wymaga BAR/CIRCLE/TRIANGLE/SQUARE/PARALLELOGRAM");return 0;}
+        }else if(s->kind==NYOTA_UI_CTRL_SCALE){
+            if(NStrEq(v,"LINE"))s->scale_shape=NYOTA_UI_SCALE_LINE;
+            else if(NStrEq(v,"ARC"))s->scale_shape=NYOTA_UI_SCALE_ARC;
+            else if(NStrEq(v,"CIRCLE"))s->scale_shape=NYOTA_UI_SCALE_CIRCLE;
+            else{OutError("SCALE SHAPE wymaga LINE/ARC/CIRCLE");return 0;}
+        }else if(s->kind==NYOTA_UI_CTRL_CLOCK){
+            if(NStrEq(v,"ARC"))s->clock_shape=NYOTA_UI_CLOCK_ARC;
+            else if(NStrEq(v,"CIRCLE"))s->clock_shape=NYOTA_UI_CLOCK_CIRCLE;
+            else{OutError("CLOCK SHAPE wymaga ARC/CIRCLE");return 0;}
         }else{
             if(NStrEq(v,"RECT"))s->shape=NYOTA_UI_DAREA_RECT;
             else if(NStrEq(v,"CIRCLE"))s->shape=NYOTA_UI_DAREA_CIRCLE;
@@ -5877,24 +5890,48 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"CHOVER")){if(!UiParseColorProperty(rhs,&s->hover_text_color,"CHOVER"))return 0;}
     else if(NStrEq(prop,"MAXVISIBLE")){if(!UiParseUIntProperty(rhs,&s->max_visible,1,64,"MAXVISIBLE"))return 0;}
     else if(NStrEq(prop,"CSEP")){if(!UiParseColorProperty(rhs,&s->sep_color,"CSEP"))return 0;}
-    else if(NStrEq(prop,"THICK")){if(!UiParseUIntProperty(rhs,&s->sep_thickness,1,64,"THICK"))return 0;}
+    else if(NStrEq(prop,"THICK")){if(s->kind==NYOTA_UI_CTRL_SPLITTER){if(!UiParseUIntProperty(rhs,&s->splitter_thickness,1,128,"THICK"))return 0;}else if(!UiParseUIntProperty(rhs,&s->sep_thickness,1,64,"THICK"))return 0;}
     else if(NStrEq(prop,"EFFECT")){const char*v=NTrim(rhs);if(NStrEq(v,"NORMAL"))s->sep_effect=NYOTA_UI_SEP_NORMAL;else if(NStrEq(v,"INSET"))s->sep_effect=NYOTA_UI_SEP_INSET;else if(NStrEq(v,"RAISED"))s->sep_effect=NYOTA_UI_SEP_RAISED;else if(NStrEq(v,"GRADIENT"))s->sep_effect=NYOTA_UI_SEP_GRADIENT;else{OutError("SEP EFFECT wymaga NORMAL/INSET/RAISED/GRADIENT");return 0;}}
     else if(NStrEq(prop,"ORIENTATION")){const char*v=NTrim(rhs);if(NStrEq(v,"HORIZONTAL"))s->orientation=NYOTA_UI_SEP_HORIZONTAL;else if(NStrEq(v,"VERTICAL"))s->orientation=NYOTA_UI_SEP_VERTICAL;else{OutError("ORIENTATION wymaga HORIZONTAL/VERTICAL");return 0;}}
-    else if(NStrEq(prop,"MIN")){if(!UiParseUIntProperty(rhs,&s->range_min,0,1000000,"MIN"))return 0;}
-    else if(NStrEq(prop,"MAX")){if(!UiParseUIntProperty(rhs,&s->range_max,0,1000000,"MAX"))return 0;}
-    else if(NStrEq(prop,"VALUE")){if(!UiParseUIntProperty(rhs,&s->range_value,0,1000000,"VALUE"))return 0;}
+    else if(NStrEq(prop,"MIN")){
+        if(s->kind==NYOTA_UI_CTRL_SPINBOX||s->kind==NYOTA_UI_CTRL_SCALE||s->kind==NYOTA_UI_CTRL_CLOCK){
+            uint32_t i;if(!UiParseIntProperty(rhs,&s->signed_min,-1000000,1000000,"MIN"))return 0;
+            if(s->kind==NYOTA_UI_CTRL_CLOCK)for(i=0;i<NYOTA_UI_CLOCK_MAX_NEEDLES;i++)s->clock_needle_min[i]=s->signed_min;
+        }else if(!UiParseUIntProperty(rhs,&s->range_min,0,1000000,"MIN"))return 0;
+    }
+    else if(NStrEq(prop,"MAX")){
+        if(s->kind==NYOTA_UI_CTRL_SPINBOX||s->kind==NYOTA_UI_CTRL_SCALE||s->kind==NYOTA_UI_CTRL_CLOCK){
+            uint32_t i;if(!UiParseIntProperty(rhs,&s->signed_max,-1000000,1000000,"MAX"))return 0;
+            if(s->kind==NYOTA_UI_CTRL_CLOCK)for(i=0;i<NYOTA_UI_CLOCK_MAX_NEEDLES;i++)s->clock_needle_max[i]=s->signed_max;
+        }else if(!UiParseUIntProperty(rhs,&s->range_max,0,1000000,"MAX"))return 0;
+    }
+    else if(NStrEq(prop,"VALUE")){
+        if(s->kind==NYOTA_UI_CTRL_SPINBOX||s->kind==NYOTA_UI_CTRL_SCALE||s->kind==NYOTA_UI_CTRL_CLOCK){
+            if(!UiParseIntProperty(rhs,&s->signed_value,-1000000,1000000,"VALUE"))return 0;
+            if(s->kind==NYOTA_UI_CTRL_CLOCK){s->clock_values[0]=s->signed_value;s->clock_value_count=1;}
+        }else if(!UiParseUIntProperty(rhs,&s->range_value,0,1000000,"VALUE"))return 0;
+    }
     else if(NStrEq(prop,"PAGE")){if(!UiParseUIntProperty(rhs,&s->range_page,1,1000000,"PAGE"))return 0;}
-    else if(NStrEq(prop,"STEP")){if(!UiParseUIntProperty(rhs,&s->range_step,1,1000000,"STEP"))return 0;}
-    else if(NStrEq(prop,"THUMB")){const char*v=NTrim(rhs);if(NStrEq(v,"RECT"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_RECT;else if(NStrEq(v,"ROUND"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_ROUND;else if(NStrEq(v,"CIRCLE"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_CIRCLE;else if(NStrEq(v,"DIAMOND"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_DIAMOND;else if(NStrEq(v,"TRIANGLE"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_TRIANGLE;else if(NStrEq(v,"PARALLELOGRAM"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_PARALLELOGRAM;else{OutError("SBAR THUMB wymaga RECT/ROUND/CIRCLE/DIAMOND/TRIANGLE/PARALLELOGRAM");return 0;}}
+    else if(NStrEq(prop,"STEP")){
+        if(s->kind==NYOTA_UI_CTRL_SPINBOX||s->kind==NYOTA_UI_CTRL_SCALE){if(!UiParseIntProperty(rhs,&s->signed_step,1,1000000,"STEP"))return 0;}
+        else if(!UiParseUIntProperty(rhs,&s->range_step,1,1000000,"STEP"))return 0;
+    }
+    else if(NStrEq(prop,"THUMB")){const char*v=NTrim(rhs);
+        if(s->kind==NYOTA_UI_CTRL_SCALE){
+            if(NStrEq(v,"RECT"))s->scale_thumb_shape=NYOTA_UI_SCALE_THUMB_RECT;else if(NStrEq(v,"ROUND"))s->scale_thumb_shape=NYOTA_UI_SCALE_THUMB_ROUND;else if(NStrEq(v,"CIRCLE"))s->scale_thumb_shape=NYOTA_UI_SCALE_THUMB_CIRCLE;else if(NStrEq(v,"DIAMOND"))s->scale_thumb_shape=NYOTA_UI_SCALE_THUMB_DIAMOND;else if(NStrEq(v,"TRIANGLE"))s->scale_thumb_shape=NYOTA_UI_SCALE_THUMB_TRIANGLE;else if(NStrEq(v,"PARALLELOGRAM"))s->scale_thumb_shape=NYOTA_UI_SCALE_THUMB_PARALLELOGRAM;else if(NStrEq(v,"LINE"))s->scale_thumb_shape=NYOTA_UI_SCALE_THUMB_LINE;else if(NStrEq(v,"NEEDLE"))s->scale_thumb_shape=NYOTA_UI_SCALE_THUMB_NEEDLE;else if(NStrEq(v,"DOT"))s->scale_thumb_shape=NYOTA_UI_SCALE_THUMB_DOT;else{OutError("SCALE THUMB: RECT/ROUND/CIRCLE/DIAMOND/TRIANGLE/PARALLELOGRAM/LINE/NEEDLE/DOT");return 0;}
+        }else{
+            if(NStrEq(v,"RECT"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_RECT;else if(NStrEq(v,"ROUND"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_ROUND;else if(NStrEq(v,"CIRCLE"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_CIRCLE;else if(NStrEq(v,"DIAMOND"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_DIAMOND;else if(NStrEq(v,"TRIANGLE"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_TRIANGLE;else if(NStrEq(v,"PARALLELOGRAM"))s->thumb_shape=NYOTA_UI_SBAR_THUMB_PARALLELOGRAM;else{OutError("SBAR THUMB wymaga RECT/ROUND/CIRCLE/DIAMOND/TRIANGLE/PARALLELOGRAM");return 0;}
+        }
+    }
     else if(NStrEq(prop,"CTHUMB")){if(!UiParseColorProperty(rhs,&s->thumb_color,"CTHUMB"))return 0;}
     else if(NStrEq(prop,"CTHUMBOVER")){if(!UiParseColorProperty(rhs,&s->thumb_hover_color,"CTHUMBOVER"))return 0;}
     else if(NStrEq(prop,"SEGMENTS")){if(!UiParseUIntProperty(rhs,&s->progress_segments,1,256,"SEGMENTS"))return 0;}
     else if(NStrEq(prop,"SPACING")){if(!UiParseUIntProperty(rhs,&s->progress_gap,0,128,"SPACING"))return 0;}
     else if(NStrEq(prop,"CFILL")){if(!UiParseColorProperty(rhs,&s->progress_fill_color,"CFILL"))return 0;}
     else if(NStrEq(prop,"CEMPTY")){if(!UiParseColorProperty(rhs,&s->progress_empty_color,"CEMPTY"))return 0;}
-    else if(NStrEq(prop,"THUMBSIZE")){if(!UiParseUIntProperty(rhs,&s->slider_thumb_size,4,256,"THUMBSIZE"))return 0;}
+    else if(NStrEq(prop,"THUMBSIZE")){if(s->kind==NYOTA_UI_CTRL_SCALE){if(!UiParseUIntProperty(rhs,&s->scale_thumb_size,1,512,"THUMBSIZE"))return 0;}else if(!UiParseUIntProperty(rhs,&s->slider_thumb_size,4,256,"THUMBSIZE"))return 0;}
     else if(NStrEq(prop,"BARS")){if(!UiParseUIntProperty(rhs,&s->eq_bars,1,NYOTA_UI_EQ_MAX_BARS,"BARS"))return 0;}
-    else if(NStrEq(prop,"VALUES")){if(!UiEqValuesProperty(s,rhs))return 0;}
+    else if(NStrEq(prop,"VALUES")){if(s->kind==NYOTA_UI_CTRL_CLOCK){if(!UiClockIntList(rhs,s->clock_values,&s->clock_value_count,NYOTA_UI_CLOCK_MAX_NEEDLES,"CLOCK VALUES"))return 0;}else if(!UiEqValuesProperty(s,rhs))return 0;}
     else if(NStrEq(prop,"BARWIDTH")){if(!UiParseUIntProperty(rhs,&s->eq_bar_width,1,1024,"BARWIDTH"))return 0;}
     else if(NStrEq(prop,"SEGMENTGAP")){if(!UiParseUIntProperty(rhs,&s->eq_segment_gap,0,128,"SEGMENTGAP"))return 0;}
     else if(NStrEq(prop,"MINHEIGHT")){if(!UiParseUIntProperty(rhs,&s->eq_min_height,0,4096,"MINHEIGHT"))return 0;}
@@ -5908,8 +5945,61 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"BLUR")){if(!UiParseUIntProperty(rhs,&s->eq_blur,0,64,"BLUR"))return 0;}
     else if(NStrEq(prop,"LABELS")){if(!UiEqLabelsProperty(s,rhs))return 0;}
     else if(NStrEq(prop,"LABELPOS")){const char*v=NTrim(rhs);if(NStrEq(v,"INSIDE"))s->eq_label_pos=NYOTA_UI_EQ_LABEL_INSIDE;else if(NStrEq(v,"BOTTOM"))s->eq_label_pos=NYOTA_UI_EQ_LABEL_BOTTOM;else if(NStrEq(v,"TOP"))s->eq_label_pos=NYOTA_UI_EQ_LABEL_TOP;else{OutError("EQBOX LABELPOS wymaga INSIDE/BOTTOM/TOP");return 0;}}
-    else if(NStrEq(prop,"SHOWLABELS")){if(!UiParseBoolProperty(rhs,&s->eq_show_labels,"SHOWLABELS"))return 0;}
+    else if(NStrEq(prop,"SHOWLABELS")){if(s->kind==NYOTA_UI_CTRL_EQBOX){if(!UiParseBoolProperty(rhs,&s->eq_show_labels,"SHOWLABELS"))return 0;}else if(!UiParseBoolProperty(rhs,&s->show_labels,"SHOWLABELS"))return 0;}
     else if(NStrEq(prop,"SHOWVALUES")){if(!UiParseBoolProperty(rhs,&s->eq_show_values,"SHOWVALUES"))return 0;}
+    else if(NStrEq(prop,"PLACEHOLDER")){if(!UiParseStringProperty(rhs,s->placeholder,sizeof(s->placeholder),"PLACEHOLDER"))return 0;}
+    else if(NStrEq(prop,"PASSWORD")){if(!UiParseBoolProperty(rhs,&s->password,"PASSWORD"))return 0;}
+    else if(NStrEq(prop,"MAXLEN")){if(!UiParseUIntProperty(rhs,&s->max_length,1,NYOTA_UI_TEXT_MAX-1u,"MAXLEN"))return 0;}
+    else if(NStrEq(prop,"ROWHEIGHT")){if(!UiParseUIntProperty(rhs,&s->row_height,12,256,"ROWHEIGHT"))return 0;}
+    else if(NStrEq(prop,"INDENT")){if(!UiParseUIntProperty(rhs,&s->tree_indent,4,256,"INDENT"))return 0;}
+    else if(NStrEq(prop,"SHOWLINES")){if(!UiParseBoolProperty(rhs,&s->show_lines,"SHOWLINES"))return 0;}
+    else if(NStrEq(prop,"STARTANGLE")){if(!UiParseIntProperty(rhs,&s->start_angle,-3600,3600,"STARTANGLE"))return 0;}
+    else if(NStrEq(prop,"ENDANGLE")){if(!UiParseIntProperty(rhs,&s->end_angle,-3600,3600,"ENDANGLE"))return 0;}
+    else if(NStrEq(prop,"WRAP")){if(!UiParseBoolProperty(rhs,&s->scale_wrap,"WRAP"))return 0;}
+    else if(NStrEq(prop,"INTERACTIVE")){if(!UiParseBoolProperty(rhs,&s->scale_interactive,"INTERACTIVE"))return 0;}
+    else if(NStrEq(prop,"TRACKWIDTH")){if(!UiParseUIntProperty(rhs,&s->track_width,1,128,"TRACKWIDTH"))return 0;}
+    else if(NStrEq(prop,"TRACKFILL")){if(!UiParseBackground(rhs,&s->track_fill))return 0;}
+    else if(NStrEq(prop,"TRACKGLOW")){if(!UiParseBackground(rhs,&s->track_glow))return 0;}
+    else if(NStrEq(prop,"TRACKBLUR")){if(!UiParseUIntProperty(rhs,&s->track_blur,0,64,"TRACKBLUR"))return 0;}
+    else if(NStrEq(prop,"TRACKGAP")){if(!UiParseUIntProperty(rhs,&s->track_gap,0,256,"TRACKGAP"))return 0;}
+    else if(NStrEq(prop,"TRACKSTYLE")){const char*v=NTrim(rhs);if(NStrEq(v,"SOLID"))s->track_style=NYOTA_UI_TRACK_SOLID;else if(NStrEq(v,"DASH"))s->track_style=NYOTA_UI_TRACK_DASH;else if(NStrEq(v,"DOT"))s->track_style=NYOTA_UI_TRACK_DOT;else if(NStrEq(v,"SEGMENT"))s->track_style=NYOTA_UI_TRACK_SEGMENT;else{OutError("TRACKSTYLE wymaga SOLID/DASH/DOT/SEGMENT");return 0;}}
+    else if(NStrEq(prop,"THUMBWIDTH")){if(!UiParseUIntProperty(rhs,&s->scale_thumb_width,1,128,"THUMBWIDTH"))return 0;}
+    else if(NStrEq(prop,"THUMBFILL")){if(!UiParseBackground(rhs,&s->scale_thumb_fill))return 0;}
+    else if(NStrEq(prop,"THUMBBORDER")){if(!UiParseBoolProperty(rhs,&s->scale_thumb_border,"THUMBBORDER"))return 0;}
+    else if(NStrEq(prop,"CTHUMBBORDER")){if(!UiParseColorProperty(rhs,&s->scale_thumb_border_color,"CTHUMBBORDER"))return 0;}
+    else if(NStrEq(prop,"THUMBBWIDTH")){if(!UiParseUIntProperty(rhs,&s->scale_thumb_border_width,1,64,"THUMBBWIDTH"))return 0;}
+    else if(NStrEq(prop,"THUMBGLOW")){if(!UiParseBackground(rhs,&s->scale_thumb_glow))return 0;}
+    else if(NStrEq(prop,"THUMBBLUR")){if(!UiParseUIntProperty(rhs,&s->scale_thumb_blur,0,64,"THUMBBLUR"))return 0;}
+    else if(NStrEq(prop,"THUMBROTATE")){if(!UiParseBoolProperty(rhs,&s->thumb_rotate,"THUMBROTATE"))return 0;}
+    else if(NStrEq(prop,"THUMBALIGN")){const char*v=NTrim(rhs);if(NStrEq(v,"FIXED"))s->thumb_align=NYOTA_UI_THUMB_ALIGN_FIXED;else if(NStrEq(v,"RADIAL"))s->thumb_align=NYOTA_UI_THUMB_ALIGN_RADIAL;else if(NStrEq(v,"TANGENT"))s->thumb_align=NYOTA_UI_THUMB_ALIGN_TANGENT;else{OutError("THUMBALIGN wymaga FIXED/RADIAL/TANGENT");return 0;}}
+    else if(NStrEq(prop,"MAJORSTEP")){if(!UiParseIntProperty(rhs,&s->major_step,1,1000000,"MAJORSTEP"))return 0;}
+    else if(NStrEq(prop,"MINORSTEP")){if(!UiParseIntProperty(rhs,&s->minor_step,1,1000000,"MINORSTEP"))return 0;}
+    else if(NStrEq(prop,"TICKSTYLE")){const char*v=NTrim(rhs);if(NStrEq(v,"LINE"))s->tick_style=NYOTA_UI_TICK_LINE;else if(NStrEq(v,"DOT"))s->tick_style=NYOTA_UI_TICK_DOT;else if(NStrEq(v,"RECT"))s->tick_style=NYOTA_UI_TICK_RECT;else if(NStrEq(v,"ROUND"))s->tick_style=NYOTA_UI_TICK_ROUND;else if(NStrEq(v,"TRIANGLE"))s->tick_style=NYOTA_UI_TICK_TRIANGLE;else if(NStrEq(v,"DIAMOND"))s->tick_style=NYOTA_UI_TICK_DIAMOND;else{OutError("TICKSTYLE wymaga LINE/DOT/RECT/ROUND/TRIANGLE/DIAMOND");return 0;}}
+    else if(NStrEq(prop,"CTICK")){if(!UiParseColorProperty(rhs,&s->tick_color,"CTICK"))return 0;}
+    else if(NStrEq(prop,"CMINORTICK")){if(!UiParseColorProperty(rhs,&s->minor_tick_color,"CMINORTICK"))return 0;}
+    else if(NStrEq(prop,"TICKLEN")){if(!UiParseUIntProperty(rhs,&s->tick_len,1,256,"TICKLEN"))return 0;}
+    else if(NStrEq(prop,"MINORTICKLEN")){if(!UiParseUIntProperty(rhs,&s->minor_tick_len,1,256,"MINORTICKLEN"))return 0;}
+    else if(NStrEq(prop,"TICKWIDTH")){if(!UiParseUIntProperty(rhs,&s->tick_width,1,64,"TICKWIDTH"))return 0;}
+    else if(NStrEq(prop,"TICKBLUR")){if(!UiParseUIntProperty(rhs,&s->tick_blur,0,64,"TICKBLUR"))return 0;}
+    else if(NStrEq(prop,"LABELSTEP")){if(!UiParseIntProperty(rhs,&s->label_step,1,1000000,"LABELSTEP"))return 0;}
+    else if(NStrEq(prop,"LABELOFFSET")){if(!UiParseIntProperty(rhs,&s->label_offset,-1024,1024,"LABELOFFSET"))return 0;}
+    else if(NStrEq(prop,"NEEDLES")){if(!UiParseUIntProperty(rhs,&s->clock_needles,1,NYOTA_UI_CLOCK_MAX_NEEDLES,"NEEDLES"))return 0;}
+    else if(NStrEq(prop,"NEEDLE")){uint8_t sh;const char*v=NTrim(rhs);uint32_t i;if(!UiClockNeedleShapeName(v,&sh)){OutError("NEEDLE: LINE/TRIANGLE/ARROW/DIAMOND/PARALLELOGRAM/BAR/DOUBLE");return 0;}for(i=0;i<NYOTA_UI_CLOCK_MAX_NEEDLES;i++)s->clock_needle_shape[i]=sh;s->clock_shape_count=s->clock_needles;}
+    else if(NStrEq(prop,"NEEDLECOLORS")){if(!UiClockColorsProperty(s,rhs))return 0;}
+    else if(NStrEq(prop,"NEEDLESHAPES")){if(!UiClockShapesProperty(s,rhs))return 0;}
+    else if(NStrEq(prop,"NEEDLEWIDTHS")){if(!UiClockUIntList(rhs,s->clock_needle_width,&s->clock_width_count,NYOTA_UI_CLOCK_MAX_NEEDLES,128,"NEEDLEWIDTHS"))return 0;}
+    else if(NStrEq(prop,"NEEDLELENS")){if(!UiClockUIntList(rhs,s->clock_needle_len,&s->clock_len_count,NYOTA_UI_CLOCK_MAX_NEEDLES,4096,"NEEDLELENS"))return 0;}
+    else if(NStrEq(prop,"NEEDLEBLURS")){if(!UiClockUIntList(rhs,s->clock_needle_blur,&s->clock_blur_count,NYOTA_UI_CLOCK_MAX_NEEDLES,64,"NEEDLEBLURS"))return 0;}
+    else if(NStrEq(prop,"NEEDLEMINS")){if(!UiClockIntList(rhs,s->clock_needle_min,&s->clock_min_count,NYOTA_UI_CLOCK_MAX_NEEDLES,"NEEDLEMINS"))return 0;}
+    else if(NStrEq(prop,"NEEDLEMAXS")){if(!UiClockIntList(rhs,s->clock_needle_max,&s->clock_max_count,NYOTA_UI_CLOCK_MAX_NEEDLES,"NEEDLEMAXS"))return 0;}
+    else if(NStrEq(prop,"DIALBLUR")){if(!UiParseUIntProperty(rhs,&s->dial_blur,0,64,"DIALBLUR"))return 0;}
+    else if(NStrEq(prop,"CENTERDOT")){if(!UiParseBoolProperty(rhs,&s->center_dot,"CENTERDOT"))return 0;}
+    else if(NStrEq(prop,"CCENTER")){if(!UiParseColorProperty(rhs,&s->center_color,"CCENTER"))return 0;}
+    else if(NStrEq(prop,"CENTERSIZE")){if(!UiParseUIntProperty(rhs,&s->center_size,1,256,"CENTERSIZE"))return 0;}
+    else if(NStrEq(prop,"CENTERBLUR")){if(!UiParseUIntProperty(rhs,&s->center_blur,0,64,"CENTERBLUR"))return 0;}
+    else if(NStrEq(prop,"SHOWVALUE")){if(!UiParseBoolProperty(rhs,&s->show_value,"SHOWVALUE"))return 0;}
+    else if(NStrEq(prop,"UNIT")){if(!UiParseStringProperty(rhs,s->unit,sizeof(s->unit),"UNIT"))return 0;}
+    else if(NStrEq(prop,"ZONES")){if(!UiClockZonesProperty(s,rhs))return 0;}
     else if(NStrEq(prop,"TABBG")){if(!UiParseBackground(rhs,&s->tab_background))return 0;}
     else if(NStrEq(prop,"TABFONT")){NyotaVal v=Eval(rhs);if(v.type!=TYPE_STR||!v.s[0]){OutError("TABFONT wymaga niepustego STRING");return 0;}NStrCopy(s->tab_font,v.s,sizeof(s->tab_font));}
     else if(NStrEq(prop,"TABFSIZE")){if(!UiParseUIntProperty(rhs,&s->tab_font_size,1,128,"TABFSIZE"))return 0;}
