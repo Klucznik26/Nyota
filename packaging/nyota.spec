@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        18%{?dist}
+Release:        19%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,13 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-19
+- Add EQBOX high-frequency multi-bar visualization with layered backgrounds, gradients/images, segmented shapes, labels and glow.
+- Add interactive SLIDER with horizontal/vertical orientation and selectable thumb geometry.
+- Add STATBAR and TOOLBAR container controls with optional borders and row/column layouts.
+- Add fast EQBOX_SET/EQBOX_BAR update APIs and POSIX rendering caches.
+- Add VS Code EQBOX auto-uppercase support while typing.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-18
 - Add interactive SBAR with horizontal/vertical ranges, mouse drag, keyboard control and selectable thumb geometry.
 - Add PBAR with continuous and segmented progress rendering.
