@@ -447,6 +447,7 @@ static int host_ui_tarea_delete(HostUiControl *ctl){
 static void host_pump(void) {
     SDL_Event e;
     if (!g_video) return;
+    if (g_ui_initializing) host_ui_finish_initial_build();
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_QUIT) {
             g_graph_closed = 1;
@@ -1427,6 +1428,12 @@ static SDL_Surface *host_ui_control_background_surface(const NyotaUiControlSpec 
     SDL_Surface *dst = NULL, *src = NULL, *conv = NULL;
     uint32_t x, y;
     if (!s || !bg || !s->w || !s->h) return NULL;
+
+    /* Calkowicie przezroczyste tlo niczego nie rysuje. Nie tworz Surface/Texture
+       tylko po to, aby skopiowac miliony pikseli z alfa 0. */
+    if (bg->kind == NYOTA_UI_BG_COLOR &&
+        bg->colors[0].mode == NYOTA_COLOR_TRANSPARENT) return NULL;
+
     dst = SDL_CreateRGBSurfaceWithFormat(0, (int)s->w, (int)s->h, 32, SDL_PIXELFORMAT_RGBA32);
     if (!dst) return NULL;
     SDL_FillRect(dst, NULL, SDL_MapRGBA(dst->format, 0, 0, 0, 0));
@@ -1470,20 +1477,18 @@ static SDL_Surface *host_ui_control_background_surface(const NyotaUiControlSpec 
             SDL_BlitScaled(conv, &sr, dst, &dr);
         }
         SDL_FreeSurface(conv);
+    } else if (bg->kind == NYOTA_UI_BG_COLOR) {
+        NyotaColor cc = bg->colors[0];
+        uint8_t a = cc.mode == NYOTA_COLOR_TRANSPARENT ? 0 : cc.a;
+        SDL_FillRect(dst, NULL, SDL_MapRGBA(dst->format, cc.r, cc.g, cc.b, a));
     } else {
         if (SDL_LockSurface(dst) != 0) { SDL_FreeSurface(dst); return NULL; }
         for (y = 0; y < s->h; y++) {
             uint32_t *row = (uint32_t *)((uint8_t *)dst->pixels + y * dst->pitch);
             for (x = 0; x < s->w; x++) {
                 uint8_t r=0,g=0,b=0,a=0;
-                if (bg->kind == NYOTA_UI_BG_LINEAR || bg->kind == NYOTA_UI_BG_SHAPE ||
-                    bg->kind == NYOTA_UI_BG_SPIRAL) {
-                    double t = host_ui_gradient_t(bg, x, y, s->w, s->h);
-                    host_ui_lerp_color(bg, t, &r, &g, &b, &a);
-                } else {
-                    NyotaColor cc = bg->colors[0];
-                    r=cc.r; g=cc.g; b=cc.b; a=(cc.mode == NYOTA_COLOR_TRANSPARENT ? 0 : cc.a);
-                }
+                double t = host_ui_gradient_t(bg, x, y, s->w, s->h);
+                host_ui_lerp_color(bg, t, &r, &g, &b, &a);
                 row[x] = SDL_MapRGBA(dst->format, r, g, b, a);
             }
         }
@@ -2122,19 +2127,26 @@ static void host_ui_flush_dirty(void) {
 
 static void host_ui_finish_initial_build(void) {
     int i;
-    g_ui_initializing=0;
 
-    /* Najpierw renderujemy wszystkie ukryte okna do kompletnego back-buffera. */
+    /* Pierwsza kompletna klatka powstaje jeszcze przy ukrytym oknie. */
     for(i=0;i<HOST_MAX_UI_WINDOWS;i++)
         if(g_ui_windows[i].used&&g_ui_windows[i].dirty)
             host_ui_render_window(i);
 
-    /* Dopiero potem pokazujemy gotowe okna — bez widocznego budowania UI. */
+    /* Fedora 44 uzywa sdl2-compat/Wayland. Po mapowaniu okna wymuszamy nowa
+       kompletna klatke — present wykonany tylko przed SDL_ShowWindow() nie
+       gwarantuje, ze compositor od razu dostanie zawartosc. */
     for(i=0;i<HOST_MAX_UI_WINDOWS;i++) {
         if(!g_ui_windows[i].used||g_ui_windows[i].shown||!g_ui_windows[i].win)continue;
         SDL_ShowWindow(g_ui_windows[i].win);
+        SDL_RaiseWindow(g_ui_windows[i].win);
         g_ui_windows[i].shown=1;
+        g_ui_windows[i].dirty=1;
     }
+
+    SDL_PumpEvents();
+    g_ui_initializing=0;
+    host_ui_flush_dirty();
 }
 
 static int32_t host_ui_control_create(const char *name, int32_t window_handle,
