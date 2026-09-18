@@ -1,0 +1,11 @@
+# Oczekiwane: zawiera SWITCH_CASE_OK
+BEGIN
+VAR tryb := 2
+SWITCH tryb:
+    CASE 1:
+        PRINT "ONE"
+    CASE 2:
+        PRINT "SWITCH_CASE_OK"
+    CASE _:
+        PRINT "DEFAULT"
+END
