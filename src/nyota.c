@@ -3244,6 +3244,121 @@ static NyotaVal ParsePrimary(const char **pp) {
         if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_EQBOX||iv.type!=TYPE_INT||vv.type!=TYPE_INT||iv.i<0||(uint32_t)iv.i>=uc->spec.eq_bars||vv.i<0||(uint32_t)vv.i<uc->spec.range_min||(uint32_t)vv.i>uc->spec.range_max||HostUiEqboxSetBar(uc->host_handle,(uint32_t)iv.i,(uint32_t)vv.i)!=0){OutError("EQBOX_BAR: indeks/wartosc poza zakresem albo host odrzucil");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
         uc->spec.eq_values[iv.i]=(uint32_t)vv.i;if(uc->spec.eq_value_count<=(uint32_t)iv.i)uc->spec.eq_value_count=(uint32_t)iv.i+1;ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
     }
+    if (NStrEqN(expr, "TBOX_TEXT(", 10)) {
+        char args[2][MAX_STR_LEN],name[64],buf[NYOTA_UI_TEXT_MAX];uint32_t got=0;int n=SplitFunctionArgs(expr+10,args,2);NyotaUiControl*uc;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("TBOX_TEXT() wymaga nazwy TBOX");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_TBOX||HostUiTareaGetText(uc->host_handle,buf,sizeof(buf),&got)!=0){OutError("TBOX_TEXT: host nie zwrocil tekstu");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValClear(&result);result.type=TYPE_STR;NStrCopy(result.s,buf,sizeof(result.s));NStrCopy(uc->spec.text,buf,sizeof(uc->spec.text));*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "TBOX_SET(", 9)) {
+        char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+9,args,3);NyotaUiControl*uc;NyotaVal tv;
+        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("TBOX_SET wymaga (nazwa, STRING)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        tv=Eval(args[1]);uc=FindUiControl(name);
+        if(tv.type!=TYPE_STR||!uc||uc->spec.kind!=NYOTA_UI_CTRL_TBOX||strlen(tv.s)>uc->spec.max_length||strchr(tv.s,'\n')||strchr(tv.s,'\r')||HostUiTareaSetText(uc->host_handle,tv.s)!=0){OutError("TBOX_SET: nieprawidlowy tekst albo host odrzucil");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        NStrCopy(uc->spec.text,tv.s,sizeof(uc->spec.text));ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "TBOX_CHANGED(", 13)) {
+        char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+13,args,2);NyotaUiControl*uc;int32_t ch;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("TBOX_CHANGED() wymaga nazwy TBOX");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_TBOX||(ch=HostUiTareaChanged(uc->host_handle))<0){OutError("TBOX_CHANGED: host nie obsluguje zdarzenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValFromBool(&result,ch!=0);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "SPINBOX_VALUE(", 14) || NStrEqN(expr, "SCALE_VALUE(", 12)) {
+        int scale=NStrEqN(expr,"SCALE_VALUE(",12);int off=scale?12:14;char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+off,args,2);NyotaUiControl*uc;int32_t v;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("SPINBOX_VALUE/SCALE_VALUE wymaga nazwy kontrolki");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=(scale?NYOTA_UI_CTRL_SCALE:NYOTA_UI_CTRL_SPINBOX)||HostUiSignedValue(uc->host_handle,&v)!=0){OutError("signed VALUE: host nie zwrocil wartosci");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc->spec.signed_value=v;ValFromInt(&result,v);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "SPINBOX_SET(", 12) || NStrEqN(expr, "SCALE_SET(", 10)) {
+        int scale=NStrEqN(expr,"SCALE_SET(",10);int off=scale?10:12;char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+off,args,3);NyotaUiControl*uc;NyotaVal vv;int32_t v;
+        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("SPINBOX_SET/SCALE_SET wymaga (nazwa, INTEGER)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        vv=Eval(args[1]);uc=FindUiControl(name);
+        if(vv.type!=TYPE_INT||!uc||uc->spec.kind!=(scale?NYOTA_UI_CTRL_SCALE:NYOTA_UI_CTRL_SPINBOX)){OutError("SPINBOX_SET/SCALE_SET: zle argumenty");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        v=vv.i;if(scale&&uc->spec.scale_wrap)v=UiWrapSigned(v,uc->spec.signed_min,uc->spec.signed_max);
+        if(v<uc->spec.signed_min||v>uc->spec.signed_max||(scale&&uc->spec.scale_wrap&&v>=uc->spec.signed_max)||HostUiSignedSetValue(uc->host_handle,v)!=0){OutError("SPINBOX_SET/SCALE_SET: wartosc poza zakresem albo host odrzucil");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc->spec.signed_value=v;ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "SPINBOX_CHANGED(", 16) || NStrEqN(expr, "SCALE_CHANGED(", 14)) {
+        int scale=NStrEqN(expr,"SCALE_CHANGED(",14);int off=scale?14:16;char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+off,args,2);NyotaUiControl*uc;int32_t ch;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("SPINBOX_CHANGED/SCALE_CHANGED wymaga nazwy kontrolki");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=(scale?NYOTA_UI_CTRL_SCALE:NYOTA_UI_CTRL_SPINBOX)||(ch=HostUiControlChanged(uc->host_handle))<0){OutError("CHANGED: host nie obsluguje kontrolki");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValFromBool(&result,ch!=0);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "SPLITTER_VALUE(", 15)) {
+        char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+15,args,2);NyotaUiControl*uc;int32_t v;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("SPLITTER_VALUE() wymaga nazwy SPLITTER");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_SPLITTER||(v=HostUiRangeValue(uc->host_handle))<0){OutError("SPLITTER_VALUE: host nie zwrocil wartosci");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc->spec.range_value=(uint32_t)v;ValFromInt(&result,v);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "SPLITTER_SET(", 13)) {
+        char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+13,args,3);NyotaUiControl*uc;NyotaVal vv;
+        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("SPLITTER_SET wymaga (nazwa, INTEGER)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        vv=Eval(args[1]);uc=FindUiControl(name);
+        if(vv.type!=TYPE_INT||vv.i<0||!uc||uc->spec.kind!=NYOTA_UI_CTRL_SPLITTER||(uint32_t)vv.i<uc->spec.range_min||(uint32_t)vv.i>uc->spec.range_max||HostUiRangeSetValue(uc->host_handle,(uint32_t)vv.i)!=0){OutError("SPLITTER_SET: wartosc poza zakresem albo host odrzucil");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc->spec.range_value=(uint32_t)vv.i;ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "SPLITTER_CHANGED(", 17)) {
+        char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+17,args,2);NyotaUiControl*uc;int32_t ch;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("SPLITTER_CHANGED() wymaga nazwy SPLITTER");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_SPLITTER||(ch=HostUiControlChanged(uc->host_handle))<0){OutError("SPLITTER_CHANGED: host nie obsluguje zdarzenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValFromBool(&result,ch!=0);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "LISTVIEW_INDEX(", 15) || NStrEqN(expr, "TREEVIEW_INDEX(", 15)) {
+        int tree=NStrEqN(expr,"TREEVIEW_INDEX(",15);char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+15,args,2);NyotaUiControl*uc;int32_t ix;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("LISTVIEW_INDEX/TREEVIEW_INDEX wymaga nazwy");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=(tree?NYOTA_UI_CTRL_TREEVIEW:NYOTA_UI_CTRL_LISTVIEW)||(ix=HostUiSelectIndex(uc->host_handle))<0){OutError("INDEX: host nie zwrocil zaznaczenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc->spec.selected=(uint32_t)ix;ValFromInt(&result,ix);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "LISTVIEW_SET(", 13) || NStrEqN(expr, "TREEVIEW_SET(", 13)) {
+        int tree=NStrEqN(expr,"TREEVIEW_SET(",13);char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+13,args,3);NyotaUiControl*uc;NyotaVal iv;
+        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("LISTVIEW_SET/TREEVIEW_SET wymaga (nazwa, indeks)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        iv=Eval(args[1]);uc=FindUiControl(name);
+        if(iv.type!=TYPE_INT||iv.i<0||!uc||uc->spec.kind!=(tree?NYOTA_UI_CTRL_TREEVIEW:NYOTA_UI_CTRL_LISTVIEW)||(uint32_t)iv.i>=UiItemsCount(uc->spec.items)||HostUiSelectSetIndex(uc->host_handle,(uint32_t)iv.i)!=0){OutError("LISTVIEW_SET/TREEVIEW_SET: indeks poza zakresem");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc->spec.selected=(uint32_t)iv.i;ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "LISTVIEW_VALUE(", 15) || NStrEqN(expr, "TREEVIEW_VALUE(", 15)) {
+        int tree=NStrEqN(expr,"TREEVIEW_VALUE(",15);char args[2][MAX_STR_LEN],name[64],item[NYOTA_UI_TEXT_MAX];int n=SplitFunctionArgs(expr+15,args,2);NyotaUiControl*uc;int32_t ix;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("LISTVIEW_VALUE/TREEVIEW_VALUE wymaga nazwy");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=(tree?NYOTA_UI_CTRL_TREEVIEW:NYOTA_UI_CTRL_LISTVIEW)||(ix=HostUiSelectIndex(uc->host_handle))<0||!UiItemText(uc->spec.items,(uint32_t)ix,item,sizeof(item))){OutError("VALUE: brak zaznaczonego elementu");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValClear(&result);result.type=TYPE_STR;NStrCopy(result.s,item,sizeof(result.s));*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "LISTVIEW_CHANGED(", 17) || NStrEqN(expr, "TREEVIEW_CHANGED(", 17)) {
+        int tree=NStrEqN(expr,"TREEVIEW_CHANGED(",17);char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+17,args,2);NyotaUiControl*uc;int32_t ch;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("LISTVIEW_CHANGED/TREEVIEW_CHANGED wymaga nazwy");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=(tree?NYOTA_UI_CTRL_TREEVIEW:NYOTA_UI_CTRL_LISTVIEW)||(ch=HostUiControlChanged(uc->host_handle))<0){OutError("CHANGED: host nie obsluguje listy/drzewa");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValFromBool(&result,ch!=0);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "CLOCK_SET(", 10)) {
+        char args[3][MAX_STR_LEN],name[64];int32_t vals[NYOTA_UI_CLOCK_MAX_NEEDLES];uint32_t i;int n=SplitFunctionArgs(expr+10,args,3);NyotaUiControl*uc;NyotaVal lv;
+        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("CLOCK_SET wymaga (nazwa, LIST)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);lv=Eval(args[1]);
+        if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_CLOCK||lv.type!=TYPE_LIST||lv.list_len!=uc->spec.clock_needles){OutError("CLOCK_SET: LIST musi miec dokladnie NEEDLES elementow");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        for(i=0;i<lv.list_len;i++){if(lv.list_items[i].type!=TYPE_INT||lv.list_items[i].i<uc->spec.clock_needle_min[i]||lv.list_items[i].i>uc->spec.clock_needle_max[i]){OutError("CLOCK_SET: wartosc poza zakresem wskazowki");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}vals[i]=lv.list_items[i].i;}
+        if(HostUiClockSetValues(uc->host_handle,vals,uc->spec.clock_needles)!=0){OutError("CLOCK_SET: host odrzucil wartosci");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        memcpy(uc->spec.clock_values,vals,uc->spec.clock_needles*sizeof(int32_t));uc->spec.clock_value_count=uc->spec.clock_needles;ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "CLOCK_NEEDLE(", 13)) {
+        char args[4][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+13,args,4);NyotaUiControl*uc;NyotaVal iv,vv;
+        if(n!=3||!SpriteArgName(args[0],name,sizeof(name))){OutError("CLOCK_NEEDLE wymaga (nazwa, indeks, wartosc)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);iv=Eval(args[1]);vv=Eval(args[2]);
+        if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_CLOCK||iv.type!=TYPE_INT||vv.type!=TYPE_INT||iv.i<0||(uint32_t)iv.i>=uc->spec.clock_needles||vv.i<uc->spec.clock_needle_min[iv.i]||vv.i>uc->spec.clock_needle_max[iv.i]||HostUiClockSetNeedle(uc->host_handle,(uint32_t)iv.i,vv.i)!=0){OutError("CLOCK_NEEDLE: indeks/wartosc poza zakresem");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc->spec.clock_values[iv.i]=vv.i;if(uc->spec.clock_value_count<=(uint32_t)iv.i)uc->spec.clock_value_count=(uint32_t)iv.i+1;ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "CLOCK_VALUE(", 12)) {
+        char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+12,args,3);NyotaUiControl*uc;NyotaVal iv;int32_t v;
+        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("CLOCK_VALUE wymaga (nazwa, indeks)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);iv=Eval(args[1]);
+        if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_CLOCK||iv.type!=TYPE_INT||iv.i<0||(uint32_t)iv.i>=uc->spec.clock_needles||HostUiClockValue(uc->host_handle,(uint32_t)iv.i,&v)!=0){OutError("CLOCK_VALUE: indeks poza zakresem");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        ValFromInt(&result,v);*pp=call_open?MatchParen(call_open):expr;return result;
+    }
+    if (NStrEqN(expr, "CLOCK_VALUES(", 13)) {
+        char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+13,args,2);NyotaUiControl*uc;NyotaVal *items;uint32_t i;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("CLOCK_VALUES() wymaga nazwy CLOCK");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_CLOCK){OutError("CLOCK_VALUES: nieznany CLOCK");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        items=PoolAlloc(uc->spec.clock_needles);if(!items){OutError("Pula list pelna");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        for(i=0;i<uc->spec.clock_needles;i++){int32_t v;if(HostUiClockValue(uc->host_handle,i,&v)!=0){OutError("CLOCK_VALUES: host nie zwrocil wartosci");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}ValFromInt(&items[i],v);}
+        ValClear(&result);result.type=TYPE_LIST;result.list_items=items;result.list_len=uc->spec.clock_needles;result.list_cap=uc->spec.clock_needles;*pp=call_open?MatchParen(call_open):expr;return result;
+    }
     if (NStrEqN(expr, "DAREA_DROPPED(", 14)) {
         char args[2][MAX_STR_LEN], name[64];
         int n = SplitFunctionArgs(expr + 14, args, 2);
