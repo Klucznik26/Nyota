@@ -6090,7 +6090,11 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
         else {if(!UiParseUIntProperty(rhs,&s->radius,0,1024,"RADIUS"))return 0;if(s->kind==NYOTA_UI_CTRL_DAREA&&s->shape!=NYOTA_UI_DAREA_RECT&&s->radius){OutError("DAREA RADIUS wymaga SHAPE=RECT");return 0;}}
     }
     else if(NStrEq(prop,"LAYOUT")){const char*v=NTrim(rhs);if(NStrEq(v,"FREE"))s->layout=NYOTA_UI_LAYOUT_FREE;else if(NStrEq(v,"ROW"))s->layout=NYOTA_UI_LAYOUT_ROW;else if(NStrEq(v,"COL"))s->layout=NYOTA_UI_LAYOUT_COL;else{OutError("LAYOUT wymaga FREE/ROW/COL");return 0;}}
-    else if(NStrEq(prop,"GAP")){if(s->kind==NYOTA_UI_CTRL_EQBOX){if(!UiParseUIntProperty(rhs,&s->eq_gap,0,1024,"GAP"))return 0;}else if(!UiParseUIntProperty(rhs,&s->gap,0,1024,"GAP"))return 0;}
+    else if(NStrEq(prop,"GAP")){
+        if(s->kind==NYOTA_UI_CTRL_EQBOX){if(!UiParseUIntProperty(rhs,&s->eq_gap,0,1024,"GAP"))return 0;}
+        else if(s->kind==NYOTA_UI_CTRL_ICONBUTTON){if(!UiParseUIntProperty(rhs,&s->icon_gap,0,256,"GAP"))return 0;}
+        else if(!UiParseUIntProperty(rhs,&s->gap,0,1024,"GAP"))return 0;
+    }
     else if(NStrEq(prop,"LPADX")){if(!UiParseUIntProperty(rhs,&s->layout_pad_x,0,1024,"LPADX"))return 0;}
     else if(NStrEq(prop,"LPADY")){if(!UiParseUIntProperty(rhs,&s->layout_pad_y,0,1024,"LPADY"))return 0;}
     else if(NStrEq(prop,"READONLY")){if(!UiParseBoolProperty(rhs,&s->readonly,"READONLY"))return 0;}
@@ -6139,6 +6143,8 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"CSELECT")){if(!UiParseColorProperty(rhs,&s->selected_text_color,"CSELECT"))return 0;}
     else if(NStrEq(prop,"HOVER")){const char*v=NTrim(rhs);if(NStrEq(v,"ON"))s->hover_enabled=1;else if(NStrEq(v,"OFF"))s->hover_enabled=0;else{OutError("HOVER wymaga ON/OFF");return 0;}}
     else if(NStrEq(prop,"BGHOVER")){if(!UiParseBackground(rhs,&s->hover_background))return 0;}
+    else if(NStrEq(prop,"BGPRESSED")){if(!UiParseBackground(rhs,&s->pressed_background))return 0;}
+    else if(NStrEq(prop,"BGON")){if(!UiParseBackground(rhs,&s->selected_background))return 0;}
     else if(NStrEq(prop,"CHOVER")){if(!UiParseColorProperty(rhs,&s->hover_text_color,"CHOVER"))return 0;}
     else if(NStrEq(prop,"MAXVISIBLE")){if(!UiParseUIntProperty(rhs,&s->max_visible,1,64,"MAXVISIBLE"))return 0;}
     else if(NStrEq(prop,"CSEP")){if(!UiParseColorProperty(rhs,&s->sep_color,"CSEP"))return 0;}
@@ -6158,7 +6164,9 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
         }else if(!UiParseUIntProperty(rhs,&s->range_max,0,1000000,"MAX"))return 0;
     }
     else if(NStrEq(prop,"VALUE")){
-        if(s->kind==NYOTA_UI_CTRL_SPINBOX||s->kind==NYOTA_UI_CTRL_SCALE||s->kind==NYOTA_UI_CTRL_CLOCK){
+        if(s->kind==NYOTA_UI_CTRL_SWITCH||s->kind==NYOTA_UI_CTRL_ICONBUTTON){
+            if(!UiParseBoolProperty(rhs,&s->checked,"VALUE"))return 0;
+        }else if(s->kind==NYOTA_UI_CTRL_SPINBOX||s->kind==NYOTA_UI_CTRL_SCALE||s->kind==NYOTA_UI_CTRL_CLOCK){
             if(!UiParseIntProperty(rhs,&s->signed_value,-1000000,1000000,"VALUE"))return 0;
             if(s->kind==NYOTA_UI_CTRL_CLOCK){s->clock_values[0]=s->signed_value;s->clock_value_count=1;}
         }else if(!UiParseUIntProperty(rhs,&s->range_value,0,1000000,"VALUE"))return 0;
@@ -6184,7 +6192,11 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"SPACING")){if(!UiParseUIntProperty(rhs,&s->progress_gap,0,128,"SPACING"))return 0;}
     else if(NStrEq(prop,"CFILL")){if(!UiParseColorProperty(rhs,&s->progress_fill_color,"CFILL"))return 0;}
     else if(NStrEq(prop,"CEMPTY")){if(!UiParseColorProperty(rhs,&s->progress_empty_color,"CEMPTY"))return 0;}
-    else if(NStrEq(prop,"THUMBSIZE")){if(s->kind==NYOTA_UI_CTRL_SCALE){if(!UiParseUIntProperty(rhs,&s->scale_thumb_size,1,512,"THUMBSIZE"))return 0;}else if(!UiParseUIntProperty(rhs,&s->slider_thumb_size,4,256,"THUMBSIZE"))return 0;}
+    else if(NStrEq(prop,"THUMBSIZE")){
+        if(s->kind==NYOTA_UI_CTRL_SCALE){if(!UiParseUIntProperty(rhs,&s->scale_thumb_size,1,512,"THUMBSIZE"))return 0;}
+        else if(s->kind==NYOTA_UI_CTRL_SWITCH){if(!UiParseUIntProperty(rhs,&s->switch_thumb_size,4,256,"THUMBSIZE"))return 0;}
+        else if(!UiParseUIntProperty(rhs,&s->slider_thumb_size,4,256,"THUMBSIZE"))return 0;
+    }
     else if(NStrEq(prop,"BARS")){if(!UiParseUIntProperty(rhs,&s->eq_bars,1,NYOTA_UI_EQ_MAX_BARS,"BARS"))return 0;}
     else if(NStrEq(prop,"VALUES")){if(s->kind==NYOTA_UI_CTRL_CLOCK){if(!UiClockIntList(rhs,s->clock_values,&s->clock_value_count,NYOTA_UI_CLOCK_MAX_NEEDLES,"CLOCK VALUES"))return 0;}else if(!UiEqValuesProperty(s,rhs))return 0;}
     else if(NStrEq(prop,"BARWIDTH")){if(!UiParseUIntProperty(rhs,&s->eq_bar_width,1,1024,"BARWIDTH"))return 0;}
@@ -6198,8 +6210,14 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"BARBG")){if(!UiParseBackground(rhs,&s->eq_bar_background))return 0;}
     else if(NStrEq(prop,"BARFILL")){if(!UiParseBackground(rhs,&s->eq_bar_fill))return 0;}
     else if(NStrEq(prop,"BARCOLORS")){if(!UiEqColorsProperty(s,rhs))return 0;}
-    else if(NStrEq(prop,"GLOW")){if(!UiParseBackground(rhs,&s->eq_glow))return 0;}
-    else if(NStrEq(prop,"BLUR")){if(!UiParseUIntProperty(rhs,&s->eq_blur,0,64,"BLUR"))return 0;}
+    else if(NStrEq(prop,"GLOW")){
+        if(s->kind==NYOTA_UI_CTRL_SWITCH){if(!UiParseBackground(rhs,&s->switch_glow))return 0;}
+        else if(!UiParseBackground(rhs,&s->eq_glow))return 0;
+    }
+    else if(NStrEq(prop,"BLUR")){
+        if(s->kind==NYOTA_UI_CTRL_SWITCH){if(!UiParseUIntProperty(rhs,&s->switch_blur,0,64,"BLUR"))return 0;}
+        else if(!UiParseUIntProperty(rhs,&s->eq_blur,0,64,"BLUR"))return 0;
+    }
     else if(NStrEq(prop,"LABELS")){if(!UiEqLabelsProperty(s,rhs))return 0;}
     else if(NStrEq(prop,"LABELPOS")){const char*v=NTrim(rhs);if(NStrEq(v,"INSIDE"))s->eq_label_pos=NYOTA_UI_EQ_LABEL_INSIDE;else if(NStrEq(v,"BOTTOM"))s->eq_label_pos=NYOTA_UI_EQ_LABEL_BOTTOM;else if(NStrEq(v,"TOP"))s->eq_label_pos=NYOTA_UI_EQ_LABEL_TOP;else{OutError("EQBOX LABELPOS wymaga INSIDE/BOTTOM/TOP");return 0;}}
     else if(NStrEq(prop,"SHOWLABELS")){if(s->kind==NYOTA_UI_CTRL_EQBOX){if(!UiParseBoolProperty(rhs,&s->eq_show_labels,"SHOWLABELS"))return 0;}else if(!UiParseBoolProperty(rhs,&s->show_labels,"SHOWLABELS"))return 0;}
@@ -6207,6 +6225,28 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"PEAK")){if(!UiParseBoolProperty(rhs,&s->eq_peak,"PEAK"))return 0;}
     else if(NStrEq(prop,"PEAKCOLOR")){if(!UiParseColorProperty(rhs,&s->eq_peak_color,"PEAKCOLOR"))return 0;}
     else if(NStrEq(prop,"PEAKHOLD")){if(!UiParseUIntProperty(rhs,&s->eq_peak_hold,0,60000,"PEAKHOLD"))return 0;}
+    else if(NStrEq(prop,"ICON")){if(!UiParseImagePathProperty(rhs,s->icon_path,sizeof(s->icon_path),"ICON"))return 0;}
+    else if(NStrEq(prop,"ICONSIZE")){if(!UiParseUIntProperty(rhs,&s->icon_size,4,512,"ICONSIZE"))return 0;}
+    else if(NStrEq(prop,"ICONPOS")){const char*v=NTrim(rhs);if(NStrEq(v,"LEFT"))s->icon_pos=NYOTA_UI_ICON_LEFT;else if(NStrEq(v,"RIGHT"))s->icon_pos=NYOTA_UI_ICON_RIGHT;else if(NStrEq(v,"TOP"))s->icon_pos=NYOTA_UI_ICON_TOP;else if(NStrEq(v,"BOTTOM"))s->icon_pos=NYOTA_UI_ICON_BOTTOM;else if(NStrEq(v,"CENTER"))s->icon_pos=NYOTA_UI_ICON_CENTER;else{OutError("ICONPOS wymaga LEFT/RIGHT/TOP/BOTTOM/CENTER");return 0;}}
+    else if(NStrEq(prop,"TOGGLE")){if(!UiParseBoolProperty(rhs,&s->toggle,"TOGGLE"))return 0;}
+    else if(NStrEq(prop,"TYPE")){const char*v=NTrim(rhs);if(NStrEq(v,"TEXT"))s->input_type=NYOTA_UI_INPUT_TEXT;else if(NStrEq(v,"PASSWORD"))s->input_type=NYOTA_UI_INPUT_PASSWORD;else if(NStrEq(v,"NUMBER"))s->input_type=NYOTA_UI_INPUT_NUMBER;else if(NStrEq(v,"SEARCH"))s->input_type=NYOTA_UI_INPUT_SEARCH;else if(NStrEq(v,"EMAIL"))s->input_type=NYOTA_UI_INPUT_EMAIL;else{OutError("INPUT TYPE wymaga TEXT/PASSWORD/NUMBER/SEARCH/EMAIL");return 0;}s->password=(uint8_t)(s->input_type==NYOTA_UI_INPUT_PASSWORD);}
+    else if(NStrEq(prop,"PREFIX")){if(!UiParseStringProperty(rhs,s->prefix,sizeof(s->prefix),"PREFIX"))return 0;}
+    else if(NStrEq(prop,"SUFFIX")){if(!UiParseStringProperty(rhs,s->suffix,sizeof(s->suffix),"SUFFIX"))return 0;}
+    else if(NStrEq(prop,"CLEARBUTTON")){if(!UiParseBoolProperty(rhs,&s->clear_button,"CLEARBUTTON"))return 0;}
+    else if(NStrEq(prop,"TRACKON")){if(!UiParseBackground(rhs,&s->switch_track_on))return 0;}
+    else if(NStrEq(prop,"TRACKOFF")){if(!UiParseBackground(rhs,&s->switch_track_off))return 0;}
+    else if(NStrEq(prop,"ONTEXT")){if(!UiParseStringProperty(rhs,s->switch_on_text,sizeof(s->switch_on_text),"ONTEXT"))return 0;}
+    else if(NStrEq(prop,"OFFTEXT")){if(!UiParseStringProperty(rhs,s->switch_off_text,sizeof(s->switch_off_text),"OFFTEXT"))return 0;}
+    else if(NStrEq(prop,"TITLEPOS")){const char*v=NTrim(rhs);if(NStrEq(v,"TOPLEFT"))s->frame_title_pos=NYOTA_UI_FRAME_TITLE_TOPLEFT;else if(NStrEq(v,"TOPCENTER"))s->frame_title_pos=NYOTA_UI_FRAME_TITLE_TOPCENTER;else if(NStrEq(v,"TOPRIGHT"))s->frame_title_pos=NYOTA_UI_FRAME_TITLE_TOPRIGHT;else{OutError("TITLEPOS wymaga TOPLEFT/TOPCENTER/TOPRIGHT");return 0;}}
+    else if(NStrEq(prop,"TITLEPAD")){if(!UiParseUIntProperty(rhs,&s->frame_title_pad,0,128,"TITLEPAD"))return 0;}
+    else if(NStrEq(prop,"NODEHEIGHT")){if(!UiParseUIntProperty(rhs,&s->row_height,12,256,"NODEHEIGHT"))return 0;}
+    else if(NStrEq(prop,"ICONLEAF")){if(!UiParseImagePathProperty(rhs,s->tree_icon_leaf,sizeof(s->tree_icon_leaf),"ICONLEAF"))return 0;}
+    else if(NStrEq(prop,"ICONCLOSED")){if(!UiParseImagePathProperty(rhs,s->tree_icon_closed,sizeof(s->tree_icon_closed),"ICONCLOSED"))return 0;}
+    else if(NStrEq(prop,"ICONOPEN")){if(!UiParseImagePathProperty(rhs,s->tree_icon_open,sizeof(s->tree_icon_open),"ICONOPEN"))return 0;}
+    else if(NStrEq(prop,"ICONSPACING")){if(!UiParseUIntProperty(rhs,&s->tree_icon_spacing,0,128,"ICONSPACING"))return 0;}
+    else if(NStrEq(prop,"LINESTYLE")){const char*v=NTrim(rhs);if(NStrEq(v,"NONE"))s->tree_line_style=NYOTA_UI_TREE_LINE_NONE;else if(NStrEq(v,"SOLID"))s->tree_line_style=NYOTA_UI_TREE_LINE_SOLID;else if(NStrEq(v,"DASH"))s->tree_line_style=NYOTA_UI_TREE_LINE_DASH;else if(NStrEq(v,"DOT"))s->tree_line_style=NYOTA_UI_TREE_LINE_DOT;else{OutError("LINESTYLE wymaga NONE/SOLID/DASH/DOT");return 0;}s->show_lines=(uint8_t)(s->tree_line_style!=NYOTA_UI_TREE_LINE_NONE);}
+    else if(NStrEq(prop,"EXPANDER")){const char*v=NTrim(rhs);if(NStrEq(v,"PLUS"))s->tree_expander_style=NYOTA_UI_TREE_EXPANDER_PLUS;else if(NStrEq(v,"TRIANGLE"))s->tree_expander_style=NYOTA_UI_TREE_EXPANDER_TRIANGLE;else if(NStrEq(v,"CHEVRON"))s->tree_expander_style=NYOTA_UI_TREE_EXPANDER_CHEVRON;else{OutError("EXPANDER wymaga PLUS/TRIANGLE/CHEVRON");return 0;}}
+    else if(NStrEq(prop,"EXPANDED")){if(!UiParseExpandedMask(rhs,&s->tree_expanded_mask))return 0;}
     else if(NStrEq(prop,"PLACEHOLDER")){if(!UiParseStringProperty(rhs,s->placeholder,sizeof(s->placeholder),"PLACEHOLDER"))return 0;}
     else if(NStrEq(prop,"PASSWORD")){if(!UiParseBoolProperty(rhs,&s->password,"PASSWORD"))return 0;}
     else if(NStrEq(prop,"MAXLEN")){if(!UiParseUIntProperty(rhs,&s->max_length,1,NYOTA_UI_TEXT_MAX-1u,"MAXLEN"))return 0;}
@@ -6223,7 +6263,10 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"TRACKGAP")){if(!UiParseUIntProperty(rhs,&s->track_gap,0,256,"TRACKGAP"))return 0;}
     else if(NStrEq(prop,"TRACKSTYLE")){const char*v=NTrim(rhs);if(NStrEq(v,"SOLID"))s->track_style=NYOTA_UI_TRACK_SOLID;else if(NStrEq(v,"DASH"))s->track_style=NYOTA_UI_TRACK_DASH;else if(NStrEq(v,"DOT"))s->track_style=NYOTA_UI_TRACK_DOT;else if(NStrEq(v,"SEGMENT"))s->track_style=NYOTA_UI_TRACK_SEGMENT;else{OutError("TRACKSTYLE wymaga SOLID/DASH/DOT/SEGMENT");return 0;}}
     else if(NStrEq(prop,"THUMBWIDTH")){if(!UiParseUIntProperty(rhs,&s->scale_thumb_width,1,128,"THUMBWIDTH"))return 0;}
-    else if(NStrEq(prop,"THUMBFILL")){if(!UiParseBackground(rhs,&s->scale_thumb_fill))return 0;}
+    else if(NStrEq(prop,"THUMBFILL")){
+        if(s->kind==NYOTA_UI_CTRL_SWITCH){if(!UiParseBackground(rhs,&s->switch_thumb_fill))return 0;}
+        else if(!UiParseBackground(rhs,&s->scale_thumb_fill))return 0;
+    }
     else if(NStrEq(prop,"THUMBBORDER")){if(!UiParseBoolProperty(rhs,&s->scale_thumb_border,"THUMBBORDER"))return 0;}
     else if(NStrEq(prop,"CTHUMBBORDER")){if(!UiParseColorProperty(rhs,&s->scale_thumb_border_color,"CTHUMBBORDER"))return 0;}
     else if(NStrEq(prop,"THUMBBWIDTH")){if(!UiParseUIntProperty(rhs,&s->scale_thumb_border_width,1,64,"THUMBBWIDTH"))return 0;}
