@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+PRINT "x"
+    PRINT "zle"
+END
