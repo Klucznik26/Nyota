@@ -143,6 +143,11 @@ static void posix_emit(char c) {
 }
 
 static uint64_t host_ticks(void);
+static uint64_t host_ui_ticks_raw(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 100ULL + (uint64_t)(ts.tv_nsec / 10000000ULL);
+}
 
 static int host_ui_resolve_font_path(const char *family, char *out, size_t cap) {
     FcPattern *pat = NULL, *match = NULL;
@@ -2872,7 +2877,9 @@ static uint32_t host_ui_eq_peak_value(HostUiControl *ctl,uint32_t bar,uint32_t v
     uint64_t now,hold_ticks;
     if(!ctl||bar>=NYOTA_UI_EQ_MAX_BARS)return value;
     if(!ctl->spec.eq_peak)return value;
-    now=host_ticks();
+    /* Renderer nie moze pompowac event loopa: host_ticks() wywoluje host_pump().
+       W przeciwnym razie EQBOX -> host_ticks -> render -> EQBOX zapetla stos. */
+    now=host_ui_ticks_raw();
     if(ctl->eq_peak_value[bar]<ctl->spec.range_min||ctl->eq_peak_value[bar]>ctl->spec.range_max||
        value>=ctl->eq_peak_value[bar]){
         ctl->eq_peak_value[bar]=value;
@@ -4015,7 +4022,7 @@ static int32_t host_ui_control_create(const char *name, int32_t window_handle,
             for(k=0;k<NYOTA_UI_EQ_MAX_BARS;k++){
                 uint32_t v=k<spec->eq_value_count?spec->eq_values[k]:spec->range_min;
                 g_host_ui_controls[i].eq_peak_value[k]=v;
-                g_host_ui_controls[i].eq_peak_tick[k]=host_ticks();
+                g_host_ui_controls[i].eq_peak_tick[k]=host_ui_ticks_raw();
             }
         }
         host_ui_mark_dirty(wi);
