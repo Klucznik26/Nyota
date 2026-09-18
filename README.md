@@ -1,7 +1,7 @@
 <h1 align="center">Nyota</h1>
 
 <p align="center">
-  <strong>Autorski język programowania AyoOS — prosty, jawny i rozwijany jako język przenośny.</strong>
+  <strong>Autorski język programowania AyoOS — prosty, jawny, przenośny i rozwijany razem z własnym NyotaUI.</strong>
 </p>
 
 <p align="center">
@@ -30,7 +30,8 @@ Nyota stawia na:
 - proste funkcje i procedury,
 - struktury danych przydatne w codziennym programowaniu,
 - wbudowane możliwości systemowe i graficzne,
-- ten sam język na AyoOS i hostach desktopowych.
+- własny, host-neutralny model GUI **NyotaUI**,
+- ten sam kod języka i interfejsu na AyoOS oraz hostach desktopowych.
 
 ---
 
@@ -64,6 +65,69 @@ BEGIN/END   rama kodu wykonywalnego
 
 ---
 
+## NyotaUI — GUI jest częścią języka
+
+Nyota rozwija własną warstwę interfejsu **NyotaUI**. Program `.nyo` nie wywołuje bezpośrednio SDL, WinAPI ani AyoAPI — używa kontrolek i właściwości Nyoty, a host realizuje ten sam kontrakt na danej platformie.
+
+Dzięki temu składnia aplikacji pozostaje niezależna od backendu:
+
+```text
+program .nyo
+    │
+    ├── WIN / PANEL / FRAME / TABS
+    ├── INPUT / BUTTON / SWITCH / TREEVIEW
+    ├── SCALE / CLOCK / EQBOX / PBAR
+    └── wspólne kolory, gradienty, obrazy, layout i zdarzenia
+            │
+            ▼
+        NyotaHost
+      ┌─────┴─────────────┐
+      ▼                   ▼
+ POSIX / SDL2          AyoOS
+```
+
+Krótki fragment NyotaUI:
+
+```nyota
+WIN glowne, ROOT, [1180, 720], CENTER, TRUE
+
+WIN glowne.CONFIG:
+    TITLE = "NyotaUI"
+    BG = DARKSAPPHIRE
+
+FRAME telemetry, glowne, [520, 300], [30, 80], TEXT="Telemetria"
+
+FRAME telemetry.CONFIG:
+    LAYOUT = COL
+    GAP = 12
+    LPADX = 16
+    LPADY = 30
+    BORDER = TRUE
+    CBORDER = SAPPHIRE
+    RADIUS = 10
+
+INPUT search, telemetry, [320, 40], AUTO, TYPE=SEARCH, PLACEHOLDER="Szukaj...", CLEARBUTTON=TRUE
+SWITCH wifi, telemetry, [96, 34], AUTO, VALUE=TRUE
+SCALE volume, telemetry, [360, 44], AUTO, MIN=0, MAX=100, VALUE=65
+```
+
+Aktualny zestaw NyotaUI obejmuje między innymi:
+
+- **okna i kontenery:** `WIN`, `PANEL`, `FRAME`, `TABS/TAB`, `TOOLBAR`, `STATBAR`;
+- **wejście i sterowanie:** `BUTTON`, `ICONBUTTON`, `INPUT`, `TBOX`, `TAREA`, `CBOX`, `RADIO`, `COMBO`, `SWITCH`, `SPINBOX`, `SLIDER`, `SBAR`, `SPLITTER`, `DAREA`;
+- **prezentację danych:** `LABEL`, `LISTVIEW`, `TREEVIEW`, `TABLE`, `PBAR`, `EQBOX`;
+- **wskaźniki i telemetrię:** liniową i obrotową `SCALE` oraz wielowskazówkowy `CLOCK`;
+- **warstwę wizualną:** kolory Nyoty, PNG, `GRAD(LINEAR/...)`, `GRAD(SHAPE/...)`, `GRAD(SPIRAL/...)`, promienie, ramki, padding, cienie, poświaty i stany interaktywne;
+- **layout:** ręczny `FREE`, automatyczny `ROW/COL`, pozycje `AUTO` i `CENTER`, zaokrąglone przycinanie dzieci oraz logiczne HiDPI.
+
+Backend POSIX używa obecnie SDL2, SDL2_image, SDL2_ttf i fontconfig. Tekst jest renderowany antyaliasingowo w UTF-8, a `FONT="SYSTEM"` korzysta z fontu systemowego hosta. Kontrolki interaktywne obsługują focus klawiatury, `Tab/Shift+Tab`, stany hover/pressed/disabled oraz — tam gdzie ma to sens — sterowanie klawiaturą.
+
+`EQBOX`, `SCALE` i `CLOCK` są projektowane nie tylko jako klasyczne kontrolki formularzy, ale również jako efektowne, szybko aktualizowane elementy telemetryczne i wizualizacyjne.
+
+Pełny kontrakt znajduje się w [`docs/nyotaui.md`](docs/nyotaui.md).
+
+---
+
 ## Stan projektu
 
 Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale część bardziej rozbudowanych elementów pozostaje w trakcie stabilizacji.
@@ -81,7 +145,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `MARK` | ✅ | klucze+kolumny, algebra, iteracja, sortowanie, przebudowa kolumn i statystyki |
 | `TABLE` | ✅ | nazwana kontrolka prezentacji LIST/TUPLE/MARK w trybie graficznym |
 | `BUTTON` | ✅ | nazwana kontrolka GUI; wygląd + wykrywanie kliknięcia na hoście POSIX |
-| `WIN / NyotaUI` | 🚧 | WIN, BUTTON, LABEL, PANEL, DAREA, CBOX, RADIO, COMBO, SEP, TABS/TAB, TAREA, SBAR, PBAR, EQBOX, SLIDER, STATBAR, TOOLBAR, TBOX, SPINBOX, LISTVIEW, TREEVIEW, SPLITTER, SCALE, CLOCK, ICONBUTTON, SWITCH, FRAME i INPUT wdrożone na backendzie POSIX; kod `.nyo` pozostaje wspólny dla Linux/Windows/AyoOS |
+| `WIN / NyotaUI` | 🚧 | rozbudowany host-neutralny toolkit: kontenery, wejście, listy/drzewa, layout, telemetria, gradienty, obrazy, UTF-8, focus i HiDPI; backend POSIX jest aktywnie rozwijany |
 | `SPRITE` | ✅ | nazwany obiekt graficzny; ruch, widoczność, animacja klatkowa, jawne rysowanie i kolizja AABB |
 | `FILE / DIR / LS` | ✅ | wysokopoziomowy kontrakt hosta; pełny backend POSIX |
 | `RECORD / WITH` | ✅ | rekordy z blokadą typów i kontekstem pól |
@@ -90,7 +154,7 @@ Nyota jest aktywnie rozwijana. Rdzeń interpretera jest już używalny, ale czę
 | `SCREEN` | ✅ | cele off-screen; backend POSIX/SDL2 |
 | `SORT` | ✅ | AUTO + 8 jawnych algorytmów, ASC/DESC/REVERSE |
 | `NYASM` | ✅ | bezpieczna VM R0-R3 z jawnym INPUT/OUTPUT |
-| Host Linux | 🚧 | terminal + backend SDL2 dla grafiki i FILE/DIR |
+| Host Linux | 🚧 | terminal + SDL2 / SDL2_image / SDL2_ttf / fontconfig dla grafiki, NyotaUI i FILE/DIR |
 | Host AyoOS | 🚧 | docelowo wspólny `src/nyota.c` dla wszystkich hostów |
 | VS Code | ✅ | Nyota Language Support 0.5.3: kolorowanie + uruchamianie przez `▶` / `Ctrl+F5` + próbki/picker kolorów NyotaUI |
 
@@ -110,6 +174,8 @@ make
 pkg-config
 SDL2 wraz z plikami deweloperskimi
 SDL2_image wraz z plikami deweloperskimi
+SDL2_ttf wraz z plikami deweloperskimi
+fontconfig wraz z plikami deweloperskimi
 ```
 
 ### Kompilacja
@@ -117,6 +183,7 @@ SDL2_image wraz z plikami deweloperskimi
 ```bash
 git clone https://github.com/Klucznik26/Nyota.git
 cd Nyota
+git switch nyota-v05-complete
 make
 ```
 
@@ -173,14 +240,14 @@ Pakiet jest budowany i testowany natywnie w środowisku Fedora 44. Do lokalnego
 zbudowania potrzebne są narzędzia RPM i nagłówki zgodności SDL2:
 
 ```bash
-sudo dnf install rpm-build gcc make pkgconf-pkg-config sdl2-compat-devel SDL2_image-devel tar gzip
+sudo dnf install rpm-build gcc make pkgconf-pkg-config sdl2-compat-devel SDL2_image-devel SDL2_ttf-devel fontconfig-devel tar gzip
 make rpm
-sudo dnf install packaging/nyota-0.5.0-22.fc44.x86_64.rpm
+sudo dnf install packaging/nyota-0.5.0-23.fc44.x86_64.rpm
 nyota /usr/share/nyota/tests/add_int.nyo
 ```
 
 `make rpm` tworzy zarówno RPM binarny, jak i SRPM w katalogu `packaging/`.
-Fedora 44 dostarcza `pkgconfig(sdl2)` przez `sdl2-compat-devel`; NyotaUI korzysta także z `SDL2_image-devel`. Zależności runtime są wykrywane automatycznie przez RPM. Pakiet zawiera
+Fedora 44 dostarcza `pkgconfig(sdl2)` przez `sdl2-compat-devel`; NyotaUI korzysta także z SDL2_image, SDL2_ttf i fontconfig. Zależności runtime są wykrywane automatycznie przez RPM. Pakiet zawiera
 również programy testowe, zasób BMP do testów SPRITE oraz dokumentację projektu.
 
 Workflow `Fedora RPM` buduje pakiet na Fedorze 44, instaluje go w czystym
@@ -249,7 +316,7 @@ Najważniejsze dokumenty projektu:
 
 - [`docs/nyota.md`](docs/nyota.md) — bieżące zasady języka i faktyczny stan interpretera,
 - [`docs/nyota_v05.md`](docs/nyota_v05.md) — plan stabilizacji oraz zatwierdzone kierunki rozwoju,
-- [`docs/nyotaui.md`](docs/nyotaui.md) — kontrakt `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS/TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, rodziców, `CONFIG`, obrazów i gradientów,
+- [`docs/nyotaui.md`](docs/nyotaui.md) — pełny kontrakt NyotaUI: okna, kontenery, kontrolki, layout, wejście tekstowe, listy/drzewa, `SCALE`, `CLOCK`, `EQBOX`, obrazy, gradienty, focus, HiDPI i warstwa wizualna,
 - [`docs/do_wdrożenia.md`](docs/do_wdrożenia.md) — elementy oczekujące na implementację,
 - [`docs/zasadymd.md`](docs/zasadymd.md) — sposób oznaczania stanu prac w dokumentacji.
 
@@ -257,9 +324,9 @@ Najważniejsze dokumenty projektu:
 
 ## Kierunek rozwoju
 
-Po ustabilizowaniu rdzenia Nyota ma rozwijać się także w stronę bogatszych struktur danych, `DATETIME`, relacyjnego `MARK`, dalszego rozwoju `TABLE`, standardowego GUI, dalszego rozwoju sprite'ów, audio oraz dalszej pracy nad hostem Linuksa.
+Po ustabilizowaniu rdzenia Nyota ma rozwijać się dalej w stronę bogatszych struktur danych, `DATETIME`, relacyjnego `MARK`, dalszego rozwoju `TABLE`, audio, sprite'ów oraz kolejnych możliwości NyotaUI i hostów.
 
-Poza AyoOS działa rozszerzenie **Nyota Language Support 0.5.0** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię, automatycznie normalizuje wpisane polecenie `eqbox` do `EQBOX` i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Wersja 0.5.0 zna pełną składnię v0.5 oraz składnię NyotaUI `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `IMG` i `GRAD`, w tym FILE/DIR, SCREEN, RECORD/WITH, IMPORT, EVERY, obsługę błędów, jawne algorytmy SORT i NYASM. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
+Poza AyoOS działa rozszerzenie **Nyota Language Support 0.5.3** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię, automatycznie normalizuje wpisane polecenie `eqbox` do `EQBOX` i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Wersja 0.5.3 zna pełną składnię v0.5 oraz rozwiniętą składnię NyotaUI `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `INPUT`, `ICONBUTTON`, `SWITCH`, `FRAME`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `IMG` i `GRAD`, w tym FILE/DIR, SCREEN, RECORD/WITH, IMPORT, EVERY, obsługę błędów, jawne algorytmy SORT i NYASM. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
 
 Nyota nie ma zastępować C lub Zig w najniższych warstwach systemu. Jej celem jest wygodne tworzenie aplikacji, narzędzi, automatyzacji, grafiki i prostych gier przy zachowaniu własnej, spójnej semantyki.
 
