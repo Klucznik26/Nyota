@@ -93,6 +93,10 @@ typedef struct {
     SDL_Texture *eq_glow_cache;
     uint32_t eq_cache_w;
     uint32_t eq_cache_h;
+    SDL_Texture *icon_cache;
+    SDL_Texture *tree_leaf_cache;
+    SDL_Texture *tree_closed_cache;
+    SDL_Texture *tree_open_cache;
     char drop_items[NYOTA_UI_DROP_MAX];
 } HostUiControl;
 
@@ -115,6 +119,7 @@ static void host_ui_mark_dirty(int window_index);
 static void host_ui_flush_dirty(void);
 static void host_ui_finish_initial_build(void);
 static void host_ui_clear_eq_cache(HostUiControl *ctl);
+static void host_ui_clear_asset_cache(HostUiControl *ctl);
 static int host_ui_combo_popup_hit(int idx,int x,int y,int32_t *row_out);
 static uint32_t host_ui_combo_item_count(const HostUiControl *ctl);
 static int host_ui_item_at(const char *items,uint32_t wanted,char *out,size_t cap);
@@ -2588,6 +2593,14 @@ static void host_ui_clear_eq_cache(HostUiControl *ctl){
     ctl->eq_cache_w=ctl->eq_cache_h=0;
 }
 
+static void host_ui_clear_asset_cache(HostUiControl *ctl){
+    if(!ctl)return;
+    if(ctl->icon_cache){SDL_DestroyTexture(ctl->icon_cache);ctl->icon_cache=NULL;}
+    if(ctl->tree_leaf_cache){SDL_DestroyTexture(ctl->tree_leaf_cache);ctl->tree_leaf_cache=NULL;}
+    if(ctl->tree_closed_cache){SDL_DestroyTexture(ctl->tree_closed_cache);ctl->tree_closed_cache=NULL;}
+    if(ctl->tree_open_cache){SDL_DestroyTexture(ctl->tree_open_cache);ctl->tree_open_cache=NULL;}
+}
+
 static int host_ui_bg_is_transparent(const NyotaUiBackground *bg){
     return bg&&bg->kind==NYOTA_UI_BG_COLOR&&bg->colors[0].mode==NYOTA_COLOR_TRANSPARENT;
 }
@@ -3732,7 +3745,7 @@ static int32_t host_ui_control_create(const char *name, int32_t window_handle,
         g_host_ui_controls[i].spec=*spec;
         g_host_ui_controls[i].combo_hover=-1;
         g_host_ui_controls[i].list_hover=-1;
-        g_host_ui_controls[i].tree_expanded_mask=UINT64_MAX;
+        g_host_ui_controls[i].tree_expanded_mask=spec->tree_expanded_mask;
         g_host_ui_controls[i].list_selected_mask=(spec->selected<64)?(1ULL<<spec->selected):0;
         g_host_ui_controls[i].caret=(uint32_t)strlen(spec->text);
         g_host_ui_controls[i].text_changed=0;
@@ -3755,7 +3768,9 @@ static int32_t host_ui_control_update(int32_t handle, const NyotaUiControlSpec *
     int i=host_ui_control_index_by_handle(handle), wi;
     if(i<0||!spec)return -1;
     host_ui_clear_eq_cache(&g_host_ui_controls[i]);
+    host_ui_clear_asset_cache(&g_host_ui_controls[i]);
     g_host_ui_controls[i].spec=*spec;
+    if(spec->kind==NYOTA_UI_CTRL_TREEVIEW)g_host_ui_controls[i].tree_expanded_mask=spec->tree_expanded_mask;
     wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);
     if(wi<0)return -1;
     host_ui_mark_dirty(wi);
@@ -3769,6 +3784,7 @@ static void host_ui_control_destroy_index(int idx) {
     handle=g_host_ui_controls[idx].handle;
     wi=host_ui_index_by_handle(g_host_ui_controls[idx].window_handle);
     host_ui_clear_eq_cache(&g_host_ui_controls[idx]);
+    host_ui_clear_asset_cache(&g_host_ui_controls[idx]);
     for(i=0;i<HOST_MAX_UI_CONTROLS;i++)
         if(g_host_ui_controls[i].used&&g_host_ui_controls[i].parent_control_handle==handle)
             host_ui_control_destroy_index(i);
