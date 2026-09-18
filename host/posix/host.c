@@ -899,7 +899,11 @@ static void host_pump(void) {
                         if(host_ui_control_rect_index(i,&tr)){
                             if(ctl->spec.kind==NYOTA_UI_CTRL_INPUT&&ctl->spec.clear_button&&e.button.x>=tr.x+tr.w-tr.h){
                                 if(ctl->spec.text[0]){ctl->spec.text[0]='\0';ctl->caret=0;ctl->text_changed=1;}
-                            }else ctl->caret=host_ui_tarea_caret_from_point(ctl,tr,e.button.x,e.button.y);
+                            }else{
+                                SDL_Rect er=tr;
+                                if(ctl->spec.kind==NYOTA_UI_CTRL_INPUT)host_ui_input_edit_rect(i,tr,&er);
+                                ctl->caret=host_ui_tarea_caret_from_point(ctl,er,e.button.x,e.button.y);
+                            }
                         }else ctl->caret=(uint32_t)strlen(ctl->spec.text);
                         changed=1;break;
                     }
