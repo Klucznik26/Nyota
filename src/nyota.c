@@ -208,6 +208,7 @@ static int32_t HostUiClockValue(int32_t handle, uint32_t index, int32_t *value) 
 /* NyotaUI helpers sa zdefiniowane nizej, ale evaluator korzysta z nich wczesniej. */
 static int UiItemText(const char *items,uint32_t wanted,char *out,uint32_t cap);
 static int32_t UiWrapSigned(int32_t v,int32_t minv,int32_t maxv);
+static int UiInputTextValid(uint8_t type,const char *s);
 
 static int32_t HostSpriteLoad(const char *path) {
     if (g_host && g_host->gfx_sprite_load) return g_host->gfx_sprite_load(path);
