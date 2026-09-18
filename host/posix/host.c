@@ -3657,6 +3657,11 @@ static void host_ui_draw_control_index(int idx) {
             host_ui_tint_background(&ctl->spec.background,&state_bg,-28);
             bg=&state_bg;
         } else if(ctl->spec.kind==NYOTA_UI_CTRL_DAREA&&ctl->hover) bg=&ctl->spec.background_over;
+        else if(ctl->spec.kind==NYOTA_UI_CTRL_ICONBUTTON){
+            if(ctl->pressed)bg=&ctl->spec.pressed_background;
+            else if(ctl->spec.toggle&&ctl->spec.checked)bg=&ctl->spec.selected_background;
+            else if(ctl->hover)bg=&ctl->spec.hover_background;
+        }
         else if((ctl->spec.kind==NYOTA_UI_CTRL_BUTTON||ctl->spec.kind==NYOTA_UI_CTRL_CBOX||
                  ctl->spec.kind==NYOTA_UI_CTRL_RADIO||ctl->spec.kind==NYOTA_UI_CTRL_COMBO) &&
                 (ctl->hover||ctl->pressed)){
@@ -3695,6 +3700,17 @@ static void host_ui_draw_control_index(int idx) {
         if(!ctl->spec.enabled)ctl->spec.text_color=host_ui_tint_color(ctl->spec.text_color,-72);
         host_ui_draw_tbox(u->ren,ctl,r,idx);
         ctl->spec=saved;
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_INPUT){
+        NyotaUiControlSpec saved=ctl->spec;
+        if(!ctl->spec.enabled)ctl->spec.text_color=host_ui_tint_color(ctl->spec.text_color,-72);
+        host_ui_draw_input(u->ren,idx,ctl,r);
+        ctl->spec=saved;
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_ICONBUTTON){
+        host_ui_draw_iconbutton(u->ren,idx,ctl,r);
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_SWITCH){
+        host_ui_draw_switch(u->ren,idx,ctl,r);
+    } else if(ctl->spec.kind==NYOTA_UI_CTRL_FRAME){
+        host_ui_draw_frame(u->ren,idx,ctl,r);
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_SPINBOX){
         host_ui_draw_spinbox(u->ren,idx,ctl,r);
     } else if(ctl->spec.kind==NYOTA_UI_CTRL_LISTVIEW){
