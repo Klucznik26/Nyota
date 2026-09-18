@@ -1100,7 +1100,7 @@ static NyotaVal ListSymDiff(const NyotaVal *a, const NyotaVal *b) {
 
 static int ValOrd(const NyotaVal *a, const NyotaVal *b) {
     if (a->type != b->type) return 0;
-    if (a->type == TYPE_INT || a->type == TYPE_BOOL || a->type == TYPE_DATE || a->type == TYPE_TIME) {
+    if (a->type == TYPE_INT || a->type == TYPE_DATE || a->type == TYPE_TIME) {
         if (a->i < b->i) return -1;
         if (a->i > b->i) return 1;
         return 0;
@@ -1265,8 +1265,8 @@ static int ListSortCounting(NyotaVal *lst) {
     uint8_t t;
     if (!lst->list_len) return 1;
     t = lst->list_items[0].type;
-    if (t != TYPE_INT && t != TYPE_BOOL) {
-        OutError("SORT COUNTING wymaga LIST INTEGER albo BOOLEAN");
+    if (t != TYPE_INT) {
+        OutError("SORT COUNTING wymaga LIST INTEGER");
         return 0;
     }
     minv = maxv = lst->list_items[0].i;
@@ -1285,8 +1285,7 @@ static int ListSortCounting(NyotaVal *lst) {
     for (i = 0; i < range; i++) {
         uint16_t c = g_sort_counting[i];
         while (c--) {
-            if (t == TYPE_BOOL) ValFromBool(&lst->list_items[pos++], minv + (int32_t)i);
-            else ValFromInt(&lst->list_items[pos++], minv + (int32_t)i);
+            ValFromInt(&lst->list_items[pos++], minv + (int32_t)i);
         }
     }
     return 1;
@@ -6062,9 +6061,9 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
             if (v->val.list_len > 0) {
                 uint8_t t = v->val.list_items[0].type;
                 uint32_t i;
-                if (t != TYPE_INT && t != TYPE_BOOL && t != TYPE_FLOAT && t != TYPE_STR &&
+                if (t != TYPE_INT && t != TYPE_FLOAT && t != TYPE_STR &&
                     t != TYPE_DATE && t != TYPE_TIME) {
-                    OutError("SORT: obslugiwane typy to INTEGER, BOOLEAN, FLOAT, STRING, DATE, TIME");
+                    OutError("SORT: obslugiwane typy to INTEGER, FLOAT, STRING, DATE, TIME");
                     return;
                 }
                 for (i = 1; i < v->val.list_len; i++) {
