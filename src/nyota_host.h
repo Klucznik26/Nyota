@@ -164,6 +164,9 @@ typedef struct {
     uint8_t wrap;
     /* 1 = interaktywna, 0 = wyszarzona i ignoruje input. */
     uint8_t enabled;
+    /* Wewnetrzny odstep tekstu kontrolki. */
+    uint32_t pad_x;
+    uint32_t pad_y;
 
     NyotaUiBackground background;
     NyotaUiBackground background_over;
@@ -220,6 +223,8 @@ typedef struct {
     NyotaColor tab_border_color;
     uint32_t tab_border_width;
     uint32_t tab_radius;
+    uint32_t tab_pad_x;
+    uint32_t tab_pad_y;
     uint32_t tab_index;
 
     /* Cien dziedziczony z WIN.CONFIG przez wszystkie kontrolki okna. */
