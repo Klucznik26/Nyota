@@ -5765,7 +5765,7 @@ static int UiExecControl(uint32_t ln,const char *raw,const char *line){
     if(NStrEq(p,".CONFIG:")){existing=FindUiControl(name);if(!existing||existing->spec.kind!=kind){g_cur_line=SkipBlock(ln+1,NIndent(raw));OutError("NyotaUI CONFIG: nieznana kontrolka");return 1;}UiApplyControlConfig(ln,raw,existing);return 1;}
     if(*p!=','){OutError("NyotaUI: po nazwie wymagany przecinek");return 1;}
     {
-        char args[24][MAX_STR_LEN],parent_name[64];int n=SplitFunctionArgs(NTrim(p+1),args,24),i,first_prop=0;NyotaWindow*pw=0;NyotaUiControl*pc=0,temp;int32_t wi=0,hi=0,x=0,y=0,handle;uint8_t pos=NYOTA_UI_POS_XY;
+        char args[64][MAX_STR_LEN],parent_name[64];int n=SplitFunctionArgs(NTrim(p+1),args,64),i,first_prop=0;NyotaWindow*pw=0;NyotaUiControl*pc=0,temp;int32_t wi=0,hi=0,x=0,y=0,handle;uint8_t pos=NYOTA_UI_POS_XY;
         if(kind==NYOTA_UI_CTRL_BUTTON&&n==13){uint32_t pn=ParseIdent(NTrim(args[0]),parent_name,sizeof(parent_name));if(!parent_name[0]||(!FindWindow(parent_name)&&!FindUiControl(parent_name)))return 0;}
         if(FindUiControl(name)||FindWindow(name)){OutError("NyotaUI: nazwa juz istnieje");return 1;}if(g_ui_control_count>=MAX_UI_CONTROLS){OutError("NyotaUI: przekroczono limit kontrolek");return 1;}if(!g_host||!g_host->ui_control_create||!g_host->ui_control_update){OutError("NyotaUI: host nie obsluguje kontrolek");return 1;}
         if(n<2||!UiResolveParent(args[0],kind,&pw,&pc,parent_name,sizeof(parent_name)))return 1;
