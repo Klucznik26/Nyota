@@ -417,6 +417,70 @@ VAR p := PBAR_VALUE(postep)
 VAR ok := PBAR_SET(postep, 80)
 ```
 
+## SLIDER
+
+`SLIDER` wybiera pojedynczą wartość z zakresu. Korzysta z tego samego modelu zakresu co `SBAR`, ale uchwyt ma stały rozmiar i semantycznie nie reprezentuje przewijania.
+
+```nyota
+SLIDER volume, panel, [360, 30], [20, 70], MIN=0, MAX=100, VALUE=65, STEP=5, ORIENTATION=HORIZONTAL, THUMB=CIRCLE, THUMBSIZE=24, CTHUMB=SAPPHIRE, CTHUMBOVER=LIGHTSAPPHIRE, BORDER=TRUE
+```
+
+`ORIENTATION=HORIZONTAL/VERTICAL` działa w obu kierunkach. Kształty `THUMB`: `RECT`, `ROUND`, `CIRCLE`, `DIAMOND`, `TRIANGLE`, `PARALLELOGRAM`.
+
+```nyota
+VAR v := SLIDER_VALUE(volume)
+VAR ok := SLIDER_SET(volume, 80)
+```
+
+Na hoście POSIX `SLIDER` reaguje na kliknięcie, przeciąganie, focus klawiatury, strzałki, `Home` i `End`.
+
+## STATBAR i TOOLBAR
+
+`STATBAR` i `TOOLBAR` są lekkimi kontenerami paskowymi. Domyślnie używają `LAYOUT=ROW`, więc ich dzieci mogą korzystać z pozycji `AUTO`.
+
+```nyota
+TOOLBAR tools, glowne, [700, 42], [20, 20], BG=DARKGRAY, BORDER=TRUE, CBORDER=GRAY
+BUTTON open, tools, [90, 28], AUTO, TEXT="Open"
+BUTTON save, tools, [90, 28], AUTO, TEXT="Save"
+
+STATBAR status, glowne, [700, 30], [20, 420], BG=DARKGRAY, BORDER=TRUE
+LABEL ready, status, [180, 22], AUTO, TEXT="Ready"
+```
+
+Oba obsługują `BG`, `BORDER`, `CBORDER`, `BWIDTH`, `RADIUS`, `CLIP`, `LAYOUT`, `GAP`, `LPADX` i `LPADY`. Nie istnieje osobna kontrolka `BORDER`; border jest właściwością `CONFIG`.
+
+## EQBOX
+
+`EQBOX` jest wysokowydajnym wielosłupkowym wizualizatorem danych. Może pracować jako equalizer, miernik poziomów albo prosty wykres słupkowy.
+
+```nyota
+EQBOX eq, panel, [620, 270], [20, 120], BARS=8, VALUES=[15,30,55,80,100,72,44,22], MIN=0, MAX=100, BARWIDTH=38, GAP=16, BUILD=CIRCLE, SEGMENTGAP=3, ORIENTATION=VERTICAL, DIRECTION=UP, BG=GRAD(LINEAR, VERTICAL, 2, [BLACK, DARKBLUE]), BARBG=GRAD(LINEAR, VERTICAL, 2, [DARKGRAY, BLACK]), BARFILL=GRAD(LINEAR, VERTICAL, 4, [EMERALD, LIME, GOLD, RUBY]), GLOW=GRAD(LINEAR, VERTICAL, 2, [SAPPHIRE, TRANSPARENT]), BLUR=6, LABELS=["60","120","250","500","1K","2K","4K","8K"], SHOWLABELS=TRUE, BORDER=TRUE
+```
+
+Najważniejsze właściwości:
+
+- geometria: `BARS`, `BARWIDTH`, `GAP`, `MINHEIGHT`, `MAXHEIGHT`, `ORIENTATION`, `DIRECTION`;
+- dane: `MIN`, `MAX`, `VALUES`;
+- budowa słupka: `BUILD=SOLID/CIRCLE/SQUARE/TRIANGLE/DIAMOND/PARALLELOGRAM`, `SEGMENTGAP`;
+- warstwy: `BG`, `BARBG`, `BARFILL`, `GLOW`;
+- poświata: `BLUR`;
+- etykiety: `LABELS`, `LABELPOS=INSIDE/BOTTOM/TOP`, `SHOWLABELS`, `SHOWVALUES`, `FONT`, `FSIZE`, `CTEXT`;
+- obudowa: `BORDER`, `CBORDER`, `BWIDTH`, `RADIUS`;
+- per-słupek: `BARCOLORS=[...]`.
+
+Warstwy `BG`, `BARBG`, `BARFILL` i `GLOW` używają tego samego typu tła co reszta NyotaUI, więc mogą przyjmować kolor, `GRAD(...)`, `IMG(...)` albo `TRANSPARENT`. Dzięki temu tło całej kontrolki może być np. PNG, słupki mogą mieć gradient, a poświata własny gradient.
+
+`BARCOLORS` pozwala nadpisać wypełnienie poszczególnych słupków kolorem. Gdy jest użyte dla danego słupka, jego kolor ma pierwszeństwo przed globalnym `BARFILL`.
+
+Do szybkich zmian danych służą osobne funkcje, które nie przebudowują `CONFIG`:
+
+```nyota
+VAR ok := EQBOX_SET(eq, [20,40,60,80,95,75,50,25])
+VAR one := EQBOX_BAR(eq, 3, 88)
+```
+
+Backend POSIX cache'uje statyczne warstwy słupków i poświaty. Zmiana wartości przechodzi osobnym kontraktem hosta, aby uniknąć ponownego parsowania stylu oraz ponownego ładowania obrazów przy każdej aktualizacji.
+
 ## SHADOW dziedziczony z WIN
 
 Cień definiuje się wyłącznie w `WIN.CONFIG`; wszystkie kontrolki należące do tego okna dziedziczą tę samą politykę cienia. Nie jest to cień dekoracji systemowego okna `WIN ... ROOT`.
@@ -432,7 +496,7 @@ WIN glowne.CONFIG:
 
 ## RADIUS
 
-`RADIUS` zaokrągla prostokątne tło i border. Działa m.in. dla `PANEL`, `BUTTON`, `COMBO`, `TAREA`, `SBAR`, `PBAR`, prostokątnego `DAREA` i obszaru zawartości `TAB`. `DAREA` z `CIRCLE/ELLIPSE` nie przyjmuje `RADIUS`.
+`RADIUS` zaokrągla prostokątne tło i border. Działa m.in. dla `PANEL`, `BUTTON`, `COMBO`, `TAREA`, `SBAR`, `PBAR`, `SLIDER`, `EQBOX`, `STATBAR`, `TOOLBAR`, prostokątnego `DAREA` i obszaru zawartości `TAB`. `DAREA` z `CIRCLE/ELLIPSE` nie przyjmuje `RADIUS`.
 
 ## TABS / TAB
 
@@ -490,7 +554,7 @@ Dla `TAB` właściwość `RADIUS` dotyczy części zawartości i zaokrągla tylk
 
 ## Stany interaktywne
 
-Kontrolki interaktywne `BUTTON`, `CBOX`, `RADIO`, `COMBO`, `DAREA`, `TAB` i `SBAR` mają stan `ENABLED`.
+Kontrolki interaktywne `BUTTON`, `CBOX`, `RADIO`, `COMBO`, `DAREA`, `TAB`, `SBAR` i `SLIDER` mają stan `ENABLED`.
 
 ```nyota
 BUTTON zapisz, panel, [120, 36], [20, 20], TEXT="Zapisz", ENABLED=FALSE
@@ -526,7 +590,7 @@ Główki `TAB` mają osobne `TABPADX` i `TABPADY`; domyślnie odpowiednio 12 i 6
 
 ## Layout: FREE / ROW / COL
 
-`PANEL` i zawartość `TAB` mogą zarządzać pozycjami dzieci.
+`PANEL`, zawartość `TAB`, `STATBAR` i `TOOLBAR` mogą zarządzać pozycjami dzieci.
 
 ```nyota
 PANEL pasek, glowne, [600, 70], [20, 20], LAYOUT=ROW, GAP=10, LPADX=12, LPADY=12
@@ -539,7 +603,7 @@ BUTTON drugi, pasek, [120, 36], AUTO, TEXT="Drugi"
 
 ## Rounded clipping
 
-Przy `CLIP=TRUE` dzieci `PANEL` i `TAB` są na hoście POSIX przycinane również do zaokrąglonego kształtu rodzica. Maskowanie obejmuje tła, tekst, bordery, focus, cienie i prymitywy kontrolek, a nie tylko prostokątny bounding box.
+Przy `CLIP=TRUE` dzieci `PANEL`, `TAB`, `STATBAR` i `TOOLBAR` są na hoście POSIX przycinane również do zaokrąglonego kształtu rodzica. Maskowanie obejmuje tła, tekst, bordery, focus, cienie i prymitywy kontrolek, a nie tylko prostokątny bounding box.
 
 ## HiDPI
 
