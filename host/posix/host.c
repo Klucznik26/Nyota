@@ -69,7 +69,7 @@ typedef struct {
     char drop_items[NYOTA_UI_DROP_MAX];
 } HostUiControl;
 
-static HostUiControl g_ui_controls[HOST_MAX_UI_CONTROLS];
+static HostUiControl g_host_ui_controls[HOST_MAX_UI_CONTROLS];
 
 static void host_ui_render_background_index(int idx);
 static void host_ui_destroy_index(int idx);
@@ -101,7 +101,7 @@ static int host_ui_index_by_handle(int32_t handle) {
 static int host_ui_control_index_by_handle(int32_t handle) {
     int i;
     for (i = 0; i < HOST_MAX_UI_CONTROLS; i++)
-        if (g_ui_controls[i].used && g_ui_controls[i].handle == handle) return i;
+        if (g_host_ui_controls[i].used && g_host_ui_controls[i].handle == handle) return i;
     return -1;
 }
 
@@ -109,8 +109,8 @@ static int host_ui_control_rect_index(int idx, SDL_Rect *out) {
     HostUiControl *c;
     SDL_Rect parent;
     int wi;
-    if (!out || idx < 0 || idx >= HOST_MAX_UI_CONTROLS || !g_ui_controls[idx].used) return 0;
-    c = &g_ui_controls[idx];
+    if (!out || idx < 0 || idx >= HOST_MAX_UI_CONTROLS || !g_host_ui_controls[idx].used) return 0;
+    c = &g_host_ui_controls[idx];
     wi = host_ui_index_by_handle(c->window_handle);
     if (wi < 0) return 0;
     if (c->parent_control_handle > 0) {
@@ -138,7 +138,7 @@ static int host_ui_point_in_control(int idx, int x, int y) {
     int p;
     if (!host_ui_control_rect_index(idx, &r)) return 0;
     if (x < r.x || y < r.y || x >= r.x + r.w || y >= r.y + r.h) return 0;
-    c = &g_ui_controls[idx];
+    c = &g_host_ui_controls[idx];
     if (c->spec.kind == NYOTA_UI_CTRL_DAREA) {
         if (c->spec.shape == NYOTA_UI_DAREA_CIRCLE) {
             double radius = (double)(r.w < r.h ? r.w : r.h) / 2.0;
@@ -154,7 +154,7 @@ static int host_ui_point_in_control(int idx, int x, int y) {
     }
     p = c->parent_control_handle > 0 ? host_ui_control_index_by_handle(c->parent_control_handle) : -1;
     while (p >= 0) {
-        HostUiControl *pc = &g_ui_controls[p];
+        HostUiControl *pc = &g_host_ui_controls[p];
         SDL_Rect pr;
         if (pc->spec.kind == NYOTA_UI_CTRL_PANEL && pc->spec.clip) {
             if (!host_ui_control_rect_index(p, &pr) ||
@@ -203,7 +203,7 @@ static void host_pump(void) {
             if (ui >= 0) {
                 int changed = 0, i;
                 for (i = 0; i < HOST_MAX_UI_CONTROLS; i++) {
-                    HostUiControl *ctl = &g_ui_controls[i];
+                    HostUiControl *ctl = &g_host_ui_controls[i];
                     uint8_t over;
                     if (!ctl->used || ctl->window_handle != g_ui_windows[ui].handle ||
                         ctl->spec.kind != NYOTA_UI_CTRL_DAREA) continue;
@@ -224,7 +224,7 @@ static void host_pump(void) {
                 struct stat st;
                 SDL_GetMouseState(&mx, &my);
                 for (i = HOST_MAX_UI_CONTROLS - 1; i >= 0; i--) {
-                    HostUiControl *ctl = &g_ui_controls[i];
+                    HostUiControl *ctl = &g_host_ui_controls[i];
                     size_t cur, add;
                     int is_dir, accepted;
                     if (!ctl->used || ctl->window_handle != g_ui_windows[ui].handle ||
@@ -863,12 +863,12 @@ static int host_ui_clip_for_control(int idx, SDL_Rect *clip) {
     SDL_Rect full, pr, inter;
     HostUiControl *c;
     int wi;
-    if (idx < 0 || idx >= HOST_MAX_UI_CONTROLS || !g_ui_controls[idx].used) return 0;
-    c=&g_ui_controls[idx]; wi=host_ui_index_by_handle(c->window_handle); if(wi<0)return 0;
+    if (idx < 0 || idx >= HOST_MAX_UI_CONTROLS || !g_host_ui_controls[idx].used) return 0;
+    c=&g_host_ui_controls[idx]; wi=host_ui_index_by_handle(c->window_handle); if(wi<0)return 0;
     full.x=0;full.y=0;full.w=(int)g_ui_windows[wi].w;full.h=(int)g_ui_windows[wi].h; *clip=full;
     p=c->parent_control_handle>0?host_ui_control_index_by_handle(c->parent_control_handle):-1;
     while(p>=0){
-        HostUiControl *pc=&g_ui_controls[p];
+        HostUiControl *pc=&g_host_ui_controls[p];
         if(pc->spec.kind==NYOTA_UI_CTRL_PANEL && pc->spec.clip && host_ui_control_rect_index(p,&pr)){
             if(!SDL_IntersectRect(clip,&pr,&inter)){clip->w=clip->h=0;return 1;} *clip=inter;
         }
@@ -885,8 +885,8 @@ static void host_ui_draw_control_index(int idx) {
     SDL_Texture *tex;
     const NyotaUiBackground *bg;
     int wi;
-    if (idx < 0 || idx >= HOST_MAX_UI_CONTROLS || !g_ui_controls[idx].used) return;
-    ctl = &g_ui_controls[idx];
+    if (idx < 0 || idx >= HOST_MAX_UI_CONTROLS || !g_host_ui_controls[idx].used) return;
+    ctl = &g_host_ui_controls[idx];
     wi = host_ui_index_by_handle(ctl->window_handle);
     if (wi < 0 || !(u=&g_ui_windows[wi])->ren || !host_ui_control_rect_index(idx,&r)) return;
     if (!host_ui_clip_for_control(idx,&clip) || clip.w<=0 || clip.h<=0) return;
@@ -909,7 +909,7 @@ static void host_ui_redraw_controls(int window_index) {
     if(window_index<0||window_index>=HOST_MAX_UI_WINDOWS||!g_ui_windows[window_index].used)return;
     u=&g_ui_windows[window_index];
     for(i=0;i<HOST_MAX_UI_CONTROLS;i++)
-        if(g_ui_controls[i].used&&g_ui_controls[i].window_handle==u->handle)
+        if(g_host_ui_controls[i].used&&g_host_ui_controls[i].window_handle==u->handle)
             host_ui_draw_control_index(i);
     if(u->ren) SDL_RenderPresent(u->ren);
 }
@@ -922,18 +922,18 @@ static int32_t host_ui_control_create(const char *name, int32_t window_handle,
     if (wi < 0 || !spec || !spec->w || !spec->h) return -1;
     if (parent_control_handle > 0) {
         int pi = host_ui_control_index_by_handle(parent_control_handle);
-        if (pi < 0 || g_ui_controls[pi].window_handle != window_handle ||
-            g_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_PANEL) return -1;
+        if (pi < 0 || g_host_ui_controls[pi].window_handle != window_handle ||
+            g_host_ui_controls[pi].spec.kind != NYOTA_UI_CTRL_PANEL) return -1;
     }
-    for(i=0;i<HOST_MAX_UI_CONTROLS;i++) if(!g_ui_controls[i].used){
-        memset(&g_ui_controls[i],0,sizeof(g_ui_controls[i]));
-        g_ui_controls[i].used=1; g_ui_controls[i].handle=1000+i;
-        g_ui_controls[i].window_handle=window_handle;
-        g_ui_controls[i].parent_control_handle=parent_control_handle;
-        g_ui_controls[i].spec=*spec;
+    for(i=0;i<HOST_MAX_UI_CONTROLS;i++) if(!g_host_ui_controls[i].used){
+        memset(&g_host_ui_controls[i],0,sizeof(g_host_ui_controls[i]));
+        g_host_ui_controls[i].used=1; g_host_ui_controls[i].handle=1000+i;
+        g_host_ui_controls[i].window_handle=window_handle;
+        g_host_ui_controls[i].parent_control_handle=parent_control_handle;
+        g_host_ui_controls[i].spec=*spec;
         if (g_ui_windows[wi].has_background) host_ui_render_background_index(wi);
         host_ui_redraw_controls(wi);
-        return g_ui_controls[i].handle;
+        return g_host_ui_controls[i].handle;
     }
     return -1;
 }
@@ -941,8 +941,8 @@ static int32_t host_ui_control_create(const char *name, int32_t window_handle,
 static int32_t host_ui_control_update(int32_t handle, const NyotaUiControlSpec *spec) {
     int i=host_ui_control_index_by_handle(handle), wi;
     if(i<0||!spec)return -1;
-    g_ui_controls[i].spec=*spec;
-    wi=host_ui_index_by_handle(g_ui_controls[i].window_handle);
+    g_host_ui_controls[i].spec=*spec;
+    wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle);
     if(wi<0)return -1;
     if(g_ui_windows[wi].has_background) host_ui_render_background_index(wi);
     host_ui_redraw_controls(wi);
@@ -952,13 +952,13 @@ static int32_t host_ui_control_update(int32_t handle, const NyotaUiControlSpec *
 static void host_ui_control_destroy_index(int idx) {
     int i, wi;
     int32_t handle;
-    if(idx<0||idx>=HOST_MAX_UI_CONTROLS||!g_ui_controls[idx].used)return;
-    handle=g_ui_controls[idx].handle;
-    wi=host_ui_index_by_handle(g_ui_controls[idx].window_handle);
+    if(idx<0||idx>=HOST_MAX_UI_CONTROLS||!g_host_ui_controls[idx].used)return;
+    handle=g_host_ui_controls[idx].handle;
+    wi=host_ui_index_by_handle(g_host_ui_controls[idx].window_handle);
     for(i=0;i<HOST_MAX_UI_CONTROLS;i++)
-        if(g_ui_controls[i].used&&g_ui_controls[i].parent_control_handle==handle)
+        if(g_host_ui_controls[i].used&&g_host_ui_controls[i].parent_control_handle==handle)
             host_ui_control_destroy_index(i);
-    memset(&g_ui_controls[idx],0,sizeof(g_ui_controls[idx]));
+    memset(&g_host_ui_controls[idx],0,sizeof(g_host_ui_controls[idx]));
     if(wi>=0){if(g_ui_windows[wi].has_background)host_ui_render_background_index(wi);host_ui_redraw_controls(wi);}
 }
 
@@ -969,29 +969,29 @@ static void host_ui_control_destroy(int32_t handle) {
 static int32_t host_ui_button_clicked(int32_t handle) {
     int i=host_ui_control_index_by_handle(handle), wi, mx=0,my=0;
     Uint32 buttons; uint8_t down; int inside, clicked;
-    if(i<0||g_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_BUTTON)return -1;
+    if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_BUTTON)return -1;
     host_pump();
-    wi=host_ui_index_by_handle(g_ui_controls[i].window_handle); if(wi<0)return -1;
-    if(SDL_GetMouseFocus()!=g_ui_windows[wi].win){g_ui_controls[i].prev_down=0;return 0;}
+    wi=host_ui_index_by_handle(g_host_ui_controls[i].window_handle); if(wi<0)return -1;
+    if(SDL_GetMouseFocus()!=g_ui_windows[wi].win){g_host_ui_controls[i].prev_down=0;return 0;}
     buttons=SDL_GetMouseState(&mx,&my); down=(buttons&SDL_BUTTON(SDL_BUTTON_LEFT))?1:0;
     inside=host_ui_point_in_control(i,mx,my);
-    clicked=down&&!g_ui_controls[i].prev_down&&inside;
-    g_ui_controls[i].prev_down=down;
+    clicked=down&&!g_host_ui_controls[i].prev_down&&inside;
+    g_host_ui_controls[i].prev_down=down;
     return clicked?1:0;
 }
 
 static int32_t host_ui_darea_dropped(int32_t handle) {
     int i=host_ui_control_index_by_handle(handle); int32_t v;
-    if(i<0||g_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_DAREA)return -1;
-    host_pump(); v=g_ui_controls[i].dropped?1:0; g_ui_controls[i].dropped=0; return v;
+    if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_DAREA)return -1;
+    host_pump(); v=g_host_ui_controls[i].dropped?1:0; g_host_ui_controls[i].dropped=0; return v;
 }
 
 static int32_t host_ui_darea_items(int32_t handle,char *out,uint32_t cap,uint32_t *out_size){
     int i=host_ui_control_index_by_handle(handle); size_t n;
     if(out_size)*out_size=0;
-    if(i<0||g_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_DAREA||!out||!cap)return -1;
-    n=strlen(g_ui_controls[i].drop_items); if(n+1>cap)return -2;
-    memcpy(out,g_ui_controls[i].drop_items,n+1); if(out_size)*out_size=(uint32_t)n; return 0;
+    if(i<0||g_host_ui_controls[i].spec.kind!=NYOTA_UI_CTRL_DAREA||!out||!cap)return -1;
+    n=strlen(g_host_ui_controls[i].drop_items); if(n+1>cap)return -2;
+    memcpy(out,g_host_ui_controls[i].drop_items,n+1); if(out_size)*out_size=(uint32_t)n; return 0;
 }
 
 static int32_t host_ui_win_create(const char *name, int32_t parent_handle,
@@ -1084,8 +1084,8 @@ static void host_ui_destroy_index(int idx) {
     if (idx < 0 || idx >= HOST_MAX_UI_WINDOWS || !g_ui_windows[idx].used) return;
     handle = g_ui_windows[idx].handle;
     for (i = 0; i < HOST_MAX_UI_CONTROLS; i++)
-        if (g_ui_controls[i].used && g_ui_controls[i].window_handle == handle)
-            memset(&g_ui_controls[i], 0, sizeof(g_ui_controls[i]));
+        if (g_host_ui_controls[i].used && g_host_ui_controls[i].window_handle == handle)
+            memset(&g_host_ui_controls[i], 0, sizeof(g_host_ui_controls[i]));
     for (i = 0; i < HOST_MAX_UI_WINDOWS; i++)
         if (g_ui_windows[i].used && g_ui_windows[i].parent_handle == handle)
             host_ui_destroy_index(i);
