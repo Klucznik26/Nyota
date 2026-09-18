@@ -262,8 +262,8 @@ static int host_ui_tab_header_rect(int idx, SDL_Rect *out) {
     if(pi<0||g_host_ui_controls[pi].spec.kind!=NYOTA_UI_CTRL_TABS||!host_ui_control_rect_index(pi,&pr))return 0;
     if(host_ui_measure_text(tab->spec.tab_font, tab->spec.text, tab->spec.tab_font_size,
                             tab->spec.tab_bold, tab->spec.tab_italic, tab->spec.tab_underline, &tw, &th)) {
-        if(th+12>hh) hh=th+12;
-    } else if((int)tab->spec.tab_font_size+12>hh) hh=(int)tab->spec.tab_font_size+12;
+        if(th+(int)(2u*tab->spec.tab_pad_y)>hh) hh=th+(int)(2u*tab->spec.tab_pad_y);
+    } else if((int)tab->spec.tab_font_size+(int)(2u*tab->spec.tab_pad_y)>hh) hh=(int)tab->spec.tab_font_size+(int)(2u*tab->spec.tab_pad_y);
     x=pr.x;
     for(j=0;j<HOST_MAX_UI_CONTROLS;j++){
         HostUiControl *q=&g_host_ui_controls[j];
@@ -272,9 +272,9 @@ static int host_ui_tab_header_rect(int idx, SDL_Rect *out) {
         if(!host_ui_measure_text(q->spec.tab_font, q->spec.text, q->spec.tab_font_size,
                                  q->spec.tab_bold, q->spec.tab_italic, q->spec.tab_underline, &qw, &qh))
             qw=(int)strlen(q->spec.text)*(int)q->spec.tab_font_size;
-        x+=qw+24;
+        x+=qw+(int)(2u*q->spec.tab_pad_x);
     }
-    w=tw>0?tw+24:(int)strlen(tab->spec.text)*(int)tab->spec.tab_font_size+24;
+    w=tw>0?tw+(int)(2u*tab->spec.tab_pad_x):(int)strlen(tab->spec.text)*(int)tab->spec.tab_font_size+(int)(2u*tab->spec.tab_pad_x);
     if(w<52)w=52;
     out->x=x;out->y=pr.y;out->w=w;out->h=hh;
     ti=pr.x+pr.w; if(out->x+out->w>ti) out->w=ti-out->x;
@@ -1306,7 +1306,7 @@ static void host_ui_draw_text(SDL_Renderer *ren, const NyotaUiControlSpec *s, SD
         return;
     }
     color.r=s->text_color.r; color.g=s->text_color.g; color.b=s->text_color.b; color.a=s->text_color.a;
-    maxw = r.w > 12 ? r.w - 12 : r.w;
+    maxw = r.w > (int)(2u*s->pad_x) ? r.w - (int)(2u*s->pad_x) : r.w;
     if (s->wrap && maxw > 0)
         surface = TTF_RenderUTF8_Blended_Wrapped(font, s->text, color, (Uint32)maxw);
     else
@@ -1319,12 +1319,12 @@ static void host_ui_draw_text(SDL_Renderer *ren, const NyotaUiControlSpec *s, SD
     if (!texture) { SDL_FreeSurface(surface); host_ui_draw_text_fallback(ren,s,r); return; }
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
     dst.w=surface->w; dst.h=surface->h;
-    dst.x=r.x+6;
+    dst.x=r.x+(int)s->pad_x;
     if(s->halign==NYOTA_UI_ALIGN_CENTER) dst.x=r.x+(r.w-dst.w)/2;
-    else if(s->halign==NYOTA_UI_ALIGN_RIGHT) dst.x=r.x+r.w-dst.w-6;
-    dst.y=r.y+4;
+    else if(s->halign==NYOTA_UI_ALIGN_RIGHT) dst.x=r.x+r.w-dst.w-(int)s->pad_x;
+    dst.y=r.y+(int)s->pad_y;
     if(s->valign==NYOTA_UI_VALIGN_MIDDLE) dst.y=r.y+(r.h-dst.h)/2;
-    else if(s->valign==NYOTA_UI_VALIGN_BOTTOM) dst.y=r.y+r.h-dst.h-4;
+    else if(s->valign==NYOTA_UI_VALIGN_BOTTOM) dst.y=r.y+r.h-dst.h-(int)s->pad_y;
     SDL_RenderCopy(ren,texture,NULL,&dst);
     SDL_DestroyTexture(texture);
     SDL_FreeSurface(surface);
@@ -1439,7 +1439,7 @@ static int host_ui_clip_for_control(int idx, SDL_Rect *clip) {
 }
 
 static void host_ui_draw_simple_text(SDL_Renderer *ren,const char *text,NyotaColor c,SDL_Rect r,uint32_t fs){
-    NyotaUiControlSpec t; memset(&t,0,sizeof(t)); t.font_size=fs;t.text_color=c;t.halign=NYOTA_UI_ALIGN_LEFT;t.valign=NYOTA_UI_VALIGN_MIDDLE;strncpy(t.text,text,sizeof(t.text)-1);host_ui_draw_text(ren,&t,r);
+    NyotaUiControlSpec t; memset(&t,0,sizeof(t)); t.font_size=fs;t.text_color=c;t.halign=NYOTA_UI_ALIGN_LEFT;t.valign=NYOTA_UI_VALIGN_MIDDLE;t.pad_x=8;t.pad_y=4;strncpy(t.font,"SYSTEM",sizeof(t.font)-1);strncpy(t.text,text,sizeof(t.text)-1);host_ui_draw_text(ren,&t,r);
 }
 static int host_ui_item_at(const char *items,uint32_t wanted,char *out,size_t cap){
     uint32_t cur=0,start=0,i=0;if(!out||!cap)return 0;out[0]='\0';
@@ -1530,6 +1530,8 @@ static void host_ui_draw_tab_header(int idx,SDL_Renderer *ren){
     memset(&tmp,0,sizeof(tmp));
     strncpy(tmp.font,c->spec.tab_font,sizeof(tmp.font)-1);
     tmp.font_size=c->spec.tab_font_size;
+    tmp.pad_x=c->spec.tab_pad_x;
+    tmp.pad_y=c->spec.tab_pad_y;
     tc=host_ui_tint_color(c->spec.tab_text_color,!c->spec.enabled?-62:(active?16:0));
     tmp.text_color=tc;tmp.bold=c->spec.tab_bold;tmp.italic=c->spec.tab_italic;tmp.underline=c->spec.tab_underline;
     tmp.halign=NYOTA_UI_ALIGN_CENTER;tmp.valign=NYOTA_UI_VALIGN_MIDDLE;
