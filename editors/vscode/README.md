@@ -2,7 +2,7 @@
 
 Rozszerzenie VS Code dla języka Nyota.
 
-## Wersja 0.4.1
+## Wersja 0.4.2
 
 Rozszerzenie obsługuje:
 
@@ -17,7 +17,8 @@ Rozszerzenie obsługuje:
 - katalog roboczy ustawiany na katalog uruchamianego pliku,
 - konfigurowalną ścieżkę interpretera przez `nyota.interpreterPath`,
 - próbki kolorów (swatches) i standardowy picker VS Code dla 98 nazwanych kolorów Nyoty, `TRANSPARENT`, `0xRRGGBB` i `0xRRGGBBAA`,
-- zachowanie `BACKDROP` bez próbki koloru, ponieważ jego wynik zależy od sceny pod obiektem.
+- zachowanie `BACKDROP` bez próbki koloru, ponieważ jego wynik zależy od sceny pod obiektem,
+- kolorowanie składni NyotaUI: `WIN`, `ROOT`, `CENTER`, `CONFIG`, `IMG(...)`, `GRAD(...)` oraz trybów obrazów i gradientów.
 
 Domyślna wartość interpretera to:
 
@@ -58,14 +59,21 @@ npx @vscode/vsce package
 Dla tej wersji powstanie plik:
 
 ```text
-nyota-language-support-0.4.1.vsix
+nyota-language-support-0.4.2.vsix
 ```
 
 Instalacja:
 
 ```bash
-code --install-extension ./nyota-language-support-0.4.1.vsix --force
+code --install-extension ./nyota-language-support-0.4.2.vsix --force
 ```
+
+## Zmiany w 0.4.2
+
+- składnia `WIN` i `WIN nazwa.CONFIG:`,
+- słowa NyotaUI: `ROOT`, `CENTER`, `TITLE`, `BG`, `ICO`,
+- funkcje tła `IMG(...)` i `GRAD(...)`,
+- kierunki, kształty, tryby obrazów oraz `CW` / `CCW`.
 
 ## Zmiany w 0.4.1
 
