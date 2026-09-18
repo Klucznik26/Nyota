@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+GRAPH 1
+SPRITE zly, "tests/assets/sprite_test.bmp", 0, 0, 0, 8
+END

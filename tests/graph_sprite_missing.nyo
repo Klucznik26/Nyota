@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+GRAPH 1
+SPRITE brak, "tests/assets/does_not_exist.bmp", 0, 0, 8, 8
+END

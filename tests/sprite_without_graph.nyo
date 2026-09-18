@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD
+BEGIN
+SPRITE gracz, "tests/assets/sprite_test.bmp", 0, 0, 8, 8
+END
