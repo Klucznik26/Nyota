@@ -1,0 +1,266 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Nyota",
+  "scopeName": "source.nyota",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#dateLiterals"
+    },
+    {
+      "include": "#timeLiterals"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#definitions"
+    },
+    {
+      "include": "#namedObjects"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#builtinFunctions"
+    },
+    {
+      "include": "#controlKeywords"
+    },
+    {
+      "include": "#declarationKeywords"
+    },
+    {
+      "include": "#wordOperators"
+    },
+    {
+      "include": "#commands"
+    },
+    {
+      "include": "#symbolOperators"
+    },
+    {
+      "include": "#punctuation"
+    },
+    {
+      "include": "#functionCalls"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.nyota",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.nyota",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.newline.nyota",
+              "match": "~\\/+"
+            }
+          ]
+        }
+      ]
+    },
+    "dateLiterals": {
+      "patterns": [
+        {
+          "name": "constant.other.date.nyota",
+          "match": "<[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}>"
+        }
+      ]
+    },
+    "timeLiterals": {
+      "patterns": [
+        {
+          "match": "\\b(TIME)(\\()([0-9]{2}\\.[0-9]{2}\\.[0-9]{2})(\\))",
+          "captures": {
+            "1": {
+              "name": "support.function.builtin.nyota"
+            },
+            "2": {
+              "name": "punctuation.section.parens.begin.nyota"
+            },
+            "3": {
+              "name": "constant.other.time.nyota"
+            },
+            "4": {
+              "name": "punctuation.section.parens.end.nyota"
+            }
+          }
+        },
+        {
+          "name": "constant.other.time-shift.nyota",
+          "match": "\\b[HMS][0-9]+\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.nyota",
+          "match": "(?<![A-Za-z0-9_])[0-9]+\\.[0-9]+(?![A-Za-z0-9_])"
+        },
+        {
+          "name": "constant.numeric.integer.nyota",
+          "match": "(?<![A-Za-z0-9_])[0-9]+(?![A-Za-z0-9_])"
+        }
+      ]
+    },
+    "definitions": {
+      "patterns": [
+        {
+          "match": "\\b(FUNCTION|PROCEDURE)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.function.nyota"
+            },
+            "2": {
+              "name": "entity.name.function.nyota"
+            }
+          }
+        },
+        {
+          "match": "\\b(RECORD)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.class.nyota"
+            },
+            "2": {
+              "name": "entity.name.type.record.nyota"
+            }
+          }
+        }
+      ]
+    },
+    "namedObjects": {
+      "patterns": [
+        {
+          "match": "\\b(TABLE|BUTTON|SPRITE)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "support.function.command.nyota"
+            },
+            "2": {
+              "name": "entity.name.variable.object.nyota"
+            }
+          }
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.nyota",
+          "match": "\\b(?:TRUE|FALSE)\\b"
+        },
+        {
+          "name": "constant.language.modifier.nyota",
+          "match": "\\b(?:ASC|DESC|ALL|KEY|VALUE)\\b"
+        }
+      ]
+    },
+    "builtinFunctions": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.nyota",
+          "match": "\\b(?:INT|FLT|STRING|STR|BOOL|LIST|TUPLE|LEN|INPUT|RANDOM|RANDINT|RANDFLT|TODAY|TIME|HOUR|MINUTE|SECOND|YEAR|MONTH|DAY|UPPER|LOWER|FIND|CHOOSE|ROUND|FLOOR|CEIL|SIN|COS|MINFO|MLIST|VALUES|SUM|AVG|MED|MIN|MAX|MODE|MODECOUNT|COUNT|BUTTON_CLICKED|SPRITE_X|SPRITE_Y|SPRITE_W|SPRITE_H|SPRITE_VISIBLE|SPRITE_HIT|SPRITE_FRAME|SPRITE_PLAYING|NN_PREDICT|STATE_GET|SIMILARITY|FUZZY|MATCH|TOKENS|NEAREST|WEIGHTED|PATHFIND|SIMPLIFY)\\b(?=\\s*\\()"
+        }
+      ]
+    },
+    "controlKeywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.nyota",
+          "match": "\\b(?:BEGIN|END|IF|ELIF|ELSE|WHILE|FOR|TO|STEP|REPEAT|UNTIL|DO|EXIT|CONTINUE|SWITCH|CASE|RETURN)\\b"
+        },
+        {
+          "name": "keyword.control.exception.nyota",
+          "match": "\\b(?:ON|ERROR|CALL|CANCEL|EVERY)\\b"
+        }
+      ]
+    },
+    "declarationKeywords": {
+      "patterns": [
+        {
+          "name": "storage.modifier.nyota",
+          "match": "\\b(?:VAR|CONST)\\b"
+        },
+        {
+          "name": "keyword.declaration.nyota",
+          "match": "\\b(?:FUNCTION|PROCEDURE|RECORD|WITH|IMPORT)\\b"
+        }
+      ]
+    },
+    "wordOperators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.logical.nyota",
+          "match": "\\b(?:AND|OR|NOT|IN)\\b"
+        },
+        {
+          "name": "keyword.operator.arithmetic.nyota",
+          "match": "\\bMOD\\b"
+        }
+      ]
+    },
+    "commands": {
+      "patterns": [
+        {
+          "name": "support.function.command.nyota",
+          "match": "\\b(?:PRINT|DELAY|GRAPH|GOTOXY|CLEAR|BOX|CIRCLE|ELLIPSE|LINE|TRIANGLE|QUAD|PENTAGON|EGG|SCREEN|TABLE|TABLE_DATA|BUTTON|SPRITE|SPRITE_DRAW|SPRITE_POS|SPRITE_MOVE|SPRITE_SHOW|SPRITE_HIDE|SPRITE_DELETE|SPRITE_ANIM|SPRITE_PLAY|SPRITE_STOP|SPRITE_FRAME|APPEND|REMOVE|EXTEND|REVERSE|SORT|REKEY|MEXTEND|MINSERT|MDROP|DELETE|STATE_CREATE|STATE_SET|NN_CREATE|NN_TRAIN)\\b"
+        }
+      ]
+    },
+    "symbolOperators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.nyota",
+          "match": ":="
+        },
+        {
+          "name": "keyword.operator.comparison.nyota",
+          "match": "=N=|<>|><|<=|>=|=|<|>"
+        },
+        {
+          "name": "keyword.operator.arithmetic.nyota",
+          "match": "\\^\\^|\\^|\\+|-|\\*|/|%"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.separator.nyota",
+          "match": "[,|:]"
+        },
+        {
+          "name": "punctuation.section.brackets.nyota",
+          "match": "[\\[\\]\\{\\}\\(\\)]"
+        }
+      ]
+    },
+    "functionCalls": {
+      "patterns": [
+        {
+          "name": "entity.name.function.call.nyota",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\()"
+        }
+      ]
+    }
+  }
+}
