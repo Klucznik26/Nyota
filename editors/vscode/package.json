@@ -4,7 +4,6 @@
   "description": "Syntax highlighting and editor configuration for Nyota (.nyo).",
   "version": "0.1.0",
   "publisher": "klucznik26",
-  "license": "SEE LICENSE IN ../../LICENSE",
   "engines": {
     "vscode": "^1.80.0"
   },
