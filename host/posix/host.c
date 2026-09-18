@@ -95,6 +95,8 @@ static void host_ui_render_background_index(int idx);
 static void host_ui_destroy_index(int idx);
 static void host_ui_redraw_controls(int window_index);
 static NyotaColor host_ui_tint_color(NyotaColor c,int delta);
+static uint32_t host_ui_tarea_caret_from_point(HostUiControl *ctl,SDL_Rect r,int mx,int my);
+static void host_ui_tarea_caret_visual(HostUiControl *ctl,SDL_Rect r,int *out_x,int *out_row);
 static int g_ui_draw_clip_idx = -1;
 
 static void posix_emit(char c) {
