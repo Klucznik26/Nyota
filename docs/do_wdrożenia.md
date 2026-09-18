@@ -67,7 +67,7 @@ SORT dane, QUICK, REVERSE
 ```
 
 `ASC` jest domyślne. `REVERSE` jest aliasem kierunku malejącego.
-`COUNTING` działa dla `INTEGER` i `BOOLEAN`; bieżąca implementacja
+`COUNTING` działa dla `INTEGER`; bieżąca implementacja
 ogranicza zakres wartości do 4096 różnych pozycji.
 
 ### NYASM / ASM
