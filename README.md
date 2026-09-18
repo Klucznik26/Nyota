@@ -175,7 +175,7 @@ zbudowania potrzebne są narzędzia RPM i nagłówki zgodności SDL2:
 ```bash
 sudo dnf install rpm-build gcc make pkgconf-pkg-config sdl2-compat-devel SDL2_image-devel tar gzip
 make rpm
-sudo dnf install packaging/nyota-0.5.0-14.fc44.x86_64.rpm
+sudo dnf install packaging/nyota-0.5.0-15.fc44.x86_64.rpm
 nyota /usr/share/nyota/tests/add_int.nyo
 ```
 
