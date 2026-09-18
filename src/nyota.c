@@ -6385,7 +6385,9 @@ static int UiControlKindFromLine(const char *l,uint8_t*k,uint32_t*n){
     if(PeekWord(l,"TBOX")){*k=NYOTA_UI_CTRL_TBOX;*n=4;return 1;} if(PeekWord(l,"SPINBOX")){*k=NYOTA_UI_CTRL_SPINBOX;*n=7;return 1;}
     if(PeekWord(l,"LISTVIEW")){*k=NYOTA_UI_CTRL_LISTVIEW;*n=8;return 1;} if(PeekWord(l,"TREEVIEW")){*k=NYOTA_UI_CTRL_TREEVIEW;*n=8;return 1;}
     if(PeekWord(l,"SPLITTER")){*k=NYOTA_UI_CTRL_SPLITTER;*n=8;return 1;} if(PeekWord(l,"SCALE")){*k=NYOTA_UI_CTRL_SCALE;*n=5;return 1;}
-    if(PeekWord(l,"CLOCK")){*k=NYOTA_UI_CTRL_CLOCK;*n=5;return 1;} return 0;
+    if(PeekWord(l,"CLOCK")){*k=NYOTA_UI_CTRL_CLOCK;*n=5;return 1;}
+    if(PeekWord(l,"ICONBUTTON")){*k=NYOTA_UI_CTRL_ICONBUTTON;*n=10;return 1;} if(PeekWord(l,"SWITCH")){*k=NYOTA_UI_CTRL_SWITCH;*n=6;return 1;}
+    if(PeekWord(l,"FRAME")){*k=NYOTA_UI_CTRL_FRAME;*n=5;return 1;} if(PeekWord(l,"INPUT")){*k=NYOTA_UI_CTRL_INPUT;*n=5;return 1;} return 0;
 }
 static int UiResolveParent(const char *arg,uint8_t kind,NyotaWindow **pw,NyotaUiControl **pc,char *name,uint32_t cap){
     uint32_t pn=ParseIdent(NTrim(arg),name,cap);*pw=0;*pc=0;
@@ -6397,7 +6399,7 @@ static int UiResolveParent(const char *arg,uint8_t kind,NyotaWindow **pw,NyotaUi
     }
     if(*pw)return 1;
     *pc=FindUiControl(name);
-    if(!*pc||((*pc)->spec.kind!=NYOTA_UI_CTRL_PANEL&&(*pc)->spec.kind!=NYOTA_UI_CTRL_TAB&&(*pc)->spec.kind!=NYOTA_UI_CTRL_STATBAR&&(*pc)->spec.kind!=NYOTA_UI_CTRL_TOOLBAR)){OutError("NyotaUI: rodzic musi byc WIN, PANEL, TAB, STATBAR albo TOOLBAR");return 0;}
+    if(!*pc||((*pc)->spec.kind!=NYOTA_UI_CTRL_PANEL&&(*pc)->spec.kind!=NYOTA_UI_CTRL_TAB&&(*pc)->spec.kind!=NYOTA_UI_CTRL_STATBAR&&(*pc)->spec.kind!=NYOTA_UI_CTRL_TOOLBAR&&(*pc)->spec.kind!=NYOTA_UI_CTRL_FRAME)){OutError("NyotaUI: rodzic musi byc WIN, PANEL, TAB, STATBAR, TOOLBAR albo FRAME");return 0;}
     return 1;
 }
 static void UiInheritWindowStyle(NyotaUiControl *c){
@@ -7178,7 +7180,9 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         PeekWord(line, "TOOLBAR") || PeekWord(line, "TBOX") ||
         PeekWord(line, "SPINBOX") || PeekWord(line, "LISTVIEW") ||
         PeekWord(line, "TREEVIEW") || PeekWord(line, "SPLITTER") ||
-        PeekWord(line, "SCALE") || PeekWord(line, "CLOCK")) {
+        PeekWord(line, "SCALE") || PeekWord(line, "CLOCK") ||
+        PeekWord(line, "ICONBUTTON") || PeekWord(line, "SWITCH") ||
+        PeekWord(line, "FRAME") || PeekWord(line, "INPUT")) {
         if (UiExecControl(ln, raw, line)) return;
         /* legacy GRAPH BUTTON falls through to its old implementation below */
     }
