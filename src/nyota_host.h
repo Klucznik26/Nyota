@@ -19,7 +19,8 @@
 enum {
     NYOTA_UI_POS_SYSTEM = 0,
     NYOTA_UI_POS_XY = 1,
-    NYOTA_UI_POS_CENTER = 2
+    NYOTA_UI_POS_CENTER = 2,
+    NYOTA_UI_POS_AUTO = 3
 };
 
 enum {
@@ -88,7 +89,8 @@ enum {
     NYOTA_UI_CTRL_SEP = 7,
     NYOTA_UI_CTRL_RADIO = 8,
     NYOTA_UI_CTRL_TABS = 9,
-    NYOTA_UI_CTRL_TAB = 10
+    NYOTA_UI_CTRL_TAB = 10,
+    NYOTA_UI_CTRL_TAREA = 11
 };
 
 enum {
@@ -113,6 +115,12 @@ enum {
     NYOTA_UI_SEP_INSET = 1,
     NYOTA_UI_SEP_RAISED = 2,
     NYOTA_UI_SEP_GRADIENT = 3
+};
+
+enum {
+    NYOTA_UI_LAYOUT_FREE = 0,
+    NYOTA_UI_LAYOUT_ROW = 1,
+    NYOTA_UI_LAYOUT_COL = 2
 };
 
 enum {
@@ -184,6 +192,16 @@ typedef struct {
 
     /* Wspolne dla prostokatnych kontrolek. 0 = ostre rogi. */
     uint32_t radius;
+
+    /* Layout rodzica. AUTO u dzieci korzysta z tych pol. */
+    uint8_t layout;
+    uint32_t gap;
+    uint32_t layout_pad_x;
+    uint32_t layout_pad_y;
+
+    /* TAREA. */
+    uint8_t readonly;
+    NyotaColor caret_color;
 
     /* CBOX / RADIO. */
     uint8_t checked;
@@ -310,6 +328,9 @@ typedef struct NyotaHost {
     int32_t (*ui_control_set_checked)(int32_t handle, uint8_t checked);
     int32_t (*ui_combo_index)(int32_t handle);
     int32_t (*ui_combo_set_index)(int32_t handle, uint32_t index);
+    int32_t (*ui_tarea_get_text)(int32_t handle, char *out, uint32_t cap, uint32_t *out_size);
+    int32_t (*ui_tarea_set_text)(int32_t handle, const char *text);
+    int32_t (*ui_tarea_changed)(int32_t handle);
 } NyotaHost;
 
 void NyotaSetHost(NyotaHost *h);
