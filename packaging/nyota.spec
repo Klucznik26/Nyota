@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        6%{?dist}
+Release:        7%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,11 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-7
+- Add neutral NyotaUI desktop defaults and interactive hover/pressed states.
+- Render TAB content with square top corners and rounded bottom corners.
+- Improve active/inactive tab headers and algorithmic checkbox X rendering.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-6
 - Replace NyotaUI bitmap text with anti-aliased SDL2_ttf rendering on POSIX.
 - Resolve SYSTEM and named font families through fontconfig.
