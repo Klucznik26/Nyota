@@ -1,6 +1,6 @@
 # NYOTA — mocny plik zasad dla agenta AI w AyoEdit
 
-**Ostatnia weryfikacja całości:** 2026-09-17  
+**Ostatnia weryfikacja całości:** 2026-09-18  
 **Powiązane:** [`docs/nyota_v05.md`](../../../docs/nyota_v05.md) — plan wydania v0.5 i rozwoju po rdzeniu; ten plik jest specyfikacją dla agenta i ma opisywać tylko to, czego ma używać, z jawnym stanem interpretera.
 
 > Cel dokumentu: ten plik ma być podawany agentowi AI jako nadrzędny kontekst przy analizie, poprawianiu i generowaniu kodu w języku Nyota.
