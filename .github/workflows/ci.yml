@@ -20,6 +20,7 @@ jobs:
           python3 -m json.tool editors/vscode/package.json >/dev/null
           python3 -m json.tool editors/vscode/language-configuration.json >/dev/null
           python3 -m json.tool editors/vscode/syntaxes/nyota.tmLanguage.json >/dev/null
+          node --check editors/vscode/extension.js
       - name: Build
         run: make
       - name: Regression tests
