@@ -55,6 +55,8 @@ FOR i := 0 TO 10 STEP 5:
 END
 ```
 
+> **Na hoście Linux/POSIX działa już NyotaUI:** okna `WIN`, zakładki `TABS/TAB`, kontenery i rozbudowany zestaw kontrolek. To warstwa hosta Nyoty, nie osobny język — ten sam kod `.nyo` korzysta ze wspólnego kontraktu `NyotaHost`. Repo zawiera m.in. działające showcase/testy [`tests/win_modern_controls.nyo`](tests/win_modern_controls.nyo) oraz [`tests/win_advanced_controls.nyo`](tests/win_advanced_controls.nyo).
+
 Najważniejsze reguły widoczne już w tym przykładzie:
 
 ```text
@@ -128,8 +130,6 @@ Backend POSIX używa obecnie SDL2, SDL2_image, SDL2_ttf i fontconfig. Tekst jest
 
 Pełny kontrakt znajduje się w [`docs/nyotaui.md`](docs/nyotaui.md).
 
-> **NyotaUI działa dziś na POSIX/Linux przez SDL2.**
-> Działający przykład: [`tests/win_extra_controls.nyo`](tests/win_extra_controls.nyo) tworzy prawdziwe `WIN` z `TOOLBAR`, `BUTTON`, `SLIDER`, `EQBOX`, `STATBAR` i `LABEL`. Target [`make test-graph`](Makefile) uruchamia ten program przez backend POSIX/SDL2 i sprawdza zakończenie `EXTRA_UI_OK`.
 
 ---
 
@@ -334,7 +334,7 @@ Najważniejsze dokumenty projektu:
 
 ## Kierunek rozwoju
 
-Po ustabilizowaniu rdzenia Nyota ma rozwijać się dalej w stronę bogatszych struktur danych, `DATETIME`, relacyjnego `MARK`, dalszego rozwoju `TABLE`, audio, sprite'ów oraz kolejnych możliwości NyotaUI i hostów.
+**NyotaUI nie jest elementem przyszłej roadmapy — działa już dziś na hoście POSIX/Linux.** Dalszy rozwój GUI oznacza rozszerzanie istniejącego NyotaUI, dopracowywanie kontrolek i dodawanie kolejnych backendów hosta, przede wszystkim dla AyoOS. Równolegle Nyota ma rozwijać bogatsze struktury danych, `DATETIME`, relacyjny `MARK`, `TABLE`, audio i sprite'y.
 
 Poza AyoOS działa rozszerzenie **Nyota Language Support 0.5.3** dla **Visual Studio Code**: rozpoznaje `.nyo`, koloruje składnię, automatycznie normalizuje wpisane polecenie `eqbox` do `EQBOX` i uruchamia aktualny program przez przycisk `▶`, `Ctrl+F5` albo komendę `Nyota: Run Current File`. Interpreter jest pobierany z `PATH` lub z ustawienia `nyota.interpreterPath`. Wersja 0.5.3 zna pełną składnię v0.5 oraz rozwiniętą składnię NyotaUI `WIN`, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `INPUT`, `ICONBUTTON`, `SWITCH`, `FRAME`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `IMG` i `GRAD`, w tym FILE/DIR, SCREEN, RECORD/WITH, IMPORT, EVERY, obsługę błędów, jawne algorytmy SORT i NYASM. Kolejne etapy mogą dodać diagnostykę i podpowiedzi. Nadal planowane są też pakiety Linuksa — w pierwszej kolejności dla **Fedory** i **openSUSE**.
 
