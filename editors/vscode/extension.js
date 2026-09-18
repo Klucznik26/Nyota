@@ -23,6 +23,7 @@ const AUTO_UPPERCASE_COMMANDS = new Map([
     ['clock', 'CLOCK'],
     ['iconbutton', 'ICONBUTTON'],
     ['switch', 'SWITCH'],
+    ['toggle', 'TOGGLE'],
     ['frame', 'FRAME'],
     ['input', 'INPUT']
 ]);
