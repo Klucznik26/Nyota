@@ -423,6 +423,11 @@ static int host_ui_sbar_thumb_rect(int idx,SDL_Rect *out){
     ctl=&g_host_ui_controls[idx];
     if(!ctl->used||ctl->spec.kind!=NYOTA_UI_CTRL_SBAR||
        !host_ui_control_rect_index(idx,&r)||ctl->spec.range_max<=ctl->spec.range_min)return 0;
+    if(ctl->spec.border&&ctl->spec.border_width){
+        int p=(int)ctl->spec.border_width;
+        r.x+=p;r.y+=p;r.w-=2*p;r.h-=2*p;
+        if(r.w<=0||r.h<=0)return 0;
+    }
     span=ctl->spec.range_max-ctl->spec.range_min;
     page=ctl->spec.range_page?ctl->spec.range_page:1;
     track=ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL?r.h:r.w;
@@ -2349,6 +2354,11 @@ static void host_ui_draw_sbar_thumb(SDL_Renderer *ren,int idx,HostUiControl *ctl
 
 static void host_ui_draw_pbar(SDL_Renderer *ren,int idx,HostUiControl *ctl,SDL_Rect r){
     uint32_t span=ctl->spec.range_max-ctl->spec.range_min;
+    if(ctl->spec.border&&ctl->spec.border_width){
+        int p=(int)ctl->spec.border_width;
+        r.x+=p;r.y+=p;r.w-=2*p;r.h-=2*p;
+        if(r.w<=0||r.h<=0)return;
+    }
     uint32_t pos=ctl->spec.range_value-ctl->spec.range_min;
     NyotaColor fill=ctl->spec.progress_fill_color,empty=ctl->spec.progress_empty_color;
     if(!span)return;
