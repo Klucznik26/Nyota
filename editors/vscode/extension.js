@@ -10,7 +10,17 @@ const {
 const COLOR_TOKEN_RE = /0[xX][0-9A-Fa-f]{8}(?![0-9A-Za-z_])|0[xX][0-9A-Fa-f]{6}(?![0-9A-Za-z_])|\b[A-Z][A-Z0-9]*\b/g;
 
 const AUTO_UPPERCASE_COMMANDS = new Map([
-    ['eqbox', 'EQBOX']
+    ['eqbox', 'EQBOX'],
+    ['slider', 'SLIDER'],
+    ['statbar', 'STATBAR'],
+    ['toolbar', 'TOOLBAR'],
+    ['tbox', 'TBOX'],
+    ['spinbox', 'SPINBOX'],
+    ['listview', 'LISTVIEW'],
+    ['treeview', 'TREEVIEW'],
+    ['splitter', 'SPLITTER'],
+    ['scale', 'SCALE'],
+    ['clock', 'CLOCK']
 ]);
 
 let applyingAutoUppercase = false;
