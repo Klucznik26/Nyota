@@ -452,3 +452,47 @@ BUTTON zapisz, panel, [140, 38], [20, 20], TEXT="Zapisz", PADX=12, PADY=6
 Domyślne wartości NyotaUI to `PADX=8` i `PADY=4`.
 
 Główki `TAB` mają osobne `TABPADX` i `TABPADY`; domyślnie odpowiednio 12 i 6. Padding wpływa również na automatycznie wyliczaną szerokość i wysokość główki zakładki.
+
+
+## Layout: FREE / ROW / COL
+
+`PANEL` i zawartość `TAB` mogą zarządzać pozycjami dzieci.
+
+```nyota
+PANEL pasek, glowne, [600, 70], [20, 20], LAYOUT=ROW, GAP=10, LPADX=12, LPADY=12
+
+BUTTON pierwszy, pasek, [120, 36], AUTO, TEXT="Pierwszy"
+BUTTON drugi, pasek, [120, 36], AUTO, TEXT="Drugi"
+```
+
+`LAYOUT=FREE` zachowuje klasyczne ręczne pozycjonowanie. `ROW` układa dzieci `AUTO` od lewej do prawej, a `COL` od góry do dołu. `GAP` ustala odstęp między elementami, a `LPADX/LPADY` wewnętrzny odstęp kontenera. Dzieci z jawnym `[x,y]` lub `CENTER` nadal mogą współistnieć z elementami `AUTO`.
+
+## Rounded clipping
+
+Przy `CLIP=TRUE` dzieci `PANEL` i `TAB` są na hoście POSIX przycinane również do zaokrąglonego kształtu rodzica. Maskowanie obejmuje tła, tekst, bordery, focus, cienie i prymitywy kontrolek, a nie tylko prostokątny bounding box.
+
+## HiDPI
+
+Host POSIX tworzy okna NyotaUI z obsługą HiDPI i utrzymuje logiczny układ współrzędnych Nyoty przez `SDL_RenderSetLogicalSize`. Kod programu pozostaje niezależny od skali monitora. AyoOS i inne hosty mogą realizować ten sam kontrakt własnym mechanizmem skalowania.
+
+## TAREA / TextBox
+
+`TAREA` jest wielowierszowym polem tekstowym NyotaUI.
+
+```nyota
+TAREA opis, panel, [420, 180], AUTO, TEXT="Tekst początkowy"
+```
+
+Obsługiwane właściwości obejmują typografię, `BG`, `BORDER`, `RADIUS`, `PADX/PADY`, `WRAP`, `ENABLED`, `READONLY` i kolor kursora `CCARET`.
+
+Na hoście POSIX pole obsługuje UTF-8 przez SDL text input, kursor, `Left/Right`, `Home/End`, `Backspace`, `Delete` i `Enter`. Focus działa wspólnie z resztą NyotaUI przez `Tab/Shift+Tab`.
+
+Odczyt, ustawienie i sygnał zmiany:
+
+```nyota
+VAR tekst := TAREA_TEXT(opis)
+VAR ok := TAREA_SET(opis, "Nowa treść")
+
+IF TAREA_CHANGED(opis):
+    PRINT "Treść została zmieniona"
+```
