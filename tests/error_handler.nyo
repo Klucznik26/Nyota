@@ -1,0 +1,8 @@
+# Oczekiwane: BLAD zawiera HANDLED
+PROCEDURE Handler():
+    PRINT "HANDLED", ERR_CODE
+
+BEGIN
+ON ERROR CALL Handler
+VAR x := 10 / 0
+END

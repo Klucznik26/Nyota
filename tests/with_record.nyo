@@ -1,0 +1,14 @@
+# Oczekiwane: zawiera WITH_OK
+RECORD Postac:
+    hp := 100
+    imie := "Nikt"
+
+BEGIN
+VAR boss := Postac()
+VAR hp := 3
+WITH boss:
+    hp := 900
+    imie := "Smok"
+IF boss.hp = 900 AND boss.imie = "Smok" AND hp = 3:
+    PRINT "WITH_OK"
+END

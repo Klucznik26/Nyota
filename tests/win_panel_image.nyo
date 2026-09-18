@@ -1,0 +1,6 @@
+# Oczekiwane: zawiera PANEL_IMG_OK
+BEGIN
+WIN glowne, ROOT, [320, 240], CENTER, FALSE
+PANEL obraz, glowne, [220, 160], CENTER, BG=IMG("tests/assets/sprite_test.bmp", FIT), BORDER=TRUE, CBORDER=GRAY, BWIDTH=1
+PRINT "PANEL_IMG_OK"
+END

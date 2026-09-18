@@ -1,0 +1,99 @@
+# Oczekiwane: zawiera MODERN_UI_OK
+BEGIN
+WIN glowne, ROOT, [960, 720]
+
+FRAME ustawienia, glowne, [420, 300], [20, 20], TEXT="Ustawienia"
+FRAME ustawienia.CONFIG:
+    BG = DARKGRAY
+    BORDER = TRUE
+    CBORDER = SAPPHIRE
+    BWIDTH = 2
+    RADIUS = 10
+    TITLEPOS = TOPLEFT
+    TITLEPAD = 12
+    LAYOUT = COL
+    GAP = 10
+    LPADX = 16
+    LPADY = 28
+
+INPUT search, ustawienia, [340, 38], AUTO, TYPE=SEARCH, PLACEHOLDER="Szukaj...", CLEARBUTTON=TRUE
+INPUT number, ustawienia, [220, 38], AUTO, TYPE=NUMBER, TEXT="-12", PREFIX="CPU ", SUFFIX=" %"
+INPUT mail, ustawienia, [340, 38], AUTO, TYPE=EMAIL, TEXT="user@example.com"
+INPUT secret, ustawienia, [280, 38], AUTO, TYPE=PASSWORD, TEXT="sekret"
+
+TOGGLE wifi, ustawienia, [92, 34], AUTO, VALUE=TRUE
+TOGGLE wifi.CONFIG:
+    TRACKON = EMERALD
+    TRACKOFF = DARKGRAY
+    THUMBFILL = WHITE
+    THUMBSIZE = 24
+    GLOW = EMERALD
+    BLUR = 2
+    ONTEXT = "ON"
+    OFFTEXT = "OFF"
+
+ICONBUTTON star, ustawienia, [150, 38], AUTO, TEXT="Ulubione", TOGGLE=TRUE, VALUE=FALSE
+ICONBUTTON star.CONFIG:
+    ICONSIZE = 20
+    ICONPOS = LEFT
+    GAP = 8
+    BG = DARKGRAY
+    BGHOVER = SAPPHIRE
+    BGPRESSED = DARKSAPPHIRE
+    BGON = PURPLE
+    BORDER = TRUE
+    RADIUS = 7
+
+TREEVIEW tree, glowne, [440, 560], [490, 20], ITEMS=["System", "System/CPU", "System/GPU", "Storage", "Storage/NVMe", "Storage/HDD", "Siec", "Siec/Ethernet"], SELECTED=0
+TREEVIEW tree.CONFIG:
+    NODEHEIGHT = 36
+    INDENT = 24
+    ICONSPACING = 7
+    LINESTYLE = DASH
+    EXPANDER = TRIANGLE
+    EXPANDED = [0, 3]
+    BORDER = TRUE
+    CBORDER = GRAY
+    RADIUS = 8
+    BGSELECT = DARKSAPPHIRE
+    CSELECT = WHITE
+    BGHOVER = DARKGRAY
+    CHOVER = WHITE
+
+VAR nset := INPUT_SET(number, "-25")
+IF NOT nset:
+    PRINT "INPUT_NUMBER_SET_FAIL"
+IF INPUT_TEXT(number) <> "-25":
+    PRINT "INPUT_NUMBER_TEXT_FAIL"
+IF NOT INPUT_VALID(number):
+    PRINT "INPUT_NUMBER_VALID_FAIL"
+
+VAR mset := INPUT_SET(mail, "marek@example.pl")
+IF NOT mset:
+    PRINT "INPUT_EMAIL_SET_FAIL"
+IF NOT INPUT_VALID(mail):
+    PRINT "INPUT_EMAIL_VALID_FAIL"
+
+IF NOT INPUT_VALID(secret):
+    PRINT "INPUT_PASSWORD_VALID_FAIL"
+
+VAR sw := TOGGLE_SET(wifi, FALSE)
+IF NOT sw:
+    PRINT "TOGGLE_SET_FAIL"
+IF TOGGLE_VALUE(wifi):
+    PRINT "TOGGLE_VALUE_FAIL"
+
+VAR ib := ICONBUTTON_SET(star, TRUE)
+IF NOT ib:
+    PRINT "ICONBUTTON_SET_FAIL"
+IF NOT ICONBUTTON_VALUE(star):
+    PRINT "ICONBUTTON_VALUE_FAIL"
+
+VAR tv := TREEVIEW_SET(tree, 4)
+IF NOT tv:
+    PRINT "TREEVIEW_SET_FAIL"
+IF TREEVIEW_VALUE(tree) <> "Storage/NVMe":
+    PRINT "TREEVIEW_VALUE_FAIL"
+
+PRINT "MODERN_UI_OK"
+END

@@ -1,0 +1,10 @@
+# Oczekiwane: zawiera IMPORT_OK
+IMPORT "tests/import_lib.nyo"
+
+BEGIN
+VAR p := Punkt()
+LibUstaw(p)
+VAR x := LibDodaj(LIB_CONST, 5)
+IF x = 12 AND p.x = 11 AND p.y = 22:
+    PRINT "IMPORT_OK"
+END

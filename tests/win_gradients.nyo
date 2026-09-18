@@ -1,0 +1,14 @@
+# Oczekiwane: zawiera GRAD_OK
+BEGIN
+VAR kolory := [WHITE, GOLD, DARKRED]
+WIN ksztalt, ROOT, [180, 140], CENTER, FALSE
+WIN ksztalt.CONFIG:
+    BG = GRAD(SHAPE, EGG, CENTER, 25, 3, kolory)
+WIN gwiazda, ksztalt, [120, 90], [10, 10], FALSE
+WIN gwiazda.CONFIG:
+    BG = GRAD(SHAPE, STAR, [60, 45], 15, 3, [WHITE, RUBY, BLACK])
+WIN spirala, ksztalt, [120, 90], CENTER, FALSE
+WIN spirala.CONFIG:
+    BG = GRAD(SPIRAL, CENTER, 0, 3, CW, 3, [WHITE, BLUE, BLACK])
+PRINT "GRAD_OK"
+END

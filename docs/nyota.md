@@ -1,6 +1,6 @@
-# NYOTA — mocny plik zasad dla agenta AI w AyoEdit
+# NYOTA — bieżąca specyfikacja implementacji v0.5
 
-**Ostatnia weryfikacja całości:** 2026-09-17  
+**Ostatnia weryfikacja całości:** 2026-09-18  
 **Powiązane:** [`docs/nyota_v05.md`](../../../docs/nyota_v05.md) — plan wydania v0.5 i rozwoju po rdzeniu; ten plik jest specyfikacją dla agenta i ma opisywać tylko to, czego ma używać, z jawnym stanem interpretera.
 
 > Cel dokumentu: ten plik ma być podawany agentowi AI jako nadrzędny kontekst przy analizie, poprawianiu i generowaniu kodu w języku Nyota.
@@ -12,6 +12,23 @@
 > Agent nie może zakładać, że Nyota działa jak C, Python, Pascal, BASIC, AMOS,
 > JavaScript, Rust ani Clojure. Źródłem prawdy jest ta specyfikacja oraz interpreter Nyoty.
 
+## Status synchronizacji z kodem
+
+**Audyt synchronizacji:** 2026-09-19, gałąź `nyota-v05-complete`.
+
+Ten plik opisuje **zachowanie faktycznie zaimplementowane**, a nie plan języka. Przy sporze obowiązuje kolejność:
+
+1. `src/nyota.c` — składnia, typy, parser, semantyka i wykonanie instrukcji;
+2. `src/nyota_host.h` oraz implementacja hosta — kontrakt platformowy;
+3. `tests/*.nyo` — regresja zachowania;
+4. `docs/nyota.md` — opis dla człowieka.
+
+Jeżeli dokument rozmija się z kodem lub regresją, jest to **błąd dokumentacji**. Elementy planowane, ale jeszcze niewdrożone, należą do [`docs/nyota_v05.md`](nyota_v05.md), a pełny kontrakt GUI do [`docs/nyotaui.md`](nyotaui.md).
+
+Bieżące typy wartości interpretera: `INTEGER`, `FLOAT`, `STRING`, `BOOLEAN`, `LIST`, `DATE`, `MARK`, `TUPLE`, `TIME`, `RECORD`, `COLOR`.
+
+---
+
 ## 0. Język, edytor, host
 
 Trzy osobne rzeczy:
@@ -22,13 +39,40 @@ Tunga     — edytor (osobny projekt; potrafi uruchomić Nyotę)
 AyoOS     — pierwszy system-host
 ```
 
-Nyota nie jest modułem Tungi. VS Code będzie kolejnym edytorem, analogicznie.
+Nyota nie jest modułem Tungi. VS Code jest drugim obsługiwanym edytorem, analogicznie do Tungi.
 
 `PRINT`, `GRAPH`, `INPUT` i `DELAY` **należą do języka** i muszą działać
 na każdym hoście, w tym na Linuksie. Host nie wycina tych poleceń.
 Host tylko podłącza backend (AyoAPI, SDL, okno).
 
 Nie ma Nyoty bez grafiki. Jest jeden język.
+
+### 0.1. Nyota Platform Invariance Rule
+
+To jest twarda zasada projektu.
+
+> Poprawny kod źródłowy Nyoty nie może wymagać zmian zależnie od systemu
+> operacyjnego. Ten sam program ma być używany bez zmian na AyoOS, Linuxie
+> i Windowsie. Różnice platformowe są obowiązkiem hosta, ABI i toolchainu,
+> a nie programisty Nyoty.
+
+Ta sama zasada obejmuje planowane moduły natywne:
+- `NC` — moduł C,
+- `NZ` — moduł Zig,
+- `NA` — moduł natywnego assemblera procesora.
+
+`NC` i `NZ` mają mieć identyczne źródła na wszystkich oficjalnych hostach.
+`NA` jest zależne od architektury CPU, ale nie od systemu operacyjnego:
+dla tej samej architektury, np. x86-64, ten sam moduł NA ma działać na AyoOS,
+Linuxie i Windowsie bez zmian w źródle.
+
+Kod NC/NZ/NA nie powinien bezpośrednio używać AyoAPI, POSIX ani WinAPI.
+Dostęp do systemu ma prowadzić przez wspólny kontrakt `NyotaNativeAPI`
+oraz stabilne ABI Nyoty. To zachowuje przenośność źródła.
+
+`NYASM` pozostaje czymś innym: jest przenośną maszyną wirtualną Nyoty,
+nie natywnym assemblerem CPU.
+
 
 Stan interpretera na 2026-09-17:
 
@@ -37,7 +81,7 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">BEGIN i END są obowiązkowe; brak pary albo kod poza blokiem to błąd, a nie ciche wykonanie całego pliku wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`+` wymaga tego samego typu; `4 + "8"` i `"8" + 4` są błędem, nie zgadywaniem wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=` i `<>` porównują typ i wartość; `5 = "5"` oraz `5 = 5.0` są błędem typu wykonane 2026-09-17</span>
-- <span style="color: navy;">literał `5.0` jest FLOAT; `FLT()` / `STR()` / `BOOL()` działają obok `INT()` i `STRING()` w toku (zaawansowany etap) 2026-09-17</span>
+- <span style="color: #006A4E;">FLOAT: stała precyzja 3 miejsc, jawne ucinanie dalszych cyfr, poprawne liczby ujemne i kontrola przepełnień wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">typ DATE: literał `&lt;RRRR.MM.DD&gt;`, walidacja gregoriańska, `+`/`-` dni, `YEAR`/`MONTH`/`DAY`/`TODAY` wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">FUNCTION / PROCEDURE: parametry, VAR, RETURN, zakresy i wywołanie w wyrażeniu wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">IF / ELIF / ELSE jako jeden łańcuch: tylko pierwsza prawdziwa gałąź, ELSE nie odpala się sam wykonane 2026-09-17</span>
@@ -53,13 +97,16 @@ Stan interpretera na 2026-09-17:
 - <span style="color: #006A4E;">FILE oraz DIR/LS przez kontrakt NyotaHost; pełny backend POSIX wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">SORT: jawny wybór AUTO/BUBBLE/INSERT/SELECT/MERGE/QUICK/HEAP/SHELL/COUNTING wykonane 2026-09-18</span>
 - <span style="color: #006A4E;">NYASM: bezpieczna VM R0-R3 z INPUT/OUTPUT i MOV/ADD/SUB/MUL/DIV/MOD/STORE wykonane 2026-09-18</span>
+- <span style="color: #006A4E;">NyotaUI: `WIN` oraz kontrolki `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `ICONBUTTON`, `SWITCH`, `FRAME`, `INPUT`; wspólne `.CONFIG`, layout FREE/ROW/COL, AUTO/CENTER, PNG, gradienty, focus, UTF-8 i HiDPI — rdzeń i backend POSIX działają; AyoOS czeka na podpięcie backendu</span>
 - <span style="color: #006A4E;">PRINT z wieloma argumentami (spacja między nimi, tylko do wyświetlenia) wykonane 2026-09-17</span>
 - <span style="color: #006A4E;">`=N=` ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
-- <span style="color: navy;">Tunga (osobny edytor) może wołać interpreter Nyoty; Nyota nie jest częścią Tungi w toku (zaawansowany etap) 2026-09-17</span>
-- <span style="color: navy;">Linux: interpreter woła NyotaHost, nie AyoAPI; PRINT/GRAPH/INPUT/DELAY przez host POSIX w toku (zaawansowany etap) 2026-09-17</span>
-- <span style="color: yellow;">pomoc Tunga / AyoEdit nadal opisuje 7 spacji zaczęte 2026-09-17</span>
+- Tunga pozostaje osobnym edytorem wywołującym interpreter Nyoty; integracja Tungi nie jest częścią tego repozytorium.
+- <span style="color: #006A4E;">Linux: host POSIX z SDL2, SDL2_image, SDL2_ttf i fontconfig; terminal, GRAPH/SCREEN, FILE/DIR, SPRITE oraz pełna bieżąca warstwa NyotaUI są podłączone</span>
+- Pomoc Tunga/AyoEdit znajduje się poza dostępnym repozytorium Nyoty; źródłem prawdy pozostaje reguła 4 spacji.
 
-Testy: `Programs/Tools/nyota/tests/` — w tym `date_arith.nyo`, `date_add.nyo`, `date_cmp.nyo`, `date_parts.nyo`, `date_leap_ok.nyo`, `date_leap_bad.nyo`, `date_gregorian.nyo`, `date_plus_date.nyo`.
+Pełny kontrakt NyotaUI: `docs/nyotaui.md`.
+
+Testy regresyjne: `tests/` — w tym `date_arith.nyo`, `date_add.nyo`, `date_cmp.nyo`, `date_parts.nyo`, `date_leap_ok.nyo`, `date_leap_bad.nyo`, `date_gregorian.nyo`, `date_plus_date.nyo`.
 
 ---
 
@@ -207,7 +254,8 @@ Nyota używa bloków opartych o dwukropek i wcięcia.
 Zasady:
 
 * linia kończąca się `:` otwiera blok,
-* wnętrze bloku musi być wcięte dokładnie o 4 spacje,
+* wnętrze nowego bloku musi zaczynać się dokładnie 4 spacje głębiej niż instrukcja otwierająca,
+* skok o 8 lub więcej spacji bez pośredniego bloku jest błędem,
 * wcięcie linii z kodem musi być wielokrotnością 4,
 * tabulacja jest surowo zabroniona i powoduje błąd interpretera,
 * powrót do wcześniejszego wcięcia zamyka blok.
@@ -288,7 +336,42 @@ Reguły:
 * `TODAY()`, `YEAR()`, `MONTH()`, `DAY()` — `TODAY()` czyta czas systemowy.
 
 <span style="color: #006A4E;">literał, walidacja, arytmetyka dni i funkcje DATE wykonane 2026-09-17</span>  
-`SORT` dat, `MARK` i `TIME` nadal nie należą do tego kroku.
+`DATE` uczestniczy także w `SORT`; `MARK` i `TIME` są już częścią bieżącej implementacji.
+
+### 10.2. Typ TUPLE
+
+`TUPLE` jest niemutowalną sekwencją indeksowaną od zera.
+
+```nyota
+VAR t := (10, "Ayo", TRUE)
+PRINT LEN(t), t[1]
+```
+
+Obsługiwane są `LEN`, `IN`, `FOR ... IN`, indeksowanie oraz jawne konwersje `TUPLE(list)` i `LIST(tuple)`. Próba `t[0] := ...` jest błędem.
+
+### 10.3. Typ TIME
+
+`TIME()` zwraca lokalny czas hosta. Jawna wartość ma postać `TIME(HH.MM.SS)`.
+
+```nyota
+VAR t := TIME(14.20.05)
+PRINT HOUR(t), MINUTE(t), SECOND(t)
+VAR pozniej := t + H2 + M10 + S40
+```
+
+`TIME - TIME` zwraca różnicę w sekundach jako `INTEGER`. Przesunięcia używają jednostek `H`, `M`, `S`; wynik zawija się w obrębie doby. `TIME` można porównywać i sortować.
+
+### 10.4. Typ COLOR
+
+`COLOR` jest pełnoprawną wartością języka używaną przede wszystkim przez NyotaUI.
+
+```nyota
+VAR a := SAPPHIRE
+VAR b := 0x0F52BA
+VAR c := 0x0F52BA80
+```
+
+Nazwane kolory i wartości RGB/RGBA są kontraktem języka, a nie motywem hosta. `TRANSPARENT` i `BACKDROP` są specjalnymi trybami koloru/tła; backend może jawnie odrzucić `BACKDROP`, jeśli nie potrafi pobrać skomponowanej sceny pod obiektem. Pełna paleta znajduje się w `src/nyota_color.h`.
 
 ---
 
@@ -359,7 +442,7 @@ PRINT "A", 5, "B"
 DELAY 500
 GOTOXY 10, 5
 GRAPH 6
-WIND_OPEN 1, 100, 100, 400, 300
+WIN glowne, ROOT, [400, 300], [100, 100], TRUE
 ```
 
 ### Funkcje zwracające wartość
@@ -497,9 +580,9 @@ Kolejność od najwyższego do najniższego priorytetu:
 12. `AND`
 13. `OR`
 
-Parser wyrażeń egzekwuje poziomy 2–5 oraz 10–13. `2 * 3 + 4` daje `10`,
-`2 + 3 * 4` daje `14`, `10 - 3 - 2` daje `5`. `SHL` / `SHR` / `BAND` /
-`BXOR` / `BOR` oraz postfiksowe `!` jeszcze nie są w parserze.
+Parser wyrażeń egzekwuje cały powyższy porządek. `2 * 3 + 4` daje `10`,
+`2 + 3 * 4` daje `14`, `10 - 3 - 2` daje `5`. `!`, `SHL`, `SHR`, `BAND`,
+`BXOR` i `BOR` są wykonywane przez ten sam parser precedencji.
 
 ---
 
@@ -527,7 +610,9 @@ Ważne:
 
 * `%` zawsze oznacza procent,
 * modulo zapisuje się `MOD`; `/%` jest nadal akceptowane,
-* `!` jest operatorem postfiksowym.
+* `!` jest operatorem postfiksowym, działa na nieujemnym `INTEGER` i zgłasza przepełnienie,
+* `SHL` / `SHR` wymagają `INTEGER` i przesunięcia 0..31,
+* `BAND`, `BXOR`, `BOR` działają na 32-bitowych wartościach `INTEGER`.
 
 Przykłady:
 
@@ -561,15 +646,15 @@ Funkcje matematyczne wymagają nawiasów.
 FLOOR(x)
 CEIL(x)
 ROUND(x)
-SIN(x)
-COS(x)
-TG(x)
-CTG(x)
-ASIN(x)
-ACOS(x)
-ATG(x)
-ACTG(x)
+SIN(kat)
+COS(kat)
 ```
+
+`FLOOR()`, `CEIL()` i `ROUND()` zwracają `INTEGER`.
+
+`SIN()` i `COS()` przyjmują kąt w **stopniach** jako wartość liczbową konwertowaną do `INTEGER`. Bieżąca implementacja używa arytmetyki całkowitoliczbowej: wynik jest skalowany przez 1000, więc `SIN(90)` zwraca `1000`, `SIN(270)` zwraca `-1000`, a `COS(0)` zwraca `1000`.
+
+Funkcje `TG`, `CTG`, `ASIN`, `ACOS`, `ATG` i `ACTG` **nie są obecnie zaimplementowane** i nie należą do bieżącego kontraktu v0.5.
 
 ---
 
@@ -697,7 +782,7 @@ PROCEDURE Nazwa():
     PRINT "Dzialam"
 ```
 
-W procedurze `RETURN` jest zabroniony.
+W procedurze `RETURN` jest zabroniony. Interpreter wykonuje też pre-scan kontraktu funkcji: wykrywa brak `RETURN` oraz różne statycznie rozpoznawalne typy na różnych ścieżkach. Typ zwracany jest dodatkowo blokowany podczas wykonania.
 
 Błędnie:
 
@@ -794,7 +879,7 @@ VAR boss := Postac()
 boss.imie := "Wielki Smok"
 ```
 
-Pola mają twardo zablokowane typy na podstawie wartości domyślnych.
+Pola mają twardo zablokowane typy na podstawie wartości domyślnych. Definicje `RECORD` są skanowane przed uruchomieniem programu, konstruktor nie przyjmuje argumentów, a przypisanie pola innego typu jest błędem.
 
 ---
 
@@ -810,7 +895,7 @@ WITH boss:
 
 `WITH` działa na oryginalnym obiekcie, nie na kopii.
 
-Wewnątrz `WITH` nazwy odnoszą się najpierw do pól obiektu, potem do zakresu zewnętrznego.
+Wewnątrz `WITH` nazwy odnoszą się najpierw do pól obiektu, potem do zakresu zewnętrznego. Przypisanie do pola zmienia oryginalny rekord.
 
 ---
 
@@ -1060,7 +1145,7 @@ ON ERROR CALL ObsluzBlad
 END
 ```
 
-`ERR_CODE` zawiera kody błędów bezpośrednio z jądra AyoOS.
+`ERR_CODE` jest systemowym `INTEGER` tylko do odczytu. Dla błędów samego interpretera ma obecnie kod `1`; handler jest wywoływany synchronicznie i ma ochronę przed rekursją błędów.
 
 ---
 
@@ -1084,7 +1169,10 @@ Zasady:
 * nie uruchamia prawdziwych wątków,
 * zdarzenia wykonują się pomiędzy iteracjami głównej pętli,
 * zdarzenia wykonują się w kolejności deklaracji,
-* `CANCEL EVERY` nie przerywa aktualnie wykonywanego wywołania.
+* `CANCEL EVERY` nie przerywa aktualnie wykonywanego wywołania,
+* procedura schedulera nie może mieć parametrów,
+* bieżący limit implementacji to 16 zdarzeń,
+* scheduler nie tworzy lawiny zaległych callbacków po dłuższej operacji.
 
 ---
 
@@ -1102,7 +1190,29 @@ Zasady:
 * plik importowany nie może zawierać `BEGIN` ani `END`,
 * plik importowany nie może zawierać instrukcji wykonywalnych,
 * dozwolone są wyłącznie deklaracje: `CONST`, `RECORD`, `FUNCTION`, `PROCEDURE`,
-* duplikacja nazw `FUNCTION`, `PROCEDURE` lub `RECORD` powoduje błąd.
+* duplikacja nazw `FUNCTION`, `PROCEDURE` lub `RECORD` powoduje błąd,
+* import zagnieżdżony jest obecnie zabroniony,
+* import jest rozwijany przed walidacją i pre-scanem deklaracji.
+
+---
+
+## 40a. STATE i proste prymitywy NN
+
+Bieżący interpreter zawiera także małe prymitywy stanu i prostej sieci liczbowej. Są zaimplementowane i dlatego należą do opisu bieżącego kodu.
+
+```nyota
+STATE_CREATE 0
+STATE_SET 0, "gotowe"
+PRINT STATE_GET(0)
+
+NN_CREATE 0, 4
+NN_TRAIN 0, [100, 200, 300, 400], 700
+PRINT NN_PREDICT(0, [100, 200, 300, 400])
+```
+
+Limity implementacyjne: 32 sloty `STATE`, 4 obiekty `NN`, maksymalnie 16 wejść/wag na obiekt NN. `NN_PREDICT()` zwraca `INTEGER` ograniczony do zakresu 0..1000.
+
+Dodatkowe funkcje narzędziowe obecne w interpreterze: `RANDOM(max)`, `CHOOSE(list)`, `WEIGHTED(items, weights)`, `TOKENS(text)`, `MATCH(text, pattern)`, `SIMILARITY(a, b)`, `FUZZY(value, min, max)`, `SIMPLIFY(text)`, `NEAREST(x, y, points)`, `VISIBLE(x0, y0, x1, y1, rects)` i `PATHFIND(sx, sy, tx, ty)`. Są to funkcje wykonawcze obecnego interpretera, nie wpisy roadmapy.
 
 ---
 
@@ -1151,69 +1261,76 @@ Zasady:
 * ekran off-screen musi mieć identyczną rozdzielczość jak zadeklarowany `GRAPH`,
 * ID screenów muszą być unikalne i dodatnie,
 * przekroczenie limitu screenów powoduje błąd,
-* `SCREEN <id> SET` dla nieistniejącego ekranu powoduje błąd.
+* `SCREEN <id> SET` dla nieistniejącego ekranu powoduje błąd,
+* host POSIX/SDL2 implementuje `SCREEN` jako render target; zmiana `GRAPH` unieważnia wcześniejsze cele off-screen.
 
 ---
 
-## 43. WIND_OPEN
+## 43. NyotaUI — WIN i kontrolki
 
-Tworzenie okna GUI:
-
-```nyota
-WIND_OPEN <id>, <x>, <y>, <szerokosc>, <wysokosc>
-```
-
-Przykład:
+`WIND_OPEN` nie jest instrukcją bieżącego interpretera. Aktualny model okien to `WIN` i kontrolki NyotaUI.
 
 ```nyota
-WIND_OPEN 1, 100, 100, 400, 300
+WIN glowne, ROOT, [900, 620], CENTER, TRUE
+
+FRAME panel, glowne, [360, 260], [20, 20], TEXT="Ustawienia"
+FRAME panel.CONFIG:
+    LAYOUT = COL
+    GAP = 10
+    LPADX = 16
+    LPADY = 28
+
+INPUT szukaj, panel, [300, 38], AUTO, TYPE=SEARCH
+SWITCH wifi, panel, [92, 34], AUTO, VALUE=TRUE
+BUTTON zapisz, panel, [140, 38], AUTO, TEXT="Zapisz"
 ```
 
-Zasady:
+Bieżące rodzaje kontrolek: `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS`, `TAB`, `TAREA`, `SBAR`, `PBAR`, `EQBOX`, `SLIDER`, `STATBAR`, `TOOLBAR`, `TBOX`, `SPINBOX`, `LISTVIEW`, `TREEVIEW`, `SPLITTER`, `SCALE`, `CLOCK`, `ICONBUTTON`, `SWITCH`, `FRAME`, `INPUT`.
 
-* `WIND_OPEN` tworzy obiekt GUI,
-* nie zmienia aktywnego kontekstu rysowania,
-* rysowanie `BOX`, `LINE` itd. trafia nadal do aktywnego `SCREEN`.
+Kontrolki używają rodzica, rozmiaru, pozycji `AUTO`/`CENTER` albo `[x,y]`, właściwości inline oraz opcjonalnego bloku `.CONFIG:`. Szczegółowa lista właściwości, walidacja i model hosta są normatywnie opisane w [`docs/nyotaui.md`](nyotaui.md).
 
----
+### 43a. BUTTON
 
-## 43a. BUTTON
-
-`BUTTON` jest nazwaną kontrolką GUI. Nie jest typem zmiennej Nyoty.
+Podstawowa bieżąca forma `BUTTON` należy do NyotaUI:
 
 ```nyota
-BUTTON zapisz, 40, 40, 160, 48, "Zapisz", "SYSTEM", 14, 255, 255, 255, 40, 110, 180
+BUTTON zapisz, panel, [160, 48], AUTO, TEXT="Zapisz"
+BUTTON zapisz.CONFIG:
+    BG = SAPPHIRE
+    CTEXT = WHITE
+    RADIUS = 8
 ```
 
-Składnia:
+`BUTTON_CLICKED(zapisz)` zwraca `BOOLEAN`. Interpreter zachowuje także starszą składnię `BUTTON` związaną z `GRAPH` jako zgodność przejściową; nie jest ona podstawowym modelem nowych aplikacji NyotaUI.
+
+Funkcje stanu NyotaUI zaimplementowane w bieżącym interpreterze:
 
 ```text
-BUTTON nazwa, x, y, szerokosc, wysokosc, tekst, font, rozmiar,
-       text_r, text_g, text_b, bg_r, bg_g, bg_b
+BUTTON_CLICKED
+CBOX_CHECKED       CBOX_SET
+RADIO_CHECKED      RADIO_SET
+COMBO_INDEX        COMBO_VALUE        COMBO_SET
+TAREA_TEXT         TAREA_SET          TAREA_CHANGED
+TBOX_TEXT          TBOX_SET           TBOX_CHANGED
+INPUT_TEXT         INPUT_SET          INPUT_VALID       INPUT_CHANGED
+SBAR_VALUE         SBAR_SET
+PBAR_VALUE         PBAR_SET
+SLIDER_VALUE       SLIDER_SET
+SPINBOX_VALUE      SPINBOX_SET        SPINBOX_CHANGED
+LISTVIEW_INDEX     LISTVIEW_VALUE     LISTVIEW_SET      LISTVIEW_CHANGED
+TREEVIEW_INDEX     TREEVIEW_VALUE     TREEVIEW_SET      TREEVIEW_CHANGED
+SPLITTER_VALUE     SPLITTER_SET       SPLITTER_CHANGED
+SCALE_VALUE        SCALE_SET          SCALE_CHANGED
+SWITCH_VALUE       SWITCH_SET         SWITCH_CHANGED
+ICONBUTTON_VALUE   ICONBUTTON_SET     ICONBUTTON_CLICKED
+EQBOX_SET          EQBOX_BAR
+CLOCK_SET          CLOCK_NEEDLE       CLOCK_VALUE       CLOCK_VALUES
+DAREA_DROPPED      DAREA_ITEMS
 ```
 
-Nazwa jest logicznym identyfikatorem kontrolki, analogicznie do `TABLE`; nie jest
-zmienną i nie jest automatycznie wyświetlanym tytułem. Ponowne `BUTTON` z tą samą
-nazwą aktualizuje kontrolkę. `BUTTON` wymaga wcześniejszego `GRAPH`.
-
-Kliknięcie sprawdza funkcja:
-
-```nyota
-IF BUTTON_CLICKED(zapisz):
-    # reakcja programu
-```
-
-`BUTTON_CLICKED()` zwraca `BOOLEAN` i wykrywa przejście lewego przycisku wskaźnika
-z puszczonego do wciśniętego wewnątrz kontrolki. Akceptowana jest też forma
-`BUTTON_CLICKED("zapisz")`. Host musi dostarczać stan wskaźnika; backend POSIX/SDL2
-już go udostępnia. Powiązanie wskaźnika AyoOS wymaga odpowiedniego callbacku hosta.
-
-Parametr `font` jest częścią definicji kontrolki. Bieżący prymityw tekstowy hosta
-wybiera fizyczną czcionkę po stronie backendu; nazwana obsługa fontów będzie
-rozszerzeniem kontraktu hosta, bez zmiany składni `BUTTON`.
+`IMG(...)` i `GRAD(...)` są wyrażeniami NyotaUI używanymi do obrazów i teł/gradientów. Dokładne sygnatury, właściwości i ograniczenia każdej kontrolki są w [`docs/nyotaui.md`](nyotaui.md).
 
 ---
-
 ## 43b. SPRITE
 
 `SPRITE` jest nazwanym obiektem graficznym. Nie jest typem zmiennej Nyoty.
@@ -1360,13 +1477,9 @@ EGG 300, 300, 40, 60, 45, 255, 200, 100
 
 ## 46. LOAD / BANK
 
-Zasoby można ładować do banków RAM.
+`LOAD ... INTO BANK ...` **nie jest obecnie zaimplementowane w interpreterze v0.5**. Pozostaje pomysłem/elementem historycznej specyfikacji i nie należy używać tej składni w programach przeznaczonych dla bieżącego `src/nyota.c`.
 
-```nyota
-LOAD "ikona.ayoprv" INTO BANK 1
-```
-
-Banki służą do przechowywania grafik, dźwięków i danych w RAM.
+Jeżeli mechanizm banków pamięci wróci do języka, jego kontrakt musi zostać ponownie zatwierdzony i objęty testami regresyjnymi przed przeniesieniem do bieżącej specyfikacji.
 
 ---
 
@@ -1466,7 +1579,7 @@ SORT dane, QUICK, REVERSE
 Kierunki: \`ASC\` (domyślny), \`DESC\`, \`REVERSE\` = malejąco.
 \`AUTO\` pozwala interpreterowi wybrać algorytm.
 
-Typy sortowalne w LIST: \`INTEGER\`, \`BOOLEAN\`, \`FLOAT\`, \`STRING\`,
+Typy sortowalne w LIST: \`INTEGER\`, \`FLOAT\`, \`STRING\`,
 \`DATE\`, \`TIME\`. Lista mieszanych typów jest błędem.
 
 \`COUNTING\` przyjmuje tylko \`INTEGER\` lub \`BOOLEAN\`; bieżący limit
@@ -1861,11 +1974,11 @@ błędy wracają do AI jako kontekst
 
 ## 56. Status dokumentu
 
-Ten dokument jest przeznaczony jako mocna, robocza specyfikacja dla agenta AI w AyoEdit.
+Ten dokument jest bieżącą specyfikacją implementacji Nyoty v0.5 i ma odpowiadać kodowi interpretera oraz regresji.
 
-<span style="color: orange;">v0.5 rdzeń: wcięcia, BEGIN/END, typy, FUNCTION, IF, precedencja, WHILE/STEP/MOD w toku (zaawansowany etap) 2026-09-17</span>
+<span style="color: #006A4E;">Dokument ponownie zsynchronizowano z `src/nyota.c`, `src/nyota_host.h`, backendem POSIX i testami 2026-09-19.</span>
 
-Plan wydania i dalszy podział BLOCKS / AFTER CORE / FUTURE: [`docs/nyota_v05.md`](../../../docs/nyota_v05.md).
+Plan wydania i elementy przyszłe: [`docs/nyota_v05.md`](nyota_v05.md).
 
 W kolejnych wersjach warto wydzielić osobne pliki:
 

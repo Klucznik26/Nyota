@@ -1,0 +1,4 @@
+# Oczekiwane: BLAD
+BEGIN
+VAR ERR_CODE := 5
+END

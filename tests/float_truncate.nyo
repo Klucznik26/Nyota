@@ -1,0 +1,5 @@
+# Oczekiwane: zawiera 1.234
+BEGIN
+VAR x := 1.2349
+PRINT x
+END

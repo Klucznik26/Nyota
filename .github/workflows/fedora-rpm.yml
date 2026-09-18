@@ -16,7 +16,7 @@ jobs:
         run: |
           dnf -y install \
             git rpm-build gcc make pkgconf-pkg-config \
-            sdl2-compat-devel tar gzip findutils
+            sdl2-compat-devel SDL2_image-devel SDL2_ttf-devel fontconfig-devel dejavu-sans-fonts tar gzip findutils
 
       - name: Checkout
         uses: actions/checkout@v4

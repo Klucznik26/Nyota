@@ -1,0 +1,8 @@
+# Oczekiwane: BLAD
+RECORD Bad:
+    x := 0
+    x := 1
+
+BEGIN
+PRINT "x"
+END

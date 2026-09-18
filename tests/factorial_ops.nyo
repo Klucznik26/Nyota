@@ -1,0 +1,8 @@
+# Oczekiwane: zawiera FACT_OK
+BEGIN
+VAR a := 5!
+VAR b := 3! + 2
+VAR c := 0!
+IF a = 120 AND b = 8 AND c = 1:
+    PRINT "FACT_OK"
+END

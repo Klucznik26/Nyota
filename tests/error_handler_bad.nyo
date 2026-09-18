@@ -1,0 +1,7 @@
+# Oczekiwane: BLAD
+FUNCTION Handler():
+    RETURN 1
+
+BEGIN
+ON ERROR CALL Handler
+END

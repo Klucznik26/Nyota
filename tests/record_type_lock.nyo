@@ -1,0 +1,8 @@
+# Oczekiwane: BLAD
+RECORD Dane:
+    x := 0
+
+BEGIN
+VAR d := Dane()
+d.x := "zly typ"
+END

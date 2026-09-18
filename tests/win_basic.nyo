@@ -1,0 +1,15 @@
+# Oczekiwane: zawiera WIN_OK
+BEGIN
+VAR rozmiar := [320, 240]
+VAR pozycja := [20, 30]
+WIN glowne, ROOT, rozmiar, pozycja, FALSE
+WIN dialog, glowne, [180, 120], CENTER, TRUE
+WIN glowne.CONFIG:
+    TITLE = "NyotaUI"
+    BG = DARKSAPPHIRE
+    ICO = "tests/assets/sprite_test.bmp"
+WIN dialog.CONFIG:
+    TITLE = "Dialog"
+    BG = GRAD(LINEAR, VERTICAL, 3, [BLACK, SAPPHIRE, SKY])
+PRINT "WIN_OK"
+END

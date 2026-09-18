@@ -1,0 +1,13 @@
+# Biblioteka importowana — brak Oczekiwane, więc runner jej nie uruchamia samodzielnie.
+CONST LIB_CONST := 7
+
+RECORD Punkt:
+    x := 0
+    y := 0
+
+FUNCTION LibDodaj(a, b):
+    RETURN a + b
+
+PROCEDURE LibUstaw(VAR p):
+    p.x := 11
+    p.y := 22

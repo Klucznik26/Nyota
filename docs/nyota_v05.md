@@ -3,7 +3,7 @@
 **Ostatnia weryfikacja całości:** 2026-09-18  
 **Powiązane:** [`nyota.md`](../Programs/Tools/nyota/nyota.md) — bieżąca specyfikacja dla agenta i stan interpretera; ten plik jest planem wydania, nie źródłem prawdy o tym, co już działa.
 
-**Status:** dokument roboczy  
+**Status:** rdzeń i zatwierdzona semantyka wdrożone; dokument zachowany jako historia decyzji  
 **Wersja dokumentu:** 0.5  
 **Data:** 2026-09-17  
 **Dotyczy:** przejścia od obecnego stanu Nyoty do wydania v0.5
@@ -159,10 +159,10 @@ Istniejące elementy poza tą listą (`RECORD`, `WITH`, `TUPLE`, `GRAPH`,
 w v0.5 bez przebudowy. Naprawa tylko wtedy, gdy bieżący interpreter
 łamie już zapisaną specyfikację.
 
-## 2.3. APPROVED AFTER CORE
+## 2.3. APPROVED AFTER CORE — zrealizowane
 
-Semantyka jest zatwierdzona. Wdrożenie następuje po wydaniu albo po
-twardym zamknięciu rdzenia, nie jako warunek v0.5:
+Ta kategoria opisuje historyczny priorytet. Wszystkie elementy z poniższej listy
+mają już działającą implementację i testy regresyjne:
 
 ```text
 =N= jako specjalne porównanie liczb po ucięciu
@@ -176,16 +176,14 @@ rozbudowany MARK: REKEY, KEY/VALUE/VALUES, IN, FOR IN,
     +, EXTEND, -, ><, MINFO, MLIST, MEXTEND, MINSERT, MDROP,
     SUM / AVG / MED / MIN / MAX / MODE / MODECOUNT / COUNT
 DATE z literałem <RRRR.MM.DD> i arytmetyką dni
-TIME(HH.MM.SS) oraz TIME +/- Hn/Mn/Sn
-    — implementacja dopiero po zamknięciu TIME - TIME
-      i decyzji o DATETIME
-FILE i DIR / LS przez NyotaHost / AyoAPI / VFS
-    — rdzeń + backend POSIX wykonane 2026-09-18; AyoOS czeka na podłączenie callbacków VFS
+TIME(HH.MM.SS), TIME +/- Hn/Mn/Sn oraz TIME - TIME
+FILE i DIR / LS przez NyotaHost — rdzeń i backend POSIX wykonane 2026-09-18;
+    host AyoOS korzysta z tego samego kontraktu, a FILE_READ/IMPORT mają fallback przez AyoAPI ReadFile
 ```
 
-Dla `TIME` kierunek składni pozostaje zatwierdzony, ale interpreter nie
-dostaje typu `TIME`, dopóki nie będzie zapisane: różnica `TIME - TIME`,
-zawijanie doby oraz to, czy Nyota wprowadza `DATETIME`.
+`TIME` jest wdrożonym typem. `TIME - TIME` zwraca różnicę sekund, przesunięcia
+`Hn/Mn/Sn` zawijają dobę, a ewentualny `DATETIME` pozostaje niezależnym,
+niezdefiniowanym jeszcze kierunkiem FUTURE.
 
 ## 2.4. FUTURE
 
@@ -196,7 +194,7 @@ wcześniej, wdrożenie nie należy nawet do fali po rdzeniu v0.5:
 wybór algorytmu SORT jako składnia języka (BUBBLE, QUICK, ...) — wykonane 2026-09-18
 relacyjny MARK
 DATETIME
-standard GUI Nyoty
+standard GUI Nyoty — WIN/tła oraz pierwszy zestaw kontrolek BUTTON/LABEL/PANEL/DAREA wykonany 2026-09-18; dalsze kontrolki pozostają FUTURE
 dalszy rozwój sprite'ów (podstawowy SPRITE i animacja klatkowa są już wdrożone)
 audio
 NYASM — bezpieczna VM wykonana 2026-09-18; assembler natywny nadal FUTURE
@@ -265,10 +263,9 @@ konstrukcji nie oznacza automatycznie, że należy do BLOCKS v0.5.
 
 ## 3.1. Wcięcia: 4 spacje zamiast 7
 
-**Status wdrożenia:** BLOCKS v0.5  
-<span style="color: navy;">interpreter, `nyota.md` i `nyota.txt`: 4 spacje w toku (zaawansowany etap) 2026-09-17</span>  
-<span style="color: navy;">Tunga Run &gt; Go: pełny nyota.c w toku (zaawansowany etap) 2026-09-17</span>  
-<span style="color: yellow;">pomoc Tunga / AyoEdit nadal mówi o 7 spacjach zaczęte 2026-09-17</span>
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
+<span style="color: #006A4E;">interpreter: dokładne +4 spacje przy wejściu w blok, tabulator i skoki poziomów są błędem wykonane 2026-09-18</span>  
+Pomoc Tunga/AyoEdit znajduje się poza dostępnym repozytorium Nyoty; źródłem prawdy jest reguła 4 spacji.
 
 Jeden poziom bloku Nyoty ma mieć dokładnie **4 spacje**.
 
@@ -287,7 +284,7 @@ Do zmiany zostaje pomoc Tunga / AyoEdit.
 
 ## 3.2. Modulo: `MOD` zamiast `/%`
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">MOD w parserze; /% nadal alias; % zostaje procentem wykonane 2026-09-17</span>
 
 Operator `%` pozostaje operatorem procentu.
@@ -313,7 +310,7 @@ MOD   modulo
 
 ## 3.3. `^^` pozostaje operatorem pierwiastkowania
 
-**Status wdrożenia:** BLOCKS v0.5
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)
 
 ```nyota
 9 ^^ 2
@@ -322,14 +319,16 @@ MOD   modulo
 
 `A ^^ N` oznacza pierwiastek stopnia `N` z wartości `A`.
 
-Do jednoznacznego zdefiniowania pozostają przypadki brzegowe:
-stopień 0, stopień ujemny, parzysty pierwiastek z liczby ujemnej,
-typ wyniku i kolejność działań względem `^`.
+Przypadki brzegowe są domknięte:
+- stopień `0` i stopień ujemny są błędem,
+- parzysty pierwiastek z liczby ujemnej jest błędem,
+- `^^` działa obecnie dla `INTEGER` i zwraca `INTEGER`,
+- `^` i `^^` są na tym samym poziomie precedencji i są prawostronnie łączne.
 
 ## 3.4. Jawne konwersje typów
 
-**Status wdrożenia:** BLOCKS v0.5  
-<span style="color: navy;">INT / FLT / STR / BOOL i zakaz zgadywania przy + oraz = w toku (zaawansowany etap) 2026-09-17</span>
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
+<span style="color: #006A4E;">INT / FLT / STR / BOOL oraz brak niejawnych konwersji wykonane</span>
 
 Nyota nie powinna automatycznie zgadywać, czy programista chce wykonać działanie
 liczbowe, czy tekstowe.
@@ -363,7 +362,7 @@ BOOL(x)   -> BOOLEAN
 
 ## 3.5. Konwersja BOOLEAN
 
-**Status wdrożenia:** BLOCKS v0.5
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)
 
 ```nyota
 INT(TRUE)    # 1
@@ -409,8 +408,8 @@ VAR d := INT(BOOL(a)) + INT(b)   # 2
 
 ## 3.6. Operatory równości
 
-**Status wdrożenia:** BLOCKS v0.5  
-<span style="color: #006A4E;">`=` i `<>` są ścisłe typowo; `==` i `=N=` są odrzucane jawnym błędem wykonane 2026-09-17</span>
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
+<span style="color: #006A4E;">`=` i `<>` są ścisłe typowo; `==` jest błędem; `=N=` działa dla INTEGER/FLOAT z N=0..3 wykonane 2026-09-18</span>
 
 Decyzja jest zamknięta. `=` pozostaje ścisłe typowo, zgodnie z obecną
 filozofią Nyoty oraz z regułami już przyjętymi dla zmiennych, `LIST` i `MARK`.
@@ -420,7 +419,7 @@ filozofią Nyoty oraz z regułami już przyjętymi dla zmiennych, `LIST` i `MARK
 =     ścisłe porównanie: ten sam typ + wartość
 <>    nierówność
 =N=   specjalne porównanie liczb po obcięciu do N miejsc
-      (semantyka zatwierdzona, wdrożenie APPROVED AFTER CORE)
+      (wdrożone dla INTEGER/FLOAT; N = 0..3)
 ```
 
 `==` i `===` nie istnieją i nie wejdą do Nyoty.
@@ -451,7 +450,7 @@ wartość i typ, a `==` nie istnieje. Plan v0.5 tego nie odwraca.
 
 ## 3.7. REMOVE — rozdzielenie indeksu i wartości
 
-**Status wdrożenia:** APPROVED AFTER CORE  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 <span style="color: #006A4E;">REMOVE lista[i], REMOVE lista, wartosc oraz ALL wykonane 2026-09-17</span>
 
 Obecna forma `REMOVE lista, liczba` jest niejednoznaczna dla list liczbowych, bo liczba może oznaczać indeks albo wartość.
@@ -468,12 +467,8 @@ Porównanie wartości przy usuwaniu jest ścisłe typowo.
 
 ## 3.8. `><` — zmiana znaczenia operatora
 
-**Status wdrożenia:** APPROVED AFTER CORE  
-<span style="color: navy;">LIST >< LIST to różnica symetryczna; dla liczb >< nadal nierówność w toku (zaawansowany etap) 2026-09-17</span>
-
-Do v0.5 operator `><` pozostaje aliasem nierówności, tak jak w bieżącej
-specyfikacji, **gdy oba operandy nie są listami**. Dla dwóch `LIST` ma
-już znaczenie różnicy symetrycznej.
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
+<span style="color: #006A4E;">LIST >< LIST i MARK >< MARK to różnica symetryczna; skalarne >< jest błędem wykonane 2026-09-18</span>
 
 Dotychczasowe użycie `><` jako alternatywnego zapisu nierówności ma zostać usunięte.
 Nierówność pozostaje zapisywana jako:
@@ -494,7 +489,7 @@ na kluczach i pozostawia wpisy występujące tylko w jednym z operandów.
 
 ## 3.9. PRINT z wieloma argumentami
 
-**Status wdrożenia:** APPROVED AFTER CORE  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 <span style="color: #006A4E;">PRINT a, b, c ze spacją, konwersja tylko do wyświetlenia wykonane 2026-09-17</span>
 
 `PRINT` ma przyjmować wiele argumentów różnych podstawowych typów. Konwersja
@@ -523,7 +518,7 @@ Wszystkie punkty tego działu mają status **BLOCKS v0.5**.
 
 ## 4.1. Wywołania FUNCTION w wyrażeniach
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">wywołanie FUNCTION w wyrażeniu zwraca wartość RETURN wykonane 2026-09-17</span>
 
 Interpreter rozpoznaje funkcję użytkownika w wyrażeniu, ale ścieżka wykonania
@@ -542,7 +537,7 @@ Oczekiwane: `wynik = 5`.
 
 ## 4.2. Parametry PROCEDURE i FUNCTION
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">parametry, VAR, liczba argumentów i lokalne parametry wykonane 2026-09-17</span>
 
 Do pełnego wdrożenia i naprawy:
@@ -556,7 +551,7 @@ Do pełnego wdrożenia i naprawy:
 
 ## 4.3. Zakres zmiennych i przesłanianie
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">lokalne VAR przesłania globalne; po powrocie globalne zostają wykonane 2026-09-17</span>
 
 Zmienne lokalne muszą poprawnie przesłaniać globalne.
@@ -583,9 +578,9 @@ Oczekiwane:
 
 ## 4.4. Precedencja i łączność operatorów
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">`2 * 3 + 4 = 10`, `2 + 3 * 4 = 14`, `10 - 3 - 2 = 5`, nawiasy, NOT/AND/OR i porównania w parserze wyrażeń wykonane 2026-09-17</span>  
-<span style="color: yellow;">SHL/SHR/BAND/BXOR/BOR i silnia `!` jeszcze nie w parserze zaczęte 2026-09-17</span>
+<span style="color: #006A4E;">SHL/SHR/BAND/BXOR/BOR i silnia `!` w pełnym parserze precedencji wykonane 2026-09-18</span>
 
 ```nyota
 2 * 3 + 4
@@ -604,7 +599,7 @@ Należy zbudować formalną tabelę precedencji obejmującą m.in. `NOT`, `^`, `
 
 ## 4.5. IF / ELIF / ELSE
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">łańcuch IF/ELIF/ELSE wykonuje tylko pierwszą prawdziwą gałąź; osierocony ELIF/ELSE to błąd wykonane 2026-09-17</span>
 
 Cały łańcuch musi być traktowany jako jedna konstrukcja. Po wykonaniu jednej
@@ -612,15 +607,15 @@ prawdziwej gałęzi interpreter nie może wykonać kolejnego `ELIF` ani `ELSE`.
 
 ## 4.6. Walidacja wcięć
 
-**Status wdrożenia:** BLOCKS v0.5  
-<span style="color: orange;">tabulacja i wcięcie niebędące wielokrotnością 4 są błędem; dokładne poziomy zagnieżdżenia (+4 od rodzica) jeszcze nie w toku (wczesny etap) 2026-09-17</span>
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
+<span style="color: #006A4E;">tabulacja, wielokrotność 4 i dokładne +4 od instrukcji otwierającej blok wykonane 2026-09-18</span>
 
 Po przejściu na 4 spacje interpreter ma wymagać poprawnych poziomów wcięcia.
 Niepoprawne wcięcie nie może być cicho akceptowane.
 
 ## 4.7. Nieznane instrukcje
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">nieznana instrukcja zgłasza błąd interpretera wykonane 2026-09-17</span>
 
 ```nyota
@@ -631,7 +626,7 @@ musi zgłosić błąd interpretera zamiast zostać cicho zignorowane.
 
 ## 4.8. BEGIN / END
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">brak BEGIN/END, END przed BEGIN, druga para i kod poza blokiem są błędem wykonane 2026-09-17</span>
 
 Jeżeli specyfikacja wymaga `BEGIN ... END`, interpreter musi to egzekwować.
@@ -639,7 +634,7 @@ Brak `BEGIN` albo `END` nie powinien powodować automatycznego wykonania całego
 
 ## 4.9. Niejawne konwersje w `+`
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">`4 + "8"` i `"8" + 4` są błędem typu; STRING + STRING oraz INTEGER + INTEGER działają wykonane 2026-09-17</span>
 
 ```nyota
@@ -652,20 +647,20 @@ Oba przypadki powinny wymagać jawnej konwersji.
 
 ## 4.10. FLOAT
 
-**Status wdrożenia:** BLOCKS v0.5  
-<span style="color: orange;">literał z kropką jest FLOAT, działania `+` `-` `*` `/` na parze FLOAT działają; precyzja 3 miejsca i krawędzie w toku (wczesny etap) 2026-09-17</span>
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
+<span style="color: #006A4E;">FLOAT: fixed-point 3 miejsca, ucinanie nadmiaru cyfr, liczby ujemne i przepełnienia domknięte 2026-09-18</span>
 
-Do zweryfikowania i dopracowania w v0.5:
+Domknięte zasady:
 
-- parser literałów `FLOAT`,
-- działania,
-- precyzja,
-- `FLT()`,
-- współpraca z `INTEGER` bez ukrytej promocji,
-- dzielenie,
-- liczby ujemne.
-
-Zachowanie `=N=` względem `FLOAT` należy do APPROVED AFTER CORE.
+- literał z kropką tworzy `FLOAT`,
+- reprezentacja ma stałą precyzję 3 miejsc dziesiętnych,
+- dalsze cyfry literału są jawnie ucinane,
+- `+`, `-`, `*`, `/` i `%` używają kontrolowanych obliczeń fixed-point,
+- przepełnienie jest błędem,
+- `FLT()` jest jawną konwersją,
+- nie ma ukrytej promocji z `INTEGER`,
+- ujemne wartości, w tym `-0.xxx`, zachowują poprawny znak,
+- `=N=` współpracuje z `FLOAT` dla `N=0..3`.
 
 ## 4.11. Dzielenie przez zero
 
@@ -673,17 +668,18 @@ Dzielenie przez zero i `MOD 0` muszą generować jawny błąd interpretera.
 
 ## 4.12. RETURN
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">RETURN z wartością w FUNCTION, zakaz w PROCEDURE, błąd braku RETURN wykonane 2026-09-17</span>  
-<span style="color: yellow;">statyczne sprawdzenie różnych typów na wielu ścieżkach RETURN zaczęte 2026-09-17</span>
+<span style="color: #006A4E;">pre-scan RETURN + blokada typu zwracanego podczas wykonania wykonane 2026-09-18</span>
 
-Do ustalenia i przetestowania:
+Domknięte i przetestowane:
 
-- `RETURN` w `FUNCTION`,
-- znaczenie lub zakaz `RETURN` w `PROCEDURE`,
-- typ zwracanej wartości,
-- brak `RETURN`,
-- wiele ścieżek zwrotu.
+- `FUNCTION` wymaga `RETURN` z wartością,
+- `RETURN` w `PROCEDURE` jest błędem,
+- typ zwracany jest blokowany,
+- brak `RETURN` jest błędem,
+- pre-scan wykrywa różne statycznie rozpoznawalne typy na wielu ścieżkach,
+- kontrakt jest dodatkowo pilnowany podczas wykonania.
 
 ---
 
@@ -748,7 +744,7 @@ należą do BLOCKS v0.5. Pozostałe nowości z tego działu nie blokują wydania
 
 ## 6.1. Operator `=N=` — porównanie z kontrolowaną precyzją
 
-**Status wdrożenia:** APPROVED AFTER CORE  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 <span style="color: #006A4E;">=N= ucina do N miejsc, ten sam typ INTEGER/FLOAT wykonane 2026-09-17</span>
 
 `=N=` jest autorskim operatorem Nyoty.
@@ -820,18 +816,17 @@ a = 2 = b
 
 nie jest operatorem `=N=`. To dwa zwykłe `=` rozdzielone literałem `2`.
 
-`N` jest literałem całkowitym nieujemnym, nie zmienną. Dopuszczalny zakres
-`N` zostaje domknięty przy wdrażaniu `=N=`.
+`N` jest literałem całkowitym nieujemnym, nie zmienną. Dopuszczalny zakres to
+`0..3`, zgodny z precyzją typu `FLOAT`.
 
-Lexer v0.5 ma rozpoznawać token `=N=` i zgłaszać błąd, że operator nie jest
-dostępny w v0.5. Dzięki temu późniejsze wdrożenie nie zmieni tokenizacji
-istniejącego kodu.
+Lexer rozpoznaje token `=N=` i przekazuje go do działającego operatora porównania.
+Wartość `N` spoza zakresu `0..3` daje jawny błąd.
 
 `=N=` jest po `MARK` drugim wyraźnie autorskim elementem projektu Nyoty.
 
 ## 6.2. SORT
 
-**Status wdrożenia:** APPROVED AFTER CORE  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 **Wybór algorytmu w składni:** wykonane 2026-09-18  
 <span style="color: #006A4E;">SORT lista, ASC/DESC/REVERSE oraz AUTO/BUBBLE/INSERT/SELECT/MERGE/QUICK/HEAP/SHELL/COUNTING wykonane</span>
 
@@ -907,7 +902,7 @@ nie ma jeszcze zamkniętej specyfikacji ABI i bezpieczeństwa.
 
 ## 6.6. WHILE
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">WHILE z warunkiem BOOLEAN, zero iteracji, EXIT/CONTINUE wykonane 2026-09-17</span>
 
 `WHILE` jest pętlą z warunkiem sprawdzanym **przed** każdą iteracją.
@@ -936,7 +931,7 @@ WHILE BOOL(x):
 
 ## 6.7. CONTINUE
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">CONTINUE w FOR/WHILE/REPEAT/DO; poza pętlą błąd wykonane 2026-09-17</span>
 
 `CONTINUE` pomija pozostałą część bieżącej iteracji najbliższej pętli i przechodzi do następnej iteracji.
@@ -952,7 +947,7 @@ FOR i := 1 TO 10:
 
 ## 6.8. STEP dla FOR
 
-**Status wdrożenia:** BLOCKS v0.5  
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)  
 <span style="color: #006A4E;">FOR ... STEP n, w tym krok ujemny; STEP 0 to błąd wykonane 2026-09-17</span>
 
 `FOR` otrzymuje możliwość jawnego określenia kroku.
@@ -973,7 +968,7 @@ Brak `STEP` oznacza zachowanie dotychczasowego kroku domyślnego.
 
 ## 6.9. TUPLE — niemutowalna sekwencja
 
-**Status wdrożenia:** APPROVED AFTER CORE  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 <span style="color: #006A4E;">literał, indeksowanie, LEN, IN, FOR...IN oraz konwersje LIST/TUPLE wykonane 2026-09-17</span>
 
 `TUPLE` jest uporządkowaną, niemutowalną sekwencją. Może zawierać wartości różnych typów.
@@ -1016,7 +1011,7 @@ Zmiana `lista` lub `kopia` nie zmienia długości ani układu `t`.
 
 ## 6.10. Rozszerzenia LIST
 
-**Status wdrożenia:** APPROVED AFTER CORE  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 <span style="color: #006A4E;">pełna zatwierdzona powierzchnia LIST: literały i zagnieżdżenia, indeksowanie, `+` `-` `><`, IN/LEN, APPEND/EXTEND/REMOVE/CLEAR/REVERSE/SORT, FOR...IN wykonane 2026-09-17</span>
 
 Operatory `+`, `-` i `><` zwracają nową listę. Instrukcje `APPEND`, `EXTEND`, `REMOVE`,
@@ -1222,7 +1217,7 @@ limitem semantycznym języka.
 
 ## 6.11. Losowe listy liczbowe
 
-**Status wdrożenia:** APPROVED AFTER CORE  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 <span style="color: #006A4E;">RANDINT i RANDFLT, count do 64 i precyzja RANDFLT 0..3 wykonane 2026-09-17</span>
 
 ### RANDINT()
@@ -1268,7 +1263,7 @@ Wartość spoza tego zakresu ma powodować błąd interpretera.
 
 ## 6.12. Rozszerzenia MARK
 
-**Status wdrożenia:** APPROVED AFTER CORE — WDROŻONE  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 <span style="color: #006A4E;">REKEY, KEY/VALUE/VALUES, IN/FOR IN, algebra + - ><, EXTEND/CLEAR/REVERSE/SORT, MLIST/MEXTEND/MINSERT/MDROP i statystyki wykonane 2026-09-17</span>
 
 `MARK` jest autorską strukturą Nyoty łączącą klucze z uporządkowanymi
@@ -1610,9 +1605,9 @@ MLIST(dane, KEY)   -> ["A", "B", "C"]
 
 ## 6.13. DATE — pełnoprawny typ daty
 
-**Status wdrożenia:** APPROVED AFTER CORE (wdrożone wcześniej na prośbę)  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 <span style="color: #006A4E;">literał `&lt;RRRR.MM.DD&gt;`, gregoriańskie lata przestępne, DATE±INTEGER, DATE−DATE, porównania, YEAR/MONTH/DAY/TODAY wykonane 2026-09-17</span>  
-<span style="color: yellow;">SORT dat, MIN/MAX na kolumnie DATE i współpraca z MARK zaczęte 2026-09-17</span>
+<span style="color: #006A4E;">SORT DATE, MIN/MAX DATE w MARK oraz VALUE/VALUES/MLIST wykonane 2026-09-17</span>
 
 `DATE` jest pełnoprawnym typem Nyoty. Literal daty ma charakterystyczną,
 jednoznaczną postać:
@@ -1763,7 +1758,7 @@ PRINT YEAR(dzis), ".", MONTH(dzis), ".", DAY(dzis)
 
 ## 6.14. TIME — pełnoprawny typ czasu
 
-**Status wdrożenia:** APPROVED AFTER CORE  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 <span style="color: #006A4E;">TIME(), TIME(HH.MM.SS), HOUR/MINUTE/SECOND, przesunięcia H/M/S, TIME-TIME, porównania i SORT wykonane 2026-09-17</span>
 
 Kierunek składni pozostaje zatwierdzony:
@@ -1915,7 +1910,7 @@ jako rzeczywisty typ, bez zamiany na `[HH, MM, SS]`.
 
 ## 6.15. TABLE — nazwana kontrolka prezentacji danych
 
-**Status wdrożenia:** FUTURE (pierwszy etap wykonany wcześniej na prośbę)  
+**Status wdrożenia:** WDROŻONE — pierwszy etap zgodny z opisaną składnią  
 <span style="color: #006A4E;">nazwana kontrolka, układ kolumn, font/rozmiar, kolor tekstu, LIST/TUPLE/MARK i TABLE_DATA wykonane 2026-09-17</span>
 
 `TABLE` **nie jest typem zmiennej**. Jest kontrolką prezentacyjną działającą na
@@ -1991,7 +1986,7 @@ warunek istnienia podstawowej kontrolki prezentacyjnej.
 
 ## 6.14a. BUTTON — nazwana kontrolka GUI
 
-**Status wdrożenia:** FUTURE (pierwszy etap wykonany wcześniej na prośbę)  
+**Status wdrożenia:** WDROŻONE — pierwszy etap zgodny z opisaną składnią  
 <span style="color: #006A4E;">nazwa logiczna, geometria, tekst, font/rozmiar, kolory tekstu/tła, renderowanie i BUTTON_CLICKED() na hoście POSIX wykonane 2026-09-17</span>
 
 `BUTTON` nie jest typem zmiennej. Nazwa identyfikuje kontrolkę, tak aby program
@@ -2009,21 +2004,92 @@ przyszłego standardu GUI.
 
 ## 6.16. Kierunki FUTURE
 
-**Status wdrożenia:** FUTURE
+**Status wdrożenia:** wymagają osobnej specyfikacji przed kodem
+
+Ten dział nie definiuje składni ani kontraktu wykonania. Zgodnie z zasadą tego samego dokumentu interpreter nie może zgadywać semantyki. Nazwy poniżej są kierunkami projektowymi, a nie gotowymi instrukcjami do mechanicznego dodania.
 
 Poniższe elementy można projektować wcześniej. Nie należą do v0.5 i nie
 należą do pierwszej fali po rdzeniu:
 
 ```text
-relacyjny MARK
-DATETIME
-standard GUI Nyoty
-sprite'y
-audio
-assembler natywny
-Windows jako host Nyoty
-relacyjny MARK / DATETIME / standard GUI / audio
+relacyjny MARK — brak zdefiniowanych operatorów i reguł relacji
+DATETIME — brak zatwierdzonego literału, arytmetyki i reguł stref czasowych
+standard GUI Nyoty — kontrakt kolorów jest zamknięty; model zdarzeń, focus i wspólne API kontrolek są nadal projektowane
+dalszy rozwój sprite'ów — podstawowy SPRITE i animacja działają; kolejny etap nie ma jeszcze składni
+audio — brak składni języka i kontraktu hosta
+NC — planowany moduł kodu C przez wspólne ABI i NyotaNativeAPI
+NZ — planowany moduł kodu Zig przez to samo ABI i NyotaNativeAPI
+NA — planowany moduł natywnego assemblera CPU; zależny od architektury, nie od systemu operacyjnego
+Windows jako host Nyoty — cel portu; nie definiuje nowych elementów języka
 ```
+
+## 6.17. NC / NZ / NA — plan modułów natywnych
+
+**Status wdrożenia:** PLAN / FUTURE
+
+Planowane są trzy rodziny modułów:
+
+```text
+NC   kod C
+NZ   kod Zig
+NA   natywny assembler procesora
+```
+
+Wszystkie trzy podlegają twardej regule przenośności Nyoty:
+
+- kod programu Nyoty ma być identyczny na AyoOS, Linuxie i Windowsie,
+- źródła NC i NZ mają być identyczne na wszystkich oficjalnych hostach,
+- NA może zależeć od architektury CPU, ale nie od systemu operacyjnego;
+  ten sam kod NA x86-64 ma działać bez zmian na AyoOS, Linuxie i Windowsie x86-64,
+- moduły nie mogą wymagać bezpośrednich wywołań AyoAPI, POSIX ani WinAPI,
+- system operacyjny jest ukryty za wspólnym `NyotaNativeAPI`,
+- typy i reprezentacja ABI muszą mieć stałe rozmiary niezależne od hosta,
+- kompilator/toolchain może być inny za kulisami, lecz programista nie zmienia źródła.
+
+`NYASM` pozostaje osobnym mechanizmem: przenośną VM Nyoty działającą
+identycznie niezależnie od CPU i systemu.
+
+Przed implementacją NC/NZ/NA trzeba zamknąć:
+1. format modułu i wersjonowanie ABI,
+2. mapowanie typów Nyoty na ABI,
+3. zasady eksportu i importu symboli,
+4. `NyotaNativeAPI`,
+5. ładowanie modułu na AyoOS/Linux/Windows,
+6. politykę bezpieczeństwa i błędów,
+7. cache/build dla wielu targetów.
+
+## 6.18. NyotaUI — kontrakt kolorów
+
+**Status wdrożenia:** WDROŻONE jako wspólny kontrakt kolorów, `WIN` oraz pierwszy zestaw kontrolek `BUTTON`, `LABEL`, `PANEL`, `DAREA`; kolejne kontrolki i szerszy model zdarzeń pozostają kolejnym etapem.
+
+Ustalono 32 rodziny kolorów z wariantami DARK / podstawowym / LIGHT,
+osobne BLACK i WHITE bez sztucznych wariantów oraz dwa tryby specjalne:
+TRANSPARENT i BACKDROP.
+
+Parser `src/nyota_color.h` przyjmuje również `0xRRGGBB` i
+`0xRRGGBBAA`. Wartości nazwanych kolorów są stałe dla wszystkich hostów
+zgodnie z Nyota Platform Invariance Rule.
+
+Pełna tabela i semantyka kolorów: `docs/colors.md`. Kontrakt `WIN`, `ROOT`, geometrii, `BUTTON`, `LABEL`, `PANEL`, `DAREA`, `CONFIG`, `IMG(...)` i `GRAD(...)`: `docs/nyotaui.md`.
+
+### 6.18a. NyotaUI WIN
+
+**Status wdrożenia:** RDZEŃ + POSIX wykonane 2026-09-18; AyoOS wymaga adaptera Nexa/Sayari.
+
+Kanoniczna postać:
+
+```nyota
+WIN glowne, ROOT, [800, 600], CENTER, TRUE
+WIN dialog, glowne, [400, 300], CENTER, FALSE
+
+WIN dialog.CONFIG:
+    TITLE = "Ustawienia"
+    BG = GRAD(SHAPE, EGG, CENTER, 25, 3, [WHITE, GOLD, DARKRED])
+    ICO = "settings.png"
+```
+
+Każdy `WIN` ma rodzica; `ROOT` jest pseudo-rodzicem najwyższego poziomu. Rozmiar i jawna pozycja są LIST z dokładnie dwoma INTEGER i mogą pochodzić ze zmiennych. Potomne `WIN` jest osobnym oknem hosta, a parent określa hierarchię i punkt odniesienia początkowego pozycjonowania.
+
 
 ---
 
@@ -2057,7 +2123,7 @@ pomysłów:
 9. Testy regresyjne.
 10. Wydanie v0.5.
 11. Dopiero potem APPROVED AFTER CORE.
-12. FUTURE pozostaje projektem.
+12. FUTURE pozostaje projektem i wymaga najpierw domknięcia semantyki; nie jest atrapą instrukcji w interpreterze.
 ```
 
 Charakterystyczne elementy Nyoty opisują tożsamość języka, a nie checklistę
@@ -2229,7 +2295,7 @@ END
 
 ## 9.9. Ścisłe porównanie `=`
 
-**Status wdrożenia:** BLOCKS v0.5
+**Status wdrożenia:** WDROŻONE (historycznie: BLOCKS v0.5)
 
 ```nyota
 BEGIN
@@ -2245,7 +2311,7 @@ END
 
 ## 9.10. Porównanie `=N=`
 
-**Status wdrożenia:** APPROVED AFTER CORE
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)
 
 ```nyota
 BEGIN
@@ -2262,7 +2328,7 @@ END
 
 ## 9.11. DATE
 
-**Status wdrożenia:** APPROVED AFTER CORE  
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)  
 <span style="color: #006A4E;">przykład DATE działa w interpreterze wykonane 2026-09-17</span>
 
 ```nyota
@@ -2286,7 +2352,7 @@ Oczekiwane znaczenie:
 
 ## 9.12. TIME
 
-**Status wdrożenia:** APPROVED AFTER CORE
+**Status wdrożenia:** WDROŻONE (historycznie: APPROVED AFTER CORE)
 
 ```nyota
 BEGIN
@@ -2412,12 +2478,9 @@ Na dzień 2026-09-17 ustalono:
 73. Zatwierdzenie semantyki nie oznacza wdrożenia w v0.5.
 74. =N= pozostaje jawnym operatorem liczbowym; oba operandy mają ten sam typ.
 75. SORT dane oraz SORT dane, DESC są powierzchnią języka.
-    Wybór algorytmu w składni jest FUTURE / dydaktyczny.
-76. TIME(HH.MM.SS) i Hn/Mn/Sn są zatwierdzonym kierunkiem.
-    Implementacja TIME czeka na TIME - TIME i decyzję o DATETIME.
-77. Przed wdrożeniem =N=, DATE, TIME, jednostek H/M/S i zakresów a:b
-    obowiązuje aneks C. Lexer v0.5 rozpoznaje te tokeny i odrzuca je
-    jawnym błędem.
+    Dydaktyczny wybór AUTO/BUBBLE/INSERT/SELECT/MERGE/QUICK/HEAP/SHELL/COUNTING jest wdrożony.
+76. TIME(HH.MM.SS), Hn/Mn/Sn oraz TIME - TIME są wdrożone; DATETIME jest osobnym FUTURE bez specyfikacji.
+77. =N=, DATE, TIME, jednostki H/M/S i zakresy a:b są wdrożone zgodnie z aneksem C.
 78. Relacyjny MARK, dalszy rozwój TABLE/GUI i sprite'ów, audio oraz natywny assembler pozostają FUTURE; podstawowy SPRITE/animacja, dydaktyczny SORT i bezpieczny NYASM są wdrożone.
 79. Nyota jest niezależnym językiem. Tunga jest osobnym edytorem.
     AyoOS, Linux i Windows to hosty. PRINT, GRAPH, INPUT, DELAY
@@ -2516,8 +2579,8 @@ MOD    token operatora modulo (BLOCKS v0.5)
 ><     jeden token
 ```
 
-W v0.5 `><` pozostaje aliasem nierówności. Nowe znaczenie (różnica
-symetryczna) jest APPROVED AFTER CORE i nie zmienia postaci tokenu.
+`><` jest jednym tokenem i oznacza różnicę symetryczną dla `LIST` oraz `MARK`.
+Dla skalarów jest błędem; nierówność zapisuje się `<>`.
 
 ## C.3. Operator `=N=`
 
@@ -2535,7 +2598,7 @@ a =2= b        # to samo
 a = 2 = b      # NIE jest =N= :  =   2   =
 ```
 
-`N` jest literałem całkowitym nieujemnym, nie identyfikatorem.
+`N` jest literałem całkowitym z zakresu `0..3`, nie identyfikatorem.
 
 ```nyota
 a =k= b        # NIE jest =N=
@@ -2581,16 +2644,16 @@ TIME_TRIPLE = liczby + "." + liczby + "." + liczby
 Każda część to jedna albo dwie cyfry. Forma kanoniczna w przykładach to
 dwie cyfry: `14.20.20`, `00.10.00`.
 
-`TIME_TRIPLE` jest legalny wyłącznie jako jedyny argument `TIME(...)`.
+`TIME_TRIPLE` jest legalny wyłącznie jako jedyny argument `TIME(...)` i tworzy pełnoprawny typ `TIME`.
 
 ```nyota
-TIME(14.20.20)       # OK po wdrożeniu TIME
+TIME(14.20.20)       # OK
 TIME(14, 20, 20)     # BŁĄD, przecinki nie tworzą czasu
 14.20.20             # BŁĄD poza TIME(...)
 14.20                # FLOAT
 ```
 
-W v0.5 `TIME_TRIPLE` jest rozpoznawany i odrzucany jawnym błędem.
+`TIME_TRIPLE` jest rozpoznawany i walidowany w `TIME(...)`; HH=0..23, MM/SS=0..59.
 
 ## C.6. Jednostki `Hn` / `Mn` / `Sn`
 
@@ -2609,9 +2672,7 @@ S30
 
 `H 2` nie jest jednostką czasu.
 
-Od wdrożenia `TIME` ten wzorzec nie jest identyfikatorem. Do v0.5 lexer
-może rozpoznawać go i odrzucać jako konstrukcję poza v0.5, żeby później
-nie zabrać nazwy zmiennej.
+Wzorzec Hn/Mn/Sn jest jednostką przesunięcia czasu i nie jest identyfikatorem.
 
 Użycie poza `TIME +` / `TIME -` będzie błędem składni.
 
@@ -2632,13 +2693,17 @@ VALUES(kraje, 2, 2:7)
 
 `2 : 7` nie jest tym tokenem. Pętla `FOR` nadal używa `TO`, nie dwukropka.
 
-W v0.5 token zakresu jest rozpoznawany i odrzucany jawnym błędem, jeżeli
-wystąpi. Semantyka `VALUES` pozostaje APPROVED AFTER CORE.
+Zakres działa w `VALUES()` i jest domknięty po obu stronach.
 
 ## C.8. Kolejność zamykania leksera
 
 ```text
-1. Zamknąć C.1 i C.2 razem z parserem v0.5.
-2. C.4 DATE ma semantykę. C.3, C.5–C.7 nadal rezerwować jako błędy.
-3. Semantykę =N=, TIME, Hn/Mn/Sn i a:b wdrażać bez zmiany reguł tokenów.
+1. C.1–C.7 są zamknięte w parserze i testach.
+2. DATE, TIME, =N=, Hn/Mn/Sn i zakres a:b mają działającą semantykę.
+3. Dalsze rozszerzenia nie mogą zmieniać tych reguł tokenizacji.
 ```
+
+
+### NyotaUI — kolejny zestaw kontrolek (2026-09-18)
+
+Na branchu `nyota-v05-complete` wdrożono kontrakty i backend POSIX dla `CBOX`, `RADIO`, `COMBO`, `SEP`, `TABS/TAB`, wspólnego `RADIUS` oraz cienia dziedziczonego z `WIN.CONFIG`. Kod źródłowy `.nyo` pozostaje wspólny dla Linux/Windows/AyoOS; Windows i AyoOS wymagają własnych implementacji hosta. `TAREA` nie została jeszcze zdefiniowana jako pełna kontrolka, więc nie jest oznaczona jako wdrożona.

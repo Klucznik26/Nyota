@@ -15,7 +15,7 @@ need_cmd() {
     if ! command -v "$1" >/dev/null 2>&1; then
         echo "Brak wymaganego narzędzia: $1" >&2
         echo "Na Fedorze zainstaluj:" >&2
-        echo "  sudo dnf install rpm-build gcc make pkgconf-pkg-config sdl2-compat-devel tar gzip" >&2
+        echo "  sudo dnf install rpm-build gcc make pkgconf-pkg-config sdl2-compat-devel SDL2_image-devel tar gzip" >&2
         exit 2
     fi
 }
@@ -28,6 +28,13 @@ if ! pkg-config --exists sdl2; then
     echo "Brak pkgconfig(sdl2)." >&2
     echo "Na Fedorze 44 zapewnia go pakiet sdl2-compat-devel:" >&2
     echo "  sudo dnf install sdl2-compat-devel" >&2
+    exit 2
+fi
+
+if ! pkg-config --exists SDL2_image; then
+    echo "Brak pkgconfig(SDL2_image)." >&2
+    echo "Na Fedorze 44 zapewnia go pakiet SDL2_image-devel:" >&2
+    echo "  sudo dnf install SDL2_image-devel" >&2
     exit 2
 fi
 

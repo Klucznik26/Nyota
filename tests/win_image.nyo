@@ -1,0 +1,9 @@
+# Oczekiwane: zawiera IMG_OK
+BEGIN
+WIN obraz, ROOT, [180, 120], CENTER, FALSE
+WIN obraz.CONFIG:
+    TITLE = "Obraz"
+    BG = IMG("tests/assets/sprite_test.bmp", FIT)
+    ICO = "tests/assets/sprite_test.bmp"
+PRINT "IMG_OK"
+END

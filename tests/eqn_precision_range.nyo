@@ -1,0 +1,5 @@
+# Oczekiwane: BLAD
+BEGIN
+IF 1.234 =4= 1.234:
+    PRINT "zle"
+END

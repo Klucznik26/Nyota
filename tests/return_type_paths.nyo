@@ -1,0 +1,10 @@
+# Oczekiwane: BLAD
+FUNCTION Bad(x):
+    IF x > 0:
+        RETURN 5
+    ELSE:
+        RETURN "blad"
+
+BEGIN
+PRINT Bad(1)
+END
