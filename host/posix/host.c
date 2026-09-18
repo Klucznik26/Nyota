@@ -1607,9 +1607,10 @@ static int host_ui_item_at(const char *items,uint32_t wanted,char *out,size_t ca
     uint32_t cur=0,start=0,i=0;if(!out||!cap)return 0;out[0]='\0';
     while(1){char ch=items[i];if(ch=='\n'||ch=='\0'){if(cur==wanted){size_t n=i-start;if(n>=cap)n=cap-1;memcpy(out,items+start,n);out[n]='\0';return 1;}cur++;start=i+1;if(ch=='\0')break;}i++;}return 0;
 }
-static void host_ui_draw_shadow(SDL_Renderer *ren,const NyotaUiControlSpec *s,SDL_Rect r){
-    int dx=0,dy=0,d=(int)s->shadow_depth;SDL_Rect q=r;
-    if(!ren||s->shadow==NYOTA_UI_SHADOW_OFF||!d)return;
+static void host_ui_draw_shadow(SDL_Renderer *ren,const HostUiControl *ctl,SDL_Rect r){
+    const NyotaUiControlSpec *s=ctl?&ctl->spec:NULL;
+    int dx=0,dy=0,d=s?(int)s->shadow_depth:0;SDL_Rect q=r;
+    if(!ren||!ctl||!s||s->shadow==NYOTA_UI_SHADOW_OFF||!d)return;
     if(s->shadow==NYOTA_UI_SHADOW_R||s->shadow==NYOTA_UI_SHADOW_RU||s->shadow==NYOTA_UI_SHADOW_RD)dx=d;
     if(s->shadow==NYOTA_UI_SHADOW_L||s->shadow==NYOTA_UI_SHADOW_LU||s->shadow==NYOTA_UI_SHADOW_LD)dx=-d;
     if(s->shadow==NYOTA_UI_SHADOW_U||s->shadow==NYOTA_UI_SHADOW_RU||s->shadow==NYOTA_UI_SHADOW_LU)dy=-d;
@@ -1630,8 +1631,8 @@ static void host_ui_draw_shadow(SDL_Renderer *ren,const NyotaUiControlSpec *s,SD
         ss.w=(uint32_t)r.w;ss.h=(uint32_t)r.h;
         sf=host_ui_control_background_surface(&ss,&bg);
         if(sf){
-            if(s>=&g_host_ui_controls[0].spec && s<=&g_host_ui_controls[HOST_MAX_UI_CONTROLS-1].spec){
-                int idx=(int)(((const HostUiControl *)((const char *)s-(size_t)&((HostUiControl *)0)->spec))-g_host_ui_controls));
+            {
+                int idx=(int)(ctl-g_host_ui_controls);
                 if(idx>=0&&idx<HOST_MAX_UI_CONTROLS)host_ui_apply_ancestor_mask(idx,sf,q.x,q.y);
             }
             tx=SDL_CreateTextureFromSurface(ren,sf);
@@ -1837,7 +1838,7 @@ static void host_ui_draw_control_index(int idx) {
     SDL_RenderSetClipRect(u->ren,&clip);
     g_ui_draw_clip_idx=idx;
     if(ctl->spec.kind==NYOTA_UI_CTRL_TABS){g_ui_draw_clip_idx=-1;SDL_RenderSetClipRect(u->ren,NULL);return;}
-    host_ui_draw_shadow(u->ren,&ctl->spec,r);
+    host_ui_draw_shadow(u->ren,ctl,r);
     if(ctl->spec.kind==NYOTA_UI_CTRL_SEP){
         uint32_t t=ctl->spec.sep_thickness;NyotaColor c=ctl->spec.sep_color;SDL_Rect q=r;
         if(ctl->spec.orientation==NYOTA_UI_SEP_VERTICAL)q.w=(int)t;else q.h=(int)t;
