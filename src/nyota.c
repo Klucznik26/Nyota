@@ -226,6 +226,8 @@ typedef struct {
     char     params[8][64];
     uint8_t  param_by_ref[8];  // czy parametr przez referencję (VAR)
     uint8_t  is_function;      // 1 = FUNCTION, 0 = PROCEDURE
+    uint8_t  return_type;      // TYPE_*; blokowany po pierwszym znanym RETURN
+    uint8_t  return_type_known;
 } NyotaProc;
 
 // TABLE widget support: TABLE jest kontrolką prezentacji, nie typem Nyota.
@@ -693,14 +695,18 @@ static void ValFromStr(NyotaVal *v, const char *s) {
     NStrCopy(v->s, s, MAX_STR_LEN);
 }
 static void ValFromFloat(NyotaVal *v, int32_t ip, int32_t frac) {
-    while (frac >= 1000) { ip++; frac -= 1000; }
-    while (frac <= -1000) { ip--; frac += 1000; }
-    if (ip > 0 && frac < 0) { ip--; frac += 1000; }
-    if (ip < 0 && frac > 0) { ip++; frac -= 1000; }
+    int64_t milli = (int64_t)ip * 1000LL + (int64_t)frac;
     ValClear(v);
+    /* FLOAT Nyoty ma stałą precyzję 3 miejsc i bieżący zakres oparty
+     * o podpisane milli w int32. Dzięki temu wszystkie działania są
+     * deterministyczne także bez FPU. */
+    if (milli < INT32_MIN || milli > INT32_MAX) {
+        OutError("FLOAT poza zakresem -2147483.648 .. 2147483.647");
+        return;
+    }
     v->type = TYPE_FLOAT;
-    v->f_int = ip;
-    v->f_frac = frac;
+    v->f_int = (int32_t)(milli / 1000LL);
+    v->f_frac = (int32_t)(milli % 1000LL);
 }
 
 static const char *ValTypeName(uint8_t t) {
@@ -833,15 +839,17 @@ static void ValToStr(const NyotaVal *v, char *out, uint32_t max) {
     } else if (v->type == TYPE_STR) {
         NStrCopy(out, v->s, max);
     } else if (v->type == TYPE_FLOAT) {
-        NIntToStr(v->f_int, out, max);
+        int64_t m = (int64_t)FloatMilli(v);
+        int64_t a = m < 0 ? -m : m;
+        char ibuf[24], frac[4];
+        out[0] = '\0';
+        if (m < 0) NStrAppend(out, "-", max);
+        NIntToStr((int32_t)(a / 1000LL), ibuf, sizeof(ibuf));
+        NStrAppend(out, ibuf, max);
         NStrAppend(out, ".", max);
-        char frac[8];
-        int32_t f = v->f_frac;
-        if (f < 0) f = -f;
-        // 3 miejsca po przecinku
-        frac[0] = (char)('0' + (f / 100) % 10);
-        frac[1] = (char)('0' + (f / 10) % 10);
-        frac[2] = (char)('0' + f % 10);
+        frac[0] = (char)('0' + (a / 100) % 10);
+        frac[1] = (char)('0' + (a / 10) % 10);
+        frac[2] = (char)('0' + a % 10);
         frac[3] = '\0';
         NStrAppend(out, frac, max);
     } else if (v->type == TYPE_TIME) {
@@ -1521,14 +1529,12 @@ static int MarkNumericMilli64(const NyotaVal *v, int64_t *out) {
 }
 
 static void ValFromMilli64(NyotaVal *v, int64_t milli) {
-    int64_t ip = milli / 1000LL;
-    int64_t frac = milli % 1000LL;
-    if (ip < INT32_MIN || ip > INT32_MAX) {
-        OutError("Wynik FLOAT poza zakresem implementacji");
+    if (milli < INT32_MIN || milli > INT32_MAX) {
+        OutError("Wynik FLOAT poza zakresem -2147483.648 .. 2147483.647");
         ValClear(v);
         return;
     }
-    ValFromFloat(v, (int32_t)ip, (int32_t)frac);
+    ValFromFloat(v, 0, (int32_t)milli);
 }
 
 static int MarkStat(const NyotaVal *mark, int32_t col, int kind,
@@ -1752,36 +1758,72 @@ static NyotaVal ValArith(const NyotaVal *a, char op, const NyotaVal *b) {
     }
     if (a->type == TYPE_INT) {
         int32_t lv = a->i, rv = b->i;
+        int64_t wide = 0;
         if ((op == '/' || op == 'M') && rv == 0) {
             OutError(op == 'M' ? "MOD 0" : "Dzielenie przez zero");
             return r;
         }
-        if (op == '+') ValFromInt(&r, lv + rv);
-        else if (op == '-') ValFromInt(&r, lv - rv);
-        else if (op == '*') ValFromInt(&r, lv * rv);
-        else if (op == '/') ValFromInt(&r, lv / rv);
-        else if (op == 'M') ValFromInt(&r, lv % rv);
-        else if (op == '%') ValFromInt(&r, lv * rv / 100);
-        else if (op == '^') ValFromInt(&r, NPow(lv, rv));
-        else if (op == 'R') ValFromInt(&r, NRoot(lv, rv));
-        else OutError("Nieznany operator");
+        if ((op == '/' || op == 'M') && lv == INT32_MIN && rv == -1) {
+            OutError("Przepelnienie INTEGER");
+            return r;
+        }
+        if (op == '+') wide = (int64_t)lv + rv;
+        else if (op == '-') wide = (int64_t)lv - rv;
+        else if (op == '*') wide = (int64_t)lv * rv;
+        else if (op == '/') { ValFromInt(&r, lv / rv); return r; }
+        else if (op == 'M') { ValFromInt(&r, lv % rv); return r; }
+        else if (op == '%') wide = ((int64_t)lv * rv) / 100LL;
+        else if (op == '^') {
+            int32_t e;
+            int64_t acc = 1, base = lv;
+            if (rv < 0) { OutError("Ujemny wykladnik INTEGER nie jest obslugiwany"); return r; }
+            e = rv;
+            while (e > 0) {
+                if (e & 1) {
+                    acc *= base;
+                    if (acc < INT32_MIN || acc > INT32_MAX) { OutError("Przepelnienie INTEGER"); return r; }
+                }
+                e >>= 1;
+                if (e) {
+                    base *= base;
+                    if (base < INT32_MIN || base > INT32_MAX) { OutError("Przepelnienie INTEGER"); return r; }
+                }
+            }
+            ValFromInt(&r, (int32_t)acc);
+            return r;
+        } else if (op == 'R') {
+            if (rv <= 0) { OutError("Stopien pierwiastka musi byc dodatni"); return r; }
+            if (lv < 0 && (rv % 2) == 0) { OutError("Parzysty pierwiastek z liczby ujemnej"); return r; }
+            ValFromInt(&r, NRoot(lv, rv));
+            return r;
+        } else {
+            OutError("Nieznany operator");
+            return r;
+        }
+        if (wide < INT32_MIN || wide > INT32_MAX) {
+            OutError("Przepelnienie INTEGER");
+            return r;
+        }
+        ValFromInt(&r, (int32_t)wide);
         return r;
     }
     if (a->type == TYPE_FLOAT) {
-        int32_t lm = FloatMilli(a), rm = FloatMilli(b);
+        int64_t lm = FloatMilli(a), rm = FloatMilli(b);
+        int64_t result_milli = 0;
         if ((op == '/' || op == 'M') && rm == 0) {
             OutError(op == 'M' ? "MOD 0" : "Dzielenie przez zero");
             return r;
         }
-        if (op == '+') ValFromFloat(&r, 0, lm + rm);
-        else if (op == '-') ValFromFloat(&r, 0, lm - rm);
-        else if (op == '*') ValFromFloat(&r, 0, (lm * rm) / 1000);
-        else if (op == '/') ValFromFloat(&r, 0, (lm * 1000) / rm);
-        else if (op == '%') ValFromFloat(&r, 0, lm * rm / 100 / 1000);
+        if (op == '+') result_milli = lm + rm;
+        else if (op == '-') result_milli = lm - rm;
+        else if (op == '*') result_milli = (lm * rm) / 1000LL;
+        else if (op == '/') result_milli = (lm * 1000LL) / rm;
+        else if (op == '%') result_milli = (lm * rm) / 100000LL;
         else {
             OutError("Ten operator nie obsluguje FLOAT");
             return r;
         }
+        ValFromMilli64(&r, result_milli);
         return r;
     }
     OutError("Nieobslugiwany typ w dzialaniu");
@@ -1791,28 +1833,37 @@ static NyotaVal ValArith(const NyotaVal *a, char op, const NyotaVal *b) {
 static int ParseNumber(const char *expr, NyotaVal *out, uint32_t *consumed) {
     uint32_t i = 0;
     int neg = 0;
+    int64_t ip = 0;
     if (expr[0] == '-') { neg = 1; i++; }
     if (!NIsDigit(expr[i])) return 0;
-    int32_t ip = 0;
-    while (NIsDigit(expr[i])) { ip = ip * 10 + (expr[i] - '0'); i++; }
-    if (expr[i] == '.' && NIsDigit(expr[i + 1])) {
+    while (NIsDigit(expr[i])) {
+        ip = ip * 10LL + (expr[i] - '0');
+        if (ip > 2147483648LL) return 0;
         i++;
+    }
+    if (expr[i] == '.') {
         int32_t frac = 0;
         int digits = 0;
-        while (NIsDigit(expr[i]) && digits < 3) {
+        if (!NIsDigit(expr[i + 1])) return 0;
+        i++;
+        while (NIsDigit(expr[i])) {
+            if (digits >= 3) return 0; /* FLOAT ma dokładnie max 3 miejsca */
             frac = frac * 10 + (expr[i] - '0');
             i++;
             digits++;
         }
-        while (NIsDigit(expr[i])) i++;
+        if (expr[i] == '.') return 0; /* np. 14.20.20 poza TIME() */
         while (digits < 3) { frac *= 10; digits++; }
         if (neg) { ip = -ip; frac = -frac; }
-        ValFromFloat(out, ip, frac);
+        if (ip < INT32_MIN || ip > INT32_MAX) return 0;
+        ValFromFloat(out, (int32_t)ip, frac);
+        if (out->type != TYPE_FLOAT) return 0;
         *consumed = i;
         return 1;
     }
     if (neg) ip = -ip;
-    ValFromInt(out, ip);
+    if (ip < INT32_MIN || ip > INT32_MAX) return 0;
+    ValFromInt(out, (int32_t)ip);
     *consumed = i;
     return 1;
 }
@@ -1846,7 +1897,7 @@ static int ValTruthy(const NyotaVal *v) {
 static NyotaVal ValCompareOp(const NyotaVal *lv, const char *op, const NyotaVal *rv) {
     NyotaVal r;
     ValClear(&r);
-    if (NStrEq(op, "=") || NStrEq(op, "<>") || NStrEq(op, "><")) {
+    if (NStrEq(op, "=") || NStrEq(op, "<>")) {
         if (lv->type != rv->type) {
             char err[160];
             NStrCopy(err, "Porownanie wymaga tego samego typu: ", sizeof(err));
@@ -3448,12 +3499,67 @@ static NyotaVal ValNeg(NyotaVal v) {
 }
 
 static NyotaVal ParseUnary(const char **pp);
+static NyotaVal ParsePostfix(const char **pp);
 static NyotaVal ParsePower(const char **pp);
 static NyotaVal ParseMul(const char **pp);
 static NyotaVal ParseAdd(const char **pp);
+static NyotaVal ParseShift(const char **pp);
+static NyotaVal ParseBand(const char **pp);
+static NyotaVal ParseBxor(const char **pp);
+static NyotaVal ParseBor(const char **pp);
 static NyotaVal ParseCompare(const char **pp);
 static NyotaVal ParseNot(const char **pp);
 static NyotaVal ParseAnd(const char **pp);
+
+static NyotaVal ValFactorial(NyotaVal v) {
+    int64_t acc = 1;
+    int32_t n, i;
+    if (v.type != TYPE_INT) {
+        OutError("Silnia ! wymaga INTEGER");
+        ValClear(&v);
+        return v;
+    }
+    n = v.i;
+    if (n < 0) {
+        OutError("Silnia ! wymaga liczby nieujemnej");
+        ValClear(&v);
+        return v;
+    }
+    for (i = 2; i <= n; i++) {
+        acc *= i;
+        if (acc > INT32_MAX) {
+            OutError("Silnia ! powoduje przepelnienie INTEGER");
+            ValClear(&v);
+            return v;
+        }
+    }
+    ValFromInt(&v, (int32_t)acc);
+    return v;
+}
+
+static NyotaVal ValBitOp(const NyotaVal *a, char op, const NyotaVal *b) {
+    NyotaVal r;
+    uint32_t av, bv;
+    ValClear(&r);
+    if (a->type != TYPE_INT || b->type != TYPE_INT) {
+        OutError("Operatory bitowe wymagaja INTEGER");
+        return r;
+    }
+    av = (uint32_t)a->i;
+    bv = (uint32_t)b->i;
+    if (op == 'L' || op == 'S') {
+        if (b->i < 0 || b->i > 31) {
+            OutError("SHL/SHR wymaga przesuniecia 0..31");
+            return r;
+        }
+        if (op == 'L') ValFromInt(&r, (int32_t)(av << (uint32_t)b->i));
+        else ValFromInt(&r, (int32_t)(av >> (uint32_t)b->i));
+    } else if (op == '&') ValFromInt(&r, (int32_t)(av & bv));
+    else if (op == 'X') ValFromInt(&r, (int32_t)(av ^ bv));
+    else if (op == '|') ValFromInt(&r, (int32_t)(av | bv));
+    else OutError("Nieznany operator bitowy");
+    return r;
+}
 
 static NyotaVal ParseUnary(const char **pp) {
     const char *p = NTrim(*pp);
@@ -3462,7 +3568,18 @@ static NyotaVal ParseUnary(const char **pp) {
         return ValNeg(ParseUnary(pp));
     }
     *pp = p;
-    return ParsePrimary(pp);
+    return ParsePostfix(pp);
+}
+
+static NyotaVal ParsePostfix(const char **pp) {
+    NyotaVal v = ParsePrimary(pp);
+    for (;;) {
+        const char *p = NTrim(*pp);
+        if (*p != '!') break;
+        *pp = p + 1;
+        v = ValFactorial(v);
+    }
+    return v;
 }
 
 static NyotaVal ParsePower(const char **pp) {
@@ -3523,8 +3640,68 @@ static NyotaVal ParseAdd(const char **pp) {
     return left;
 }
 
-static NyotaVal ParseCompare(const char **pp) {
+static NyotaVal ParseShift(const char **pp) {
     NyotaVal left = ParseAdd(pp);
+    for (;;) {
+        const char *p = NTrim(*pp);
+        char op;
+        uint32_t n;
+        if (PeekWord(p, "SHL")) { op = 'L'; n = 3; }
+        else if (PeekWord(p, "SHR")) { op = 'S'; n = 3; }
+        else break;
+        *pp = p + n;
+        {
+            NyotaVal right = ParseBor(pp);
+            left = ValBitOp(&left, op, &right);
+        }
+    }
+    return left;
+}
+
+static NyotaVal ParseBand(const char **pp) {
+    NyotaVal left = ParseShift(pp);
+    for (;;) {
+        const char *p = NTrim(*pp);
+        if (!PeekWord(p, "BAND")) break;
+        *pp = p + 4;
+        {
+            NyotaVal right = ParseShift(pp);
+            left = ValBitOp(&left, '&', &right);
+        }
+    }
+    return left;
+}
+
+static NyotaVal ParseBxor(const char **pp) {
+    NyotaVal left = ParseBand(pp);
+    for (;;) {
+        const char *p = NTrim(*pp);
+        if (!PeekWord(p, "BXOR")) break;
+        *pp = p + 4;
+        {
+            NyotaVal right = ParseBand(pp);
+            left = ValBitOp(&left, 'X', &right);
+        }
+    }
+    return left;
+}
+
+static NyotaVal ParseBor(const char **pp) {
+    NyotaVal left = ParseBxor(pp);
+    for (;;) {
+        const char *p = NTrim(*pp);
+        if (!PeekWord(p, "BOR")) break;
+        *pp = p + 3;
+        {
+            NyotaVal right = ParseBxor(pp);
+            left = ValBitOp(&left, '|', &right);
+        }
+    }
+    return left;
+}
+
+static NyotaVal ParseCompare(const char **pp) {
+    NyotaVal left = ParseBor(pp);
     const char *p = NTrim(*pp);
     if (PeekWord(p, "IN")) {
         *pp = p + 2;
@@ -3566,7 +3743,12 @@ static NyotaVal ParseCompare(const char **pp) {
             NyotaVal right;
             int eq;
             *pp = p + k + 1;
-            right = ParseAdd(pp);
+            if (n < 0 || n > 3) {
+                OutError("=N=: N musi byc w zakresie 0..3");
+                ValClear(&left);
+                return left;
+            }
+            right = ParseBor(pp);
             eq = ValEqN(&left, &right, n);
             if (eq < 0) {
                 OutError("=N= wymaga INTEGER albo FLOAT tego samego typu");
@@ -3582,11 +3764,16 @@ static NyotaVal ParseCompare(const char **pp) {
     if (!PeekCmpOp(p, op, &oplen)) return left;
     *pp = p + oplen;
     {
-        NyotaVal right = ParseAdd(pp);
-        if (NStrEq(op, "><") && left.type == TYPE_LIST && right.type == TYPE_LIST)
-            return ListSymDiff(&left, &right);
-        if (NStrEq(op, "><") && left.type == TYPE_MARK && right.type == TYPE_MARK)
-            return MarkSymDiff(&left, &right);
+        NyotaVal right = ParseBor(pp);
+        if (NStrEq(op, "><")) {
+            if (left.type == TYPE_LIST && right.type == TYPE_LIST)
+                return ListSymDiff(&left, &right);
+            if (left.type == TYPE_MARK && right.type == TYPE_MARK)
+                return MarkSymDiff(&left, &right);
+            OutError("Operator >< wymaga dwoch LIST albo dwoch MARK; nierownosc zapisuj <>");
+            ValClear(&left);
+            return left;
+        }
         return ValCompareOp(&left, op, &right);
     }
 }
@@ -3735,6 +3922,8 @@ static void ScanProcedures(void) {
         p->start_line = i;
         p->body_line = i + 1;
         p->is_function = is_fn ? 1 : 0;
+        p->return_type = TYPE_NONE;
+        p->return_type_known = 0;
         NStrCopy(p->name, name, sizeof(p->name));
         ParseParamList(p, NTrim(np + nlen));
     }
@@ -4387,22 +4576,58 @@ static void ExecNyasmBlock(uint32_t ln, const char *raw, const char *line) {
     g_cur_line = body_end;
 }
 
-// Tabulacja jest błędem. Wcięcie linii z kodem musi być wielokrotnością 4.
+// Wcięcia: tabulator jest błędem, a nowy poziom może powstać wyłącznie
+// bezpośrednio po konstrukcji otwierającej blok i dokładnie o +4 spacje.
+static int LineOpensIndentedBlock(const char *t) {
+    uint32_t n;
+    if (!t || !*t) return 0;
+    n = NStrLen(t);
+    if (n > 0 && t[n - 1] == ':') return 1;
+    if (NStrEq(t, "REPEAT") || NStrEq(t, "DO")) return 1;
+    return 0;
+}
+
 static int ValidateSourceLayout(void) {
+    int have_prev = 0;
+    uint32_t prev_indent = 0;
+    int prev_opens = 0;
     for (uint32_t i = 0; i < g_line_count; i++) {
         g_cur_line = i;
         const char *raw = g_lines[i];
+        const char *t;
+        uint32_t ind;
         if (NLineHasTab(raw)) {
             OutError("Tabulator jest zabroniony; uzyj 4 spacji na poziom bloku");
             return 0;
         }
-        const char *t = NTrim(raw);
+        t = NTrim(raw);
         if (!*t || *t == '#') continue;
-        uint32_t ind = NIndent(raw);
+        ind = NIndent(raw);
         if ((ind % NYOTA_INDENT) != 0) {
             OutError("Wciecie musi byc wielokrotnoscia 4 spacji");
             return 0;
         }
+        if (!have_prev) {
+            if (ind != 0) {
+                OutError("Pierwsza instrukcja nie moze byc wcięta");
+                return 0;
+            }
+        } else if (ind > prev_indent) {
+            if (!prev_opens || ind != prev_indent + NYOTA_INDENT) {
+                OutError("Nowy poziom bloku musi miec dokladnie +4 spacje po instrukcji otwierajacej blok");
+                return 0;
+            }
+        } else if (prev_opens && ind <= prev_indent) {
+            OutError("Instrukcja otwierajaca blok wymaga co najmniej jednej linii z wcieciem +4");
+            return 0;
+        }
+        prev_indent = ind;
+        prev_opens = LineOpensIndentedBlock(t);
+        have_prev = 1;
+    }
+    if (have_prev && prev_opens) {
+        OutError("Plik konczy sie po instrukcji otwierajacej pusty blok");
+        return 0;
     }
     return 1;
 }
@@ -6357,6 +6582,15 @@ static NyotaVal CallNamed(const char *name, const char *paren, const char **afte
             OutError("FUNCTION bez RETURN");
         } else {
             result = g_return_val;
+            if (result.type != TYPE_NONE) {
+                if (p->return_type_known && p->return_type != result.type) {
+                    OutError("FUNCTION zwraca rozne typy na roznych sciezkach/wywolaniach");
+                    ValClear(&result);
+                } else if (!p->return_type_known) {
+                    p->return_type = result.type;
+                    p->return_type_known = 1;
+                }
+            }
         }
     }
 
