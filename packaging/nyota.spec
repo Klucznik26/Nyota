@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        19%{?dist}
+Release:        20%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,14 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-20
+- Add TBOX single-line text input and SPINBOX signed numeric control.
+- Add LISTVIEW and hierarchical TREEVIEW controls.
+- Add interactive SPLITTER.
+- Add signed LINE/ARC/CIRCLE SCALE with wrapping rotary mode, ticks, custom track/thumb shapes and glow.
+- Add multi-needle CLOCK telemetry gauge with zones, custom dial, ticks, needles and glow.
+- Add runtime APIs and VS Code support for the new NyotaUI controls.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-19
 - Add EQBOX high-frequency multi-bar visualization with layered backgrounds, gradients/images, segmented shapes, labels and glow.
 - Add interactive SLIDER with horizontal/vertical orientation and selectable thumb geometry.
