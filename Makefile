@@ -3,15 +3,17 @@ CC      ?= gcc
 CFLAGS  ?= -Wall -O2 -std=gnu11
 PREFIX  ?= /usr
 DESTDIR ?=
-SDL_CFLAGS := $(shell pkg-config --cflags sdl2)
-SDL_LIBS   := $(shell pkg-config --libs sdl2)
+SDL_CFLAGS       := $(shell pkg-config --cflags sdl2)
+SDL_LIBS         := $(shell pkg-config --libs sdl2)
+SDL_IMAGE_CFLAGS := $(shell pkg-config --cflags SDL2_image)
+SDL_IMAGE_LIBS   := $(shell pkg-config --libs SDL2_image)
 
 .PHONY: all clean test test-color test-graph install uninstall rpm
 
 all: nyota
 
-nyota: host/posix/host.c src/nyota.c src/nyota_host.h host/posix/font8x8.h
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) -Isrc -Ihost/posix -o nyota host/posix/host.c $(SDL_LIBS)
+nyota: host/posix/host.c src/nyota.c src/nyota_host.h src/nyota_color.h host/posix/font8x8.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(SDL_IMAGE_CFLAGS) -Isrc -Ihost/posix -o nyota host/posix/host.c $(SDL_LIBS) $(SDL_IMAGE_LIBS) -lm
 
 test: nyota test-color
 	@bash scripts/run_tests.sh
