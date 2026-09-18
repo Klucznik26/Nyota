@@ -1225,54 +1225,98 @@ static int host_ui_shape_sample_inside(const NyotaUiControlSpec *s,double x,doub
 
 static uint8_t host_ui_shape_coverage(const NyotaUiControlSpec *s,int x,int y){
     static const double p[4]={0.125,0.375,0.625,0.875};
-    int sx,sy,inside=0;
+    int sx,sy,inside=0,r;
+    if(!s)return 0;
+    if(s->radius && s->kind!=NYOTA_UI_CTRL_RADIO &&
+       !(s->kind==NYOTA_UI_CTRL_DAREA&&s->shape!=NYOTA_UI_DAREA_RECT)){
+        r=(int)s->radius;if(r>(int)s->w/2)r=(int)s->w/2;if(r>(int)s->h/2)r=(int)s->h/2;
+        if(s->kind==NYOTA_UI_CTRL_TAB){
+            if(y<(int)s->h-r || (x>=r&&x<(int)s->w-r))return 16;
+        }else if(s->kind==NYOTA_UI_CTRL_TABS){
+            if(y>=r || (x>=r&&x<(int)s->w-r))return 16;
+        }else{
+            if((x>=r&&x<(int)s->w-r)||(y>=r&&y<(int)s->h-r))return 16;
+        }
+    }
     for(sy=0;sy<4;sy++)for(sx=0;sx<4;sx++)
         if(host_ui_shape_sample_inside(s,(double)x+p[sx],(double)y+p[sy]))inside++;
     return (uint8_t)inside;
 }
 
-static int host_ui_point_in_rounded_ancestor(int idx,double gx,double gy){
-    int p;
-    if(idx<0||idx>=HOST_MAX_UI_CONTROLS||!g_host_ui_controls[idx].used)return 1;
+typedef struct {
+    SDL_Rect r;
+    uint32_t radius;
+    uint8_t tab;
+} HostUiRoundedClip;
+
+static int host_ui_collect_rounded_clips(int idx,HostUiRoundedClip *out,int cap){
+    int p,n=0;
+    if(idx<0||idx>=HOST_MAX_UI_CONTROLS||!g_host_ui_controls[idx].used)return 0;
     p=g_host_ui_controls[idx].parent_control_handle>0?
       host_ui_control_index_by_handle(g_host_ui_controls[idx].parent_control_handle):-1;
     while(p>=0){
         HostUiControl *pc=&g_host_ui_controls[p];
         SDL_Rect pr;
         if((pc->spec.kind==NYOTA_UI_CTRL_PANEL||pc->spec.kind==NYOTA_UI_CTRL_TAB)&&pc->spec.clip&&
-           pc->spec.radius&&host_ui_control_rect_index(p,&pr)){
-            double lx=gx-(double)pr.x,ly=gy-(double)pr.y;
-            if(lx<0.0||ly<0.0||lx>=(double)pr.w||ly>=(double)pr.h)return 0;
-            if(pc->spec.kind==NYOTA_UI_CTRL_TAB){
-                if(!host_ui_inside_rounded_corners_f(lx,ly,pr.w,pr.h,pc->spec.radius,0,0,1,1))return 0;
-            }else if(!host_ui_inside_rounded_corners_f(lx,ly,pr.w,pr.h,pc->spec.radius,1,1,1,1))return 0;
+           pc->spec.radius&&host_ui_control_rect_index(p,&pr)&&n<cap){
+            out[n].r=pr;out[n].radius=pc->spec.radius;out[n].tab=(uint8_t)(pc->spec.kind==NYOTA_UI_CTRL_TAB);n++;
         }
         p=pc->parent_control_handle>0?host_ui_control_index_by_handle(pc->parent_control_handle):-1;
+    }
+    return n;
+}
+
+static int host_ui_point_in_clipset(const HostUiRoundedClip *clips,int n,double gx,double gy){
+    int i;
+    for(i=0;i<n;i++){
+        const HostUiRoundedClip *c=&clips[i];
+        double lx=gx-(double)c->r.x,ly=gy-(double)c->r.y;
+        if(lx<0.0||ly<0.0||lx>=(double)c->r.w||ly>=(double)c->r.h)return 0;
+        if(c->tab){
+            if(!host_ui_inside_rounded_corners_f(lx,ly,c->r.w,c->r.h,c->radius,0,0,1,1))return 0;
+        }else if(!host_ui_inside_rounded_corners_f(lx,ly,c->r.w,c->r.h,c->radius,1,1,1,1))return 0;
     }
     return 1;
 }
 
-static uint8_t host_ui_ancestor_coverage(int idx,int gx,int gy){
-    static const double p[4]={0.125,0.375,0.625,0.875};
-    int sx,sy,n=0;
-    for(sy=0;sy<4;sy++)for(sx=0;sx<4;sx++)
-        if(host_ui_point_in_rounded_ancestor(idx,(double)gx+p[sx],(double)gy+p[sy]))n++;
-    return (uint8_t)n;
+static int host_ui_point_in_rounded_ancestor(int idx,double gx,double gy){
+    HostUiRoundedClip clips[16];int n=host_ui_collect_rounded_clips(idx,clips,16);
+    return host_ui_point_in_clipset(clips,n,gx,gy);
 }
 
 static void host_ui_apply_ancestor_mask(int idx,SDL_Surface *sf,int gx,int gy){
-    int x,y;
+    static const double p[4]={0.125,0.375,0.625,0.875};
+    HostUiRoundedClip clips[16];
+    int n,x,y,sx,sy;
     if(idx<0||!sf)return;
+    n=host_ui_collect_rounded_clips(idx,clips,16);
+    if(n<=0)return;
     if(SDL_LockSurface(sf)!=0)return;
     for(y=0;y<sf->h;y++){
         uint32_t *row=(uint32_t *)((uint8_t *)sf->pixels+y*sf->pitch);
         for(x=0;x<sf->w;x++){
-            uint8_t cov=host_ui_ancestor_coverage(idx,gx+x,gy+y);
-            if(cov<16){
-                uint8_t r,g,b,a;
-                SDL_GetRGBA(row[x],sf->format,&r,&g,&b,&a);
-                a=(uint8_t)(((uint32_t)a*(uint32_t)cov+8u)/16u);
-                row[x]=SDL_MapRGBA(sf->format,r,g,b,a);
+            int cov=0;
+            if(host_ui_point_in_clipset(clips,n,(double)(gx+x)+0.5,(double)(gy+y)+0.5)){
+                int edge=0,i;
+                for(i=0;i<n;i++){
+                    const HostUiRoundedClip *c=&clips[i];
+                    int lx=gx+x-c->r.x,ly=gy+y-c->r.y,rr=(int)c->radius;
+                    if((lx<rr||lx>=c->r.w-rr) &&
+                       (c->tab ? ly>=c->r.h-rr : (ly<rr||ly>=c->r.h-rr))){edge=1;break;}
+                }
+                if(!edge)cov=16;
+            }
+            if(cov!=16){
+                if(cov==0){
+                    for(sy=0;sy<4;sy++)for(sx=0;sx<4;sx++)
+                        if(host_ui_point_in_clipset(clips,n,(double)(gx+x)+p[sx],(double)(gy+y)+p[sy]))cov++;
+                }
+                if(cov<16){
+                    uint8_t r,g,b,a;
+                    SDL_GetRGBA(row[x],sf->format,&r,&g,&b,&a);
+                    a=(uint8_t)(((uint32_t)a*(uint32_t)cov+8u)/16u);
+                    row[x]=SDL_MapRGBA(sf->format,r,g,b,a);
+                }
             }
         }
     }
