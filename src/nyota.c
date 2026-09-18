@@ -3255,23 +3255,23 @@ static NyotaVal ParsePrimary(const char **pp) {
         uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_ICONBUTTON||(v=HostUiButtonClicked(uc->host_handle))<0){OutError("ICONBUTTON_CLICKED: host nie obsluguje zdarzenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
         ValFromBool(&result,v!=0);*pp=call_open?MatchParen(call_open):expr;return result;
     }
-    if (NStrEqN(expr, "ICONBUTTON_VALUE(", 17) || NStrEqN(expr, "SWITCH_VALUE(", 13)) {
-        int sw=NStrEqN(expr,"SWITCH_VALUE(",13);int off=sw?13:17;char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+off,args,2);NyotaUiControl*uc;int32_t v;
-        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("ICONBUTTON_VALUE/SWITCH_VALUE wymaga nazwy");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
-        uc=FindUiControl(name);if(!uc||uc->spec.kind!=(sw?NYOTA_UI_CTRL_SWITCH:NYOTA_UI_CTRL_ICONBUTTON)||(!sw&&!uc->spec.toggle)||(v=HostUiControlChecked(uc->host_handle))<0){OutError("VALUE: kontrolka nie obsluguje stanu logicznego");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+    if (NStrEqN(expr, "ICONBUTTON_VALUE(", 17) || NStrEqN(expr, "TOGGLE_VALUE(", 13)) {
+        int sw=NStrEqN(expr,"TOGGLE_VALUE(",13);int off=sw?13:17;char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+off,args,2);NyotaUiControl*uc;int32_t v;
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("ICONBUTTON_VALUE/TOGGLE_VALUE wymaga nazwy");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=(sw?NYOTA_UI_CTRL_TOGGLE:NYOTA_UI_CTRL_ICONBUTTON)||(!sw&&!uc->spec.toggle)||(v=HostUiControlChecked(uc->host_handle))<0){OutError("VALUE: kontrolka nie obsluguje stanu logicznego");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
         uc->spec.checked=(uint8_t)(v!=0);ValFromBool(&result,v!=0);*pp=call_open?MatchParen(call_open):expr;return result;
     }
-    if (NStrEqN(expr, "ICONBUTTON_SET(", 15) || NStrEqN(expr, "SWITCH_SET(", 11)) {
-        int sw=NStrEqN(expr,"SWITCH_SET(",11);int off=sw?11:15;char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+off,args,3);NyotaUiControl*uc;NyotaVal bv;
-        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("ICONBUTTON_SET/SWITCH_SET wymaga (nazwa, BOOLEAN)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+    if (NStrEqN(expr, "ICONBUTTON_SET(", 15) || NStrEqN(expr, "TOGGLE_SET(", 11)) {
+        int sw=NStrEqN(expr,"TOGGLE_SET(",11);int off=sw?11:15;char args[3][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+off,args,3);NyotaUiControl*uc;NyotaVal bv;
+        if(n!=2||!SpriteArgName(args[0],name,sizeof(name))){OutError("ICONBUTTON_SET/TOGGLE_SET wymaga (nazwa, BOOLEAN)");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
         bv=Eval(args[1]);uc=FindUiControl(name);
-        if(bv.type!=TYPE_BOOL||!uc||uc->spec.kind!=(sw?NYOTA_UI_CTRL_SWITCH:NYOTA_UI_CTRL_ICONBUTTON)||(!sw&&!uc->spec.toggle)||HostUiControlSetChecked(uc->host_handle,(uint8_t)(bv.i!=0))!=0){OutError("ICONBUTTON_SET/SWITCH_SET: nie mozna ustawic stanu");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        if(bv.type!=TYPE_BOOL||!uc||uc->spec.kind!=(sw?NYOTA_UI_CTRL_TOGGLE:NYOTA_UI_CTRL_ICONBUTTON)||(!sw&&!uc->spec.toggle)||HostUiControlSetChecked(uc->host_handle,(uint8_t)(bv.i!=0))!=0){OutError("ICONBUTTON_SET/TOGGLE_SET: nie mozna ustawic stanu");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
         uc->spec.checked=(uint8_t)(bv.i!=0);ValFromBool(&result,1);*pp=call_open?MatchParen(call_open):expr;return result;
     }
-    if (NStrEqN(expr, "SWITCH_CHANGED(", 15)) {
+    if (NStrEqN(expr, "TOGGLE_CHANGED(", 15)) {
         char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+15,args,2);NyotaUiControl*uc;int32_t ch;
-        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("SWITCH_CHANGED() wymaga nazwy SWITCH");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
-        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_SWITCH||(ch=HostUiControlChanged(uc->host_handle))<0){OutError("SWITCH_CHANGED: host nie obsluguje zdarzenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("TOGGLE_CHANGED() wymaga nazwy SWITCH");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_TOGGLE||(ch=HostUiControlChanged(uc->host_handle))<0){OutError("TOGGLE_CHANGED: host nie obsluguje zdarzenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
         ValFromBool(&result,ch!=0);*pp=call_open?MatchParen(call_open):expr;return result;
     }
     if (NStrEqN(expr, "INPUT_TEXT(", 11)) {
@@ -5638,17 +5638,17 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
     s->prefix[0] = '\0';
     s->suffix[0] = '\0';
 
-    UiBackgroundBlack(&s->switch_track_on);
-    UiColorSolid(&s->switch_track_on.colors[0], 36, 188, 118, 255);
-    UiBackgroundBlack(&s->switch_track_off);
-    UiColorSolid(&s->switch_track_off.colors[0], 68, 76, 89, 255);
-    UiBackgroundBlack(&s->switch_thumb_fill);
-    UiColorSolid(&s->switch_thumb_fill.colors[0], 245, 248, 252, 255);
-    UiBackgroundTransparent(&s->switch_glow);
-    s->switch_thumb_size = 24;
-    s->switch_blur = 0;
-    NStrCopy(s->switch_on_text, "ON", sizeof(s->switch_on_text));
-    NStrCopy(s->switch_off_text, "OFF", sizeof(s->switch_off_text));
+    UiBackgroundBlack(&s->toggle_track_on);
+    UiColorSolid(&s->toggle_track_on.colors[0], 36, 188, 118, 255);
+    UiBackgroundBlack(&s->toggle_track_off);
+    UiColorSolid(&s->toggle_track_off.colors[0], 68, 76, 89, 255);
+    UiBackgroundBlack(&s->toggle_thumb_fill);
+    UiColorSolid(&s->toggle_thumb_fill.colors[0], 245, 248, 252, 255);
+    UiBackgroundTransparent(&s->toggle_glow);
+    s->toggle_thumb_size = 24;
+    s->toggle_blur = 0;
+    NStrCopy(s->toggle_on_text, "ON", sizeof(s->toggle_on_text));
+    NStrCopy(s->toggle_off_text, "OFF", sizeof(s->toggle_off_text));
 
     s->frame_title_pos = NYOTA_UI_FRAME_TITLE_TOPLEFT;
     s->frame_title_pad = 10;
@@ -5912,7 +5912,7 @@ static void UiControlDefaults(NyotaUiControlSpec *s, uint8_t kind) {
         s->radius = 7;
         s->halign = NYOTA_UI_ALIGN_CENTER;
         s->valign = NYOTA_UI_VALIGN_MIDDLE;
-    } else if (kind == NYOTA_UI_CTRL_SWITCH) {
+    } else if (kind == NYOTA_UI_CTRL_TOGGLE) {
         UiBackgroundTransparent(&s->background);
         s->border = 0;
         s->radius = 0;
@@ -6108,7 +6108,7 @@ static int UiControlPropertyAllowed(uint8_t k,const char *p){
     if(k==NYOTA_UI_CTRL_SCALE) return NStrEq(p,"ORIENTATION")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"ENABLED")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"VALUE")||NStrEq(p,"STEP")||NStrEq(p,"SHAPE")||NStrEq(p,"RADIUS")||NStrEq(p,"STARTANGLE")||NStrEq(p,"ENDANGLE")||NStrEq(p,"WRAP")||NStrEq(p,"INTERACTIVE")||NStrEq(p,"TRACKWIDTH")||NStrEq(p,"TRACKFILL")||NStrEq(p,"TRACKGLOW")||NStrEq(p,"TRACKBLUR")||NStrEq(p,"TRACKSTYLE")||NStrEq(p,"TRACKGAP")||NStrEq(p,"THUMB")||NStrEq(p,"THUMBSIZE")||NStrEq(p,"THUMBWIDTH")||NStrEq(p,"THUMBFILL")||NStrEq(p,"THUMBBORDER")||NStrEq(p,"CTHUMBBORDER")||NStrEq(p,"THUMBBWIDTH")||NStrEq(p,"THUMBGLOW")||NStrEq(p,"THUMBBLUR")||NStrEq(p,"THUMBROTATE")||NStrEq(p,"THUMBALIGN")||NStrEq(p,"MAJORSTEP")||NStrEq(p,"MINORSTEP")||NStrEq(p,"TICKSTYLE")||NStrEq(p,"CTICK")||NStrEq(p,"CMINORTICK")||NStrEq(p,"TICKLEN")||NStrEq(p,"MINORTICKLEN")||NStrEq(p,"TICKWIDTH")||NStrEq(p,"TICKBLUR")||NStrEq(p,"SHOWLABELS")||NStrEq(p,"LABELSTEP")||NStrEq(p,"LABELOFFSET");
     if(k==NYOTA_UI_CTRL_CLOCK) return NStrEq(p,"TEXT")||NStrEq(p,"UNIT")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"ENABLED")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"MIN")||NStrEq(p,"MAX")||NStrEq(p,"VALUE")||NStrEq(p,"SHAPE")||NStrEq(p,"RADIUS")||NStrEq(p,"STARTANGLE")||NStrEq(p,"ENDANGLE")||NStrEq(p,"MAJORSTEP")||NStrEq(p,"MINORSTEP")||NStrEq(p,"TICKSTYLE")||NStrEq(p,"CTICK")||NStrEq(p,"CMINORTICK")||NStrEq(p,"TICKLEN")||NStrEq(p,"MINORTICKLEN")||NStrEq(p,"TICKWIDTH")||NStrEq(p,"TICKBLUR")||NStrEq(p,"SHOWLABELS")||NStrEq(p,"LABELSTEP")||NStrEq(p,"LABELOFFSET")||NStrEq(p,"NEEDLES")||NStrEq(p,"VALUES")||NStrEq(p,"NEEDLE")||NStrEq(p,"CNEEDLE")||NStrEq(p,"NEEDLEWIDTH")||NStrEq(p,"NEEDLELEN")||NStrEq(p,"NEEDLEBLUR")||NStrEq(p,"NEEDLECOLORS")||NStrEq(p,"NEEDLESHAPES")||NStrEq(p,"NEEDLEWIDTHS")||NStrEq(p,"NEEDLELENS")||NStrEq(p,"NEEDLEBLURS")||NStrEq(p,"NEEDLEMINS")||NStrEq(p,"NEEDLEMAXS")||NStrEq(p,"DIALBLUR")||NStrEq(p,"CENTERDOT")||NStrEq(p,"CCENTER")||NStrEq(p,"CENTERSIZE")||NStrEq(p,"CENTERBLUR")||NStrEq(p,"SHOWVALUE")||NStrEq(p,"ZONES");
     if(k==NYOTA_UI_CTRL_ICONBUTTON) return NStrEq(p,"TEXT")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"UNDERLINE")||NStrEq(p,"BG")||NStrEq(p,"BGHOVER")||NStrEq(p,"BGPRESSED")||NStrEq(p,"BGON")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"PADX")||NStrEq(p,"PADY")||NStrEq(p,"ICON")||NStrEq(p,"ICONSIZE")||NStrEq(p,"ICONPOS")||NStrEq(p,"GAP")||NStrEq(p,"TOGGLE")||NStrEq(p,"VALUE");
-    if(k==NYOTA_UI_CTRL_SWITCH) return NStrEq(p,"VALUE")||NStrEq(p,"TRACKON")||NStrEq(p,"TRACKOFF")||NStrEq(p,"THUMBFILL")||NStrEq(p,"THUMBSIZE")||NStrEq(p,"GLOW")||NStrEq(p,"BLUR")||NStrEq(p,"ONTEXT")||NStrEq(p,"OFFTEXT")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED");
+    if(k==NYOTA_UI_CTRL_TOGGLE) return NStrEq(p,"VALUE")||NStrEq(p,"TRACKON")||NStrEq(p,"TRACKOFF")||NStrEq(p,"THUMBFILL")||NStrEq(p,"THUMBSIZE")||NStrEq(p,"GLOW")||NStrEq(p,"BLUR")||NStrEq(p,"ONTEXT")||NStrEq(p,"OFFTEXT")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED");
     if(k==NYOTA_UI_CTRL_FRAME) return NStrEq(p,"TEXT")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"CLIP")||NStrEq(p,"LAYOUT")||NStrEq(p,"GAP")||NStrEq(p,"LPADX")||NStrEq(p,"LPADY")||NStrEq(p,"TITLEPOS")||NStrEq(p,"TITLEPAD");
     if(k==NYOTA_UI_CTRL_INPUT) return NStrEq(p,"TEXT")||NStrEq(p,"PLACEHOLDER")||NStrEq(p,"TYPE")||NStrEq(p,"MAXLEN")||NStrEq(p,"ICON")||NStrEq(p,"ICONSIZE")||NStrEq(p,"ICONPOS")||NStrEq(p,"PREFIX")||NStrEq(p,"SUFFIX")||NStrEq(p,"CLEARBUTTON")||NStrEq(p,"FONT")||NStrEq(p,"FSIZE")||NStrEq(p,"CTEXT")||NStrEq(p,"BOLD")||NStrEq(p,"ITALIC")||NStrEq(p,"UNDERLINE")||NStrEq(p,"BG")||NStrEq(p,"BORDER")||NStrEq(p,"CBORDER")||NStrEq(p,"BWIDTH")||NStrEq(p,"RADIUS")||NStrEq(p,"ENABLED")||NStrEq(p,"PADX")||NStrEq(p,"PADY")||NStrEq(p,"READONLY")||NStrEq(p,"CCARET");
     return 0;
@@ -6215,7 +6215,7 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
         }else if(!UiParseUIntProperty(rhs,&s->range_max,0,1000000,"MAX"))return 0;
     }
     else if(NStrEq(prop,"VALUE")){
-        if(s->kind==NYOTA_UI_CTRL_SWITCH||s->kind==NYOTA_UI_CTRL_ICONBUTTON){
+        if(s->kind==NYOTA_UI_CTRL_TOGGLE||s->kind==NYOTA_UI_CTRL_ICONBUTTON){
             if(!UiParseBoolProperty(rhs,&s->checked,"VALUE"))return 0;
         }else if(s->kind==NYOTA_UI_CTRL_SPINBOX||s->kind==NYOTA_UI_CTRL_SCALE||s->kind==NYOTA_UI_CTRL_CLOCK){
             if(!UiParseIntProperty(rhs,&s->signed_value,-1000000,1000000,"VALUE"))return 0;
@@ -6245,7 +6245,7 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"CEMPTY")){if(!UiParseColorProperty(rhs,&s->progress_empty_color,"CEMPTY"))return 0;}
     else if(NStrEq(prop,"THUMBSIZE")){
         if(s->kind==NYOTA_UI_CTRL_SCALE){if(!UiParseUIntProperty(rhs,&s->scale_thumb_size,1,512,"THUMBSIZE"))return 0;}
-        else if(s->kind==NYOTA_UI_CTRL_SWITCH){if(!UiParseUIntProperty(rhs,&s->switch_thumb_size,4,256,"THUMBSIZE"))return 0;}
+        else if(s->kind==NYOTA_UI_CTRL_TOGGLE){if(!UiParseUIntProperty(rhs,&s->toggle_thumb_size,4,256,"THUMBSIZE"))return 0;}
         else if(!UiParseUIntProperty(rhs,&s->slider_thumb_size,4,256,"THUMBSIZE"))return 0;
     }
     else if(NStrEq(prop,"BARS")){if(!UiParseUIntProperty(rhs,&s->eq_bars,1,NYOTA_UI_EQ_MAX_BARS,"BARS"))return 0;}
@@ -6262,11 +6262,11 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"BARFILL")){if(!UiParseBackground(rhs,&s->eq_bar_fill))return 0;}
     else if(NStrEq(prop,"BARCOLORS")){if(!UiEqColorsProperty(s,rhs))return 0;}
     else if(NStrEq(prop,"GLOW")){
-        if(s->kind==NYOTA_UI_CTRL_SWITCH){if(!UiParseBackground(rhs,&s->switch_glow))return 0;}
+        if(s->kind==NYOTA_UI_CTRL_TOGGLE){if(!UiParseBackground(rhs,&s->toggle_glow))return 0;}
         else if(!UiParseBackground(rhs,&s->eq_glow))return 0;
     }
     else if(NStrEq(prop,"BLUR")){
-        if(s->kind==NYOTA_UI_CTRL_SWITCH){if(!UiParseUIntProperty(rhs,&s->switch_blur,0,64,"BLUR"))return 0;}
+        if(s->kind==NYOTA_UI_CTRL_TOGGLE){if(!UiParseUIntProperty(rhs,&s->toggle_blur,0,64,"BLUR"))return 0;}
         else if(!UiParseUIntProperty(rhs,&s->eq_blur,0,64,"BLUR"))return 0;
     }
     else if(NStrEq(prop,"LABELS")){if(!UiEqLabelsProperty(s,rhs))return 0;}
@@ -6284,10 +6284,10 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"PREFIX")){if(!UiParseStringProperty(rhs,s->prefix,sizeof(s->prefix),"PREFIX"))return 0;}
     else if(NStrEq(prop,"SUFFIX")){if(!UiParseStringProperty(rhs,s->suffix,sizeof(s->suffix),"SUFFIX"))return 0;}
     else if(NStrEq(prop,"CLEARBUTTON")){if(!UiParseBoolProperty(rhs,&s->clear_button,"CLEARBUTTON"))return 0;}
-    else if(NStrEq(prop,"TRACKON")){if(!UiParseBackground(rhs,&s->switch_track_on))return 0;}
-    else if(NStrEq(prop,"TRACKOFF")){if(!UiParseBackground(rhs,&s->switch_track_off))return 0;}
-    else if(NStrEq(prop,"ONTEXT")){if(!UiParseStringProperty(rhs,s->switch_on_text,sizeof(s->switch_on_text),"ONTEXT"))return 0;}
-    else if(NStrEq(prop,"OFFTEXT")){if(!UiParseStringProperty(rhs,s->switch_off_text,sizeof(s->switch_off_text),"OFFTEXT"))return 0;}
+    else if(NStrEq(prop,"TRACKON")){if(!UiParseBackground(rhs,&s->toggle_track_on))return 0;}
+    else if(NStrEq(prop,"TRACKOFF")){if(!UiParseBackground(rhs,&s->toggle_track_off))return 0;}
+    else if(NStrEq(prop,"ONTEXT")){if(!UiParseStringProperty(rhs,s->toggle_on_text,sizeof(s->toggle_on_text),"ONTEXT"))return 0;}
+    else if(NStrEq(prop,"OFFTEXT")){if(!UiParseStringProperty(rhs,s->toggle_off_text,sizeof(s->toggle_off_text),"OFFTEXT"))return 0;}
     else if(NStrEq(prop,"TITLEPOS")){const char*v=NTrim(rhs);if(NStrEq(v,"TOPLEFT"))s->frame_title_pos=NYOTA_UI_FRAME_TITLE_TOPLEFT;else if(NStrEq(v,"TOPCENTER"))s->frame_title_pos=NYOTA_UI_FRAME_TITLE_TOPCENTER;else if(NStrEq(v,"TOPRIGHT"))s->frame_title_pos=NYOTA_UI_FRAME_TITLE_TOPRIGHT;else{OutError("TITLEPOS wymaga TOPLEFT/TOPCENTER/TOPRIGHT");return 0;}}
     else if(NStrEq(prop,"TITLEPAD")){if(!UiParseUIntProperty(rhs,&s->frame_title_pad,0,128,"TITLEPAD"))return 0;}
     else if(NStrEq(prop,"NODEHEIGHT")){if(!UiParseUIntProperty(rhs,&s->row_height,12,256,"NODEHEIGHT"))return 0;}
@@ -6315,7 +6315,7 @@ static int UiApplyControlProperty(NyotaUiControl *ctl,const char *prop,const cha
     else if(NStrEq(prop,"TRACKSTYLE")){const char*v=NTrim(rhs);if(NStrEq(v,"SOLID"))s->track_style=NYOTA_UI_TRACK_SOLID;else if(NStrEq(v,"DASH"))s->track_style=NYOTA_UI_TRACK_DASH;else if(NStrEq(v,"DOT"))s->track_style=NYOTA_UI_TRACK_DOT;else if(NStrEq(v,"SEGMENT"))s->track_style=NYOTA_UI_TRACK_SEGMENT;else{OutError("TRACKSTYLE wymaga SOLID/DASH/DOT/SEGMENT");return 0;}}
     else if(NStrEq(prop,"THUMBWIDTH")){if(!UiParseUIntProperty(rhs,&s->scale_thumb_width,1,128,"THUMBWIDTH"))return 0;}
     else if(NStrEq(prop,"THUMBFILL")){
-        if(s->kind==NYOTA_UI_CTRL_SWITCH){if(!UiParseBackground(rhs,&s->switch_thumb_fill))return 0;}
+        if(s->kind==NYOTA_UI_CTRL_TOGGLE){if(!UiParseBackground(rhs,&s->toggle_thumb_fill))return 0;}
         else if(!UiParseBackground(rhs,&s->scale_thumb_fill))return 0;
     }
     else if(NStrEq(prop,"THUMBBORDER")){if(!UiParseBoolProperty(rhs,&s->scale_thumb_border,"THUMBBORDER"))return 0;}
@@ -6395,7 +6395,7 @@ static int UiValidateControlSpec(const NyotaUiControlSpec *s){
         if(s->kind==NYOTA_UI_CTRL_INPUT&&s->icon_path[0]&&s->icon_pos!=NYOTA_UI_ICON_LEFT&&s->icon_pos!=NYOTA_UI_ICON_RIGHT){OutError("INPUT ICONPOS wspiera LEFT/RIGHT");return 0;}
     }
     if(s->kind==NYOTA_UI_CTRL_ICONBUTTON&&s->checked&&!s->toggle){OutError("ICONBUTTON VALUE=TRUE wymaga TOGGLE=TRUE");return 0;}
-    if(s->kind==NYOTA_UI_CTRL_SWITCH&&s->switch_thumb_size<4){OutError("SWITCH THUMBSIZE jest za maly");return 0;}
+    if(s->kind==NYOTA_UI_CTRL_TOGGLE&&s->toggle_thumb_size<4){OutError("TOGGLE THUMBSIZE jest za maly");return 0;}
 
     if(s->kind==NYOTA_UI_CTRL_SPINBOX||s->kind==NYOTA_UI_CTRL_SCALE){
         if(s->signed_max<=s->signed_min){OutError("SPINBOX/SCALE: MAX musi byc wieksze od MIN");return 0;}
@@ -6441,7 +6441,7 @@ static int UiControlKindFromLine(const char *l,uint8_t*k,uint32_t*n){
     if(PeekWord(l,"LISTVIEW")){*k=NYOTA_UI_CTRL_LISTVIEW;*n=8;return 1;} if(PeekWord(l,"TREEVIEW")){*k=NYOTA_UI_CTRL_TREEVIEW;*n=8;return 1;}
     if(PeekWord(l,"SPLITTER")){*k=NYOTA_UI_CTRL_SPLITTER;*n=8;return 1;} if(PeekWord(l,"SCALE")){*k=NYOTA_UI_CTRL_SCALE;*n=5;return 1;}
     if(PeekWord(l,"CLOCK")){*k=NYOTA_UI_CTRL_CLOCK;*n=5;return 1;}
-    if(PeekWord(l,"ICONBUTTON")){*k=NYOTA_UI_CTRL_ICONBUTTON;*n=10;return 1;} if(PeekWord(l,"SWITCH")){*k=NYOTA_UI_CTRL_SWITCH;*n=6;return 1;}
+    if(PeekWord(l,"ICONBUTTON")){*k=NYOTA_UI_CTRL_ICONBUTTON;*n=10;return 1;} if(PeekWord(l,"TOGGLE")){*k=NYOTA_UI_CTRL_TOGGLE;*n=6;return 1;}
     if(PeekWord(l,"FRAME")){*k=NYOTA_UI_CTRL_FRAME;*n=5;return 1;} if(PeekWord(l,"INPUT")){*k=NYOTA_UI_CTRL_INPUT;*n=5;return 1;} return 0;
 }
 static int UiResolveParent(const char *arg,uint8_t kind,NyotaWindow **pw,NyotaUiControl **pc,char *name,uint32_t cap){
@@ -7236,7 +7236,7 @@ static void ExecLine(uint32_t ln, uint32_t block_indent) {
         PeekWord(line, "SPINBOX") || PeekWord(line, "LISTVIEW") ||
         PeekWord(line, "TREEVIEW") || PeekWord(line, "SPLITTER") ||
         PeekWord(line, "SCALE") || PeekWord(line, "CLOCK") ||
-        PeekWord(line, "ICONBUTTON") || PeekWord(line, "SWITCH") ||
+        PeekWord(line, "ICONBUTTON") || PeekWord(line, "TOGGLE") ||
         PeekWord(line, "FRAME") || PeekWord(line, "INPUT")) {
         if (UiExecControl(ln, raw, line)) return;
         /* legacy GRAPH BUTTON falls through to its old implementation below */
