@@ -30,6 +30,33 @@ Host tylko podłącza backend (AyoAPI, SDL, okno).
 
 Nie ma Nyoty bez grafiki. Jest jeden język.
 
+### 0.1. Nyota Platform Invariance Rule
+
+To jest twarda zasada projektu.
+
+> Poprawny kod źródłowy Nyoty nie może wymagać zmian zależnie od systemu
+> operacyjnego. Ten sam program ma być używany bez zmian na AyoOS, Linuxie
+> i Windowsie. Różnice platformowe są obowiązkiem hosta, ABI i toolchainu,
+> a nie programisty Nyoty.
+
+Ta sama zasada obejmuje planowane moduły natywne:
+- `NC` — moduł C,
+- `NZ` — moduł Zig,
+- `NA` — moduł natywnego assemblera procesora.
+
+`NC` i `NZ` mają mieć identyczne źródła na wszystkich oficjalnych hostach.
+`NA` jest zależne od architektury CPU, ale nie od systemu operacyjnego:
+dla tej samej architektury, np. x86-64, ten sam moduł NA ma działać na AyoOS,
+Linuxie i Windowsie bez zmian w źródle.
+
+Kod NC/NZ/NA nie powinien bezpośrednio używać AyoAPI, POSIX ani WinAPI.
+Dostęp do systemu ma prowadzić przez wspólny kontrakt `NyotaNativeAPI`
+oraz stabilne ABI Nyoty. To zachowuje przenośność źródła.
+
+`NYASM` pozostaje czymś innym: jest przenośną maszyną wirtualną Nyoty,
+nie natywnym assemblerem CPU.
+
+
 Stan interpretera na 2026-09-17:
 
 - <span style="color: #006A4E;">wcięcia: 4 spacje na poziom, tabulacja = błąd, wcięcie niebędące wielokrotnością 4 = błąd wykonane 2026-09-17</span>
