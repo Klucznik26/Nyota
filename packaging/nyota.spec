@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -38,6 +38,11 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-3
+- Add FILE and DIR/LS through the NyotaHost contract and POSIX backend.
+- Add explicit SORT algorithms and safe virtual NYASM.
+- Add regression coverage for the new language features.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-2
 - Update Fedora package for current Nyota interpreter.
 - Include sprite test assets and full project documentation.
