@@ -1,52 +1,72 @@
 # Nyota Language Support for Visual Studio Code
 
-Pierwsza wersja rozszerzenia VS Code dla języka Nyota.
+Rozszerzenie VS Code dla języka Nyota.
 
-Zakres v0.1:
+## Wersja 0.2.1
+
+Rozszerzenie obsługuje:
 
 - rozpoznawanie plików `.nyo`,
-- kolorowanie komentarzy `#`,
-- stringów i znacznika nowej linii `~/`,
-- liczb, literałów `DATE`, `TIME` i przesunięć `Hn/Mn/Sn`,
-- słów kluczowych sterowania przepływem,
-- deklaracji `VAR`, `CONST`, `FUNCTION`, `PROCEDURE`, `RECORD`,
-- funkcji wbudowanych Nyoty,
-- poleceń graficznych i GUI,
-- `TABLE`, `BUTTON`, `SPRITE` wraz z nazwami logicznymi,
-- operatorów Nyoty, w tym `:=`, `=N=`, `<>` i `><`,
-- podstawowej konfiguracji nawiasów i komentarzy.
+- kolorowanie składni Nyoty,
+- komentarze, nawiasy i folding oparty na wcięciach,
+- przycisk `▶` w edytorze pliku Nyota,
+- komendę `Nyota: Run Current File`,
+- skrót `Ctrl+F5`,
+- automatyczny zapis zmienionego pliku przed uruchomieniem,
+- uruchamianie programu w zintegrowanym terminalu VS Code,
+- katalog roboczy ustawiany na katalog uruchamianego pliku,
+- konfigurowalną ścieżkę interpretera przez `nyota.interpreterPath`.
 
-Rozszerzenie jest deklaratywne: nie zawiera kodu JavaScript ani TypeScript.
+Domyślna wartość interpretera to:
 
-## Uruchomienie w trybie deweloperskim
+```text
+nyota
+```
 
-1. Otwórz katalog `editors/vscode` w Visual Studio Code.
-2. Naciśnij `F5`.
-3. W nowym oknie Extension Development Host otwórz dowolny plik `.nyo`.
+Dzięki temu na systemie, na którym pakiet Nyoty zainstalował `/usr/bin/nyota`,
+nie trzeba nic konfigurować.
+
+## Uruchamianie
+
+Otwórz plik `.nyo`, a następnie:
+
+- kliknij `▶` w prawym górnym rogu edytora,
+- albo naciśnij `Ctrl+F5`,
+- albo wybierz z palety poleceń `Nyota: Run Current File`.
+
+Wynik programu pojawi się w terminalu VS Code.
+
+## Ręczna ścieżka interpretera
+
+W ustawieniach VS Code można ustawić np.:
+
+```json
+"nyota.interpreterPath": "/usr/bin/nyota"
+```
+
+Zwykle nie jest to potrzebne, jeśli `nyota` znajduje się w `PATH`.
 
 ## Zbudowanie pliku VSIX
-
-Jeżeli masz `@vscode/vsce`:
 
 ```bash
 cd editors/vscode
 npx @vscode/vsce package
 ```
 
-Powstanie plik podobny do:
+Dla tej wersji powstanie plik:
 
 ```text
-nyota-language-support-0.1.0.vsix
+nyota-language-support-0.2.1.vsix
 ```
 
-Można go zainstalować lokalnie:
+Instalacja:
 
 ```bash
-code --install-extension nyota-language-support-0.1.0.vsix
+code --install-extension ./nyota-language-support-0.2.1.vsix --force
 ```
 
-## Zakres
+## Zmiany w 0.2.1
 
-Ta wersja daje wyłącznie obsługę języka po stronie edytora: identyfikację `.nyo`
-i kolorowanie składni. Diagnostyka interpretera, uruchamianie Nyoty z VS Code,
-podpowiedzi składni, hover i autouzupełnianie mogą dojść później.
+- `Ctrl+F5` uruchamia `Nyota: Run Current File`, gdy aktywny jest edytor Nyoty.
+- W innych językach `Ctrl+F5` zachowuje standardowe działanie VS Code: Run Without Debugging.
+- Przycisk `▶` w pasku edytora pozostaje dostępny dla plików `.nyo`.
