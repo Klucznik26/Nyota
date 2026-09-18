@@ -3270,7 +3270,7 @@ static NyotaVal ParsePrimary(const char **pp) {
     }
     if (NStrEqN(expr, "TOGGLE_CHANGED(", 15)) {
         char args[2][MAX_STR_LEN],name[64];int n=SplitFunctionArgs(expr+15,args,2);NyotaUiControl*uc;int32_t ch;
-        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("TOGGLE_CHANGED() wymaga nazwy SWITCH");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
+        if(n!=1||!SpriteArgName(args[0],name,sizeof(name))){OutError("TOGGLE_CHANGED() wymaga nazwy TOGGLE");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
         uc=FindUiControl(name);if(!uc||uc->spec.kind!=NYOTA_UI_CTRL_TOGGLE||(ch=HostUiControlChanged(uc->host_handle))<0){OutError("TOGGLE_CHANGED: host nie obsluguje zdarzenia");ValClear(&result);*pp=call_open?MatchParen(call_open):expr;return result;}
         ValFromBool(&result,ch!=0);*pp=call_open?MatchParen(call_open):expr;return result;
     }
