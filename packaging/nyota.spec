@@ -2,7 +2,7 @@
 
 Name:           nyota
 Version:        0.5.0
-Release:        11%{?dist}
+Release:        12%{?dist}
 Summary:        Nyota programming language interpreter
 License:        Proprietary
 URL:            https://github.com/Klucznik26/Nyota
@@ -41,6 +41,10 @@ make install DESTDIR='%{buildroot}' PREFIX=%{_prefix}
 %{_docdir}/nyota/
 
 %changelog
+* Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-12
+- Add portable PADX/PADY for textual controls and TABPADX/TABPADY for tab headers.
+- Use padding in both SDL2_ttf and bitmap fallback text rendering.
+
 * Fri Sep 18 2026 Marek <marekwnakle@gmail.com> - 0.5.0-11
 - Anti-alias rounded/circular borders and focus rings on POSIX.
 - Add a focused-tab accent that keeps the tab/content visual connection intact.
