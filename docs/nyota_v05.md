@@ -196,7 +196,7 @@ wybór algorytmu SORT jako składnia języka (BUBBLE, QUICK, ...)
 relacyjny MARK
 DATETIME
 standard GUI Nyoty
-sprite'y
+dalszy rozwój sprite'ów (podstawowy SPRITE i animacja klatkowa są już wdrożone)
 audio
 NYASM / assembler natywny
 Nyota poza AyoOS (Linux, Windows, VS Code) — to cel języka, nie dodatek
@@ -2420,7 +2420,7 @@ Na dzień 2026-09-17 ustalono:
 77. Przed wdrożeniem =N=, DATE, TIME, jednostek H/M/S i zakresów a:b
     obowiązuje aneks C. Lexer v0.5 rozpoznaje te tokeny i odrzuca je
     jawnym błędem.
-78. Relacyjny MARK, TABLE, GUI, sprite'y, audio, NYASM są FUTURE.
+78. Relacyjny MARK, dalszy rozwój TABLE/GUI i sprite'ów, audio oraz NYASM pozostają FUTURE; podstawowy SPRITE i animacja klatkowa są wdrożone.
 79. Nyota jest niezależnym językiem. Tunga jest osobnym edytorem.
     AyoOS, Linux i Windows to hosty. PRINT, GRAPH, INPUT, DELAY
     należą do języka i muszą działać na każdym hoście.
