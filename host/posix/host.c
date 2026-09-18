@@ -447,7 +447,6 @@ static int host_ui_tarea_delete(HostUiControl *ctl){
 static void host_pump(void) {
     SDL_Event e;
     if (!g_video) return;
-    if (g_ui_initializing) host_ui_finish_initial_build();
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_QUIT) {
             g_graph_closed = 1;
@@ -737,7 +736,7 @@ static void host_pump(void) {
             }
         }
     }
-    host_ui_flush_dirty();
+    if (!g_ui_initializing) host_ui_flush_dirty();
     if (g_dirty && g_ren && !g_graph_closed) {
         SDL_RenderPresent(g_ren);
         g_dirty = 0;
