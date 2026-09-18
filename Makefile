@@ -6,15 +6,20 @@ DESTDIR ?=
 SDL_CFLAGS := $(shell pkg-config --cflags sdl2)
 SDL_LIBS   := $(shell pkg-config --libs sdl2)
 
-.PHONY: all clean test test-graph install uninstall rpm
+.PHONY: all clean test test-color test-graph install uninstall rpm
 
 all: nyota
 
 nyota: host/posix/host.c src/nyota.c src/nyota_host.h host/posix/font8x8.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -Isrc -Ihost/posix -o nyota host/posix/host.c $(SDL_LIBS)
 
-test: nyota
+test: nyota test-color
 	@bash scripts/run_tests.sh
+
+test-color:
+	@$(CC) $(CFLAGS) -Isrc -o tests/.color_palette_test tests/color_palette.c
+	@tests/.color_palette_test
+	@rm -f tests/.color_palette_test
 
 test-graph: nyota
 	@SDL_VIDEODRIVER=dummy NYOTA_NO_WAIT=1 ./nyota tests/graph_box.nyo
@@ -28,7 +33,7 @@ install: nyota
 	install -d "$(DESTDIR)$(PREFIX)/share/nyota/tests/assets"
 	install -m 644 tests/assets/* "$(DESTDIR)$(PREFIX)/share/nyota/tests/assets/"
 	install -d "$(DESTDIR)$(PREFIX)/share/doc/nyota"
-	install -m 644 README.md docs/nyota.md docs/nyota_v05.md docs/do_wdrożenia.md "$(DESTDIR)$(PREFIX)/share/doc/nyota/"
+	install -m 644 README.md docs/*.md "$(DESTDIR)$(PREFIX)/share/doc/nyota/"
 
 uninstall:
 	rm -f "$(DESTDIR)$(PREFIX)/bin/nyota"
@@ -39,4 +44,4 @@ rpm:
 	bash scripts/build-rpm.sh
 
 clean:
-	rm -f nyota
+	rm -f nyota tests/.color_palette_test
